@@ -1,0 +1,16 @@
+[package]
+name = "komorebi"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+color-eyre = { version = "0.6" }
+ctrlc = { version = "3", features = ["termination"] }
+objc2 = "0.6"
+objc2-app-kit = "0.3"
+objc2-application-services = "0.3"
+objc2-core-foundation = { version = "0.3", features = ["CFDictionary", "CFString"] }
+objc2-core-graphics = { version = "0.3", features = ["CGWindow", "alloc"] }
+thiserror = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }

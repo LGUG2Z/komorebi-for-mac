@@ -1,0 +1,158 @@
+use error::AccessibilityApiError;
+use error::AccessibilityCustomError;
+use error::AccessibilityError;
+use objc2_application_services::AXObserver;
+use objc2_application_services::AXObserverCallback;
+use objc2_application_services::AXUIElement;
+use objc2_application_services::AXValue;
+use objc2_application_services::AXValueType;
+use objc2_core_foundation::CFRetained;
+use objc2_core_foundation::CFRunLoop;
+use objc2_core_foundation::CFRunLoopSource;
+use objc2_core_foundation::CFString;
+use objc2_core_foundation::CFType;
+use objc2_core_foundation::kCFRunLoopDefaultMode;
+use std::ptr::NonNull;
+
+pub mod attribute_constants;
+pub mod error;
+pub mod notification_constants;
+
+pub struct AccessibilityApi;
+
+impl AccessibilityApi {
+    pub fn copy_attribute_value<T: objc2_core_foundation::Type>(
+        element: &AXUIElement,
+        attribute: &'static str,
+    ) -> Option<CFRetained<T>> {
+        let mut receiver = std::ptr::null();
+
+        unsafe {
+            element.copy_attribute_value(
+                &CFString::from_static_str(attribute),
+                NonNull::from(&mut receiver),
+            );
+
+            NonNull::new(receiver.cast::<T>().cast_mut())
+                .map(|cf_type| CFRetained::from_raw(cf_type))
+        }
+    }
+
+    pub fn set_attribute_ax_value<T>(
+        element: &AXUIElement,
+        attribute: &'static str,
+        value_type: AXValueType,
+        mut value: T,
+    ) -> Result<(), AccessibilityError> {
+        let pointer = NonNull::from_mut(&mut value).cast::<std::ffi::c_void>();
+
+        unsafe {
+            let value = AXValue::new(value_type, pointer).ok_or(AccessibilityError::Custom(
+                AccessibilityCustomError::AxValueCreate,
+            ))?;
+
+            match AccessibilityError::from(
+                element.set_attribute_value(&CFString::from_static_str(attribute), &value),
+            ) {
+                AccessibilityError::Api(AccessibilityApiError::Success) => Ok(()),
+                error => Err(error),
+            }
+        }
+    }
+
+    pub fn set_attribute_cf_value(
+        element: &AXUIElement,
+        attribute: &'static str,
+        value: &CFType,
+    ) -> Result<(), AccessibilityError> {
+        unsafe {
+            match AccessibilityError::from(
+                element.set_attribute_value(&CFString::from_static_str(attribute), value),
+            ) {
+                AccessibilityError::Api(AccessibilityApiError::Success) => Ok(()),
+                error => Err(error),
+            }
+        }
+    }
+
+    pub fn create_application(process_id: i32) -> CFRetained<AXUIElement> {
+        unsafe { AXUIElement::new_application(process_id) }
+    }
+
+    pub fn create_observer(
+        process_id: i32,
+        callback: AXObserverCallback,
+    ) -> Result<CFRetained<AXObserver>, AccessibilityError> {
+        let mut observer_ref = std::ptr::null_mut();
+
+        match AccessibilityError::from(unsafe {
+            AXObserver::create(process_id, callback, NonNull::from_mut(&mut observer_ref))
+        }) {
+            AccessibilityError::Api(AccessibilityApiError::Success) => unsafe {
+                Ok(CFRetained::from_raw(
+                    NonNull::new(observer_ref.cast::<AXObserver>()).unwrap(),
+                ))
+            },
+            error => Err(error),
+        }
+    }
+
+    fn add_notifications_to_observer(
+        observer: &AXObserver,
+        element: &AXUIElement,
+        notifications: &[&'static str],
+    ) -> Result<(), AccessibilityError> {
+        for notification in notifications {
+            unsafe {
+                match AccessibilityError::from(AXObserver::add_notification(
+                    observer,
+                    element,
+                    &CFString::from_str(notification),
+                    std::ptr::null_mut(),
+                )) {
+                    // we don't want to return until all the notifications have been added
+                    AccessibilityError::Api(AccessibilityApiError::Success) => {}
+                    // if the notification is already registered then we don't treat that as a true error
+                    AccessibilityError::Api(
+                        AccessibilityApiError::NotificationAlreadyRegistered,
+                    ) => {
+                        let mut pid = 0;
+                        element.pid(NonNull::from_mut(&mut pid));
+                        tracing::info!(
+                            "{notification} already exists on observer for process id {pid}"
+                        );
+                    }
+                    error => return Err(error),
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn add_observer_to_run_loop(
+        observer: &AXObserver,
+        element: &AXUIElement,
+        notifications: &[&'static str],
+        run_loop: &CFRetained<CFRunLoop>,
+    ) -> Result<(), AccessibilityError> {
+        AccessibilityApi::add_notifications_to_observer(observer, element, notifications)?;
+
+        unsafe {
+            CFRunLoop::add_source(
+                run_loop,
+                Some(&observer.run_loop_source()),
+                kCFRunLoopDefaultMode,
+            );
+        }
+
+        Ok(())
+    }
+
+    pub fn invalidate_observer(observer: &AXObserver) {
+        unsafe {
+            // invalidate means that this will get removed from all run loops by the system
+            CFRunLoopSource::invalidate(&observer.run_loop_source());
+        }
+    }
+}

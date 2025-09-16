@@ -1,0 +1,147 @@
+{
+  "licenses": [
+    [
+      "0BSD",
+      [
+        "adler2 2.0.1 registry+https://github.com/rust-lang/crates.io-index"
+      ]
+    ],
+    [
+      "Apache-2.0",
+      [
+        "addr2line 0.24.2 registry+https://github.com/rust-lang/crates.io-index",
+        "adler2 2.0.1 registry+https://github.com/rust-lang/crates.io-index",
+        "backtrace 0.3.75 registry+https://github.com/rust-lang/crates.io-index",
+        "bitflags 2.9.4 registry+https://github.com/rust-lang/crates.io-index",
+        "cfg-if 1.0.3 registry+https://github.com/rust-lang/crates.io-index",
+        "color-eyre 0.6.5 registry+https://github.com/rust-lang/crates.io-index",
+        "color-spantrace 0.3.0 registry+https://github.com/rust-lang/crates.io-index",
+        "ctrlc 3.5.0 registry+https://github.com/rust-lang/crates.io-index",
+        "dispatch2 0.3.0 registry+https://github.com/rust-lang/crates.io-index",
+        "eyre 0.6.12 registry+https://github.com/rust-lang/crates.io-index",
+        "gimli 0.31.1 registry+https://github.com/rust-lang/crates.io-index",
+        "indenter 0.3.4 registry+https://github.com/rust-lang/crates.io-index",
+        "lazy_static 1.5.0 registry+https://github.com/rust-lang/crates.io-index",
+        "libc 0.2.175 registry+https://github.com/rust-lang/crates.io-index",
+        "log 0.4.28 registry+https://github.com/rust-lang/crates.io-index",
+        "miniz_oxide 0.8.9 registry+https://github.com/rust-lang/crates.io-index",
+        "objc2-app-kit 0.3.1 registry+https://github.com/rust-lang/crates.io-index",
+        "objc2-application-services 0.3.1 registry+https://github.com/rust-lang/crates.io-index",
+        "objc2-cloud-kit 0.3.1 registry+https://github.com/rust-lang/crates.io-index",
+        "objc2-core-data 0.3.1 registry+https://github.com/rust-lang/crates.io-index",
+        "objc2-core-foundation 0.3.1 registry+https://github.com/rust-lang/crates.io-index",
+        "objc2-core-graphics 0.3.1 registry+https://github.com/rust-lang/crates.io-index",
+        "objc2-core-image 0.3.1 registry+https://github.com/rust-lang/crates.io-index",
+        "objc2-core-services 0.3.1 registry+https://github.com/rust-lang/crates.io-index",
+        "objc2-metal 0.3.1 registry+https://github.com/rust-lang/crates.io-index",
+        "objc2-quartz-core 0.3.1 registry+https://github.com/rust-lang/crates.io-index",
+        "object 0.36.7 registry+https://github.com/rust-lang/crates.io-index",
+        "once_cell 1.21.3 registry+https://github.com/rust-lang/crates.io-index",
+        "pin-project-lite 0.2.16 registry+https://github.com/rust-lang/crates.io-index",
+        "proc-macro2 1.0.101 registry+https://github.com/rust-lang/crates.io-index",
+        "quote 1.0.40 registry+https://github.com/rust-lang/crates.io-index",
+        "regex-automata 0.4.10 registry+https://github.com/rust-lang/crates.io-index",
+        "regex-syntax 0.8.6 registry+https://github.com/rust-lang/crates.io-index",
+        "rustc-demangle 0.1.26 registry+https://github.com/rust-lang/crates.io-index",
+        "smallvec 1.15.1 registry+https://github.com/rust-lang/crates.io-index",
+        "syn 2.0.106 registry+https://github.com/rust-lang/crates.io-index",
+        "thiserror 1.0.69 registry+https://github.com/rust-lang/crates.io-index",
+        "thiserror-impl 1.0.69 registry+https://github.com/rust-lang/crates.io-index",
+        "thread_local 1.1.9 registry+https://github.com/rust-lang/crates.io-index",
+        "unicode-ident 1.0.19 registry+https://github.com/rust-lang/crates.io-index"
+      ]
+    ],
+    [
+      "MIT",
+      [
+        "addr2line 0.24.2 registry+https://github.com/rust-lang/crates.io-index",
+        "adler2 2.0.1 registry+https://github.com/rust-lang/crates.io-index",
+        "backtrace 0.3.75 registry+https://github.com/rust-lang/crates.io-index",
+        "bitflags 2.9.4 registry+https://github.com/rust-lang/crates.io-index",
+        "block2 0.6.1 registry+https://github.com/rust-lang/crates.io-index",
+        "cfg-if 1.0.3 registry+https://github.com/rust-lang/crates.io-index",
+        "cfg_aliases 0.2.1 registry+https://github.com/rust-lang/crates.io-index",
+        "color-eyre 0.6.5 registry+https://github.com/rust-lang/crates.io-index",
+        "color-spantrace 0.3.0 registry+https://github.com/rust-lang/crates.io-index",
+        "ctrlc 3.5.0 registry+https://github.com/rust-lang/crates.io-index",
+        "dispatch 0.2.0 registry+https://github.com/rust-lang/crates.io-index",
+        "dispatch2 0.3.0 registry+https://github.com/rust-lang/crates.io-index",
+        "eyre 0.6.12 registry+https://github.com/rust-lang/crates.io-index",
+        "gimli 0.31.1 registry+https://github.com/rust-lang/crates.io-index",
+        "indenter 0.3.4 registry+https://github.com/rust-lang/crates.io-index",
+        "lazy_static 1.5.0 registry+https://github.com/rust-lang/crates.io-index",
+        "libc 0.2.175 registry+https://github.com/rust-lang/crates.io-index",
+        "log 0.4.28 registry+https://github.com/rust-lang/crates.io-index",
+        "matchers 0.2.0 registry+https://github.com/rust-lang/crates.io-index",
+        "memchr 2.7.5 registry+https://github.com/rust-lang/crates.io-index",
+        "miniz_oxide 0.8.9 registry+https://github.com/rust-lang/crates.io-index",
+        "nix 0.30.1 registry+https://github.com/rust-lang/crates.io-index",
+        "nu-ansi-term 0.50.1 registry+https://github.com/rust-lang/crates.io-index",
+        "objc2 0.6.2 registry+https://github.com/rust-lang/crates.io-index",
+        "objc2-app-kit 0.3.1 registry+https://github.com/rust-lang/crates.io-index",
+        "objc2-application-services 0.3.1 registry+https://github.com/rust-lang/crates.io-index",
+        "objc2-cloud-kit 0.3.1 registry+https://github.com/rust-lang/crates.io-index",
+        "objc2-core-data 0.3.1 registry+https://github.com/rust-lang/crates.io-index",
+        "objc2-core-foundation 0.3.1 registry+https://github.com/rust-lang/crates.io-index",
+        "objc2-core-graphics 0.3.1 registry+https://github.com/rust-lang/crates.io-index",
+        "objc2-core-image 0.3.1 registry+https://github.com/rust-lang/crates.io-index",
+        "objc2-core-services 0.3.1 registry+https://github.com/rust-lang/crates.io-index",
+        "objc2-encode 4.1.0 registry+https://github.com/rust-lang/crates.io-index",
+        "objc2-foundation 0.3.1 registry+https://github.com/rust-lang/crates.io-index",
+        "objc2-metal 0.3.1 registry+https://github.com/rust-lang/crates.io-index",
+        "objc2-quartz-core 0.3.1 registry+https://github.com/rust-lang/crates.io-index",
+        "object 0.36.7 registry+https://github.com/rust-lang/crates.io-index",
+        "once_cell 1.21.3 registry+https://github.com/rust-lang/crates.io-index",
+        "owo-colors 4.2.2 registry+https://github.com/rust-lang/crates.io-index",
+        "pin-project-lite 0.2.16 registry+https://github.com/rust-lang/crates.io-index",
+        "proc-macro2 1.0.101 registry+https://github.com/rust-lang/crates.io-index",
+        "quote 1.0.40 registry+https://github.com/rust-lang/crates.io-index",
+        "regex-automata 0.4.10 registry+https://github.com/rust-lang/crates.io-index",
+        "regex-syntax 0.8.6 registry+https://github.com/rust-lang/crates.io-index",
+        "rustc-demangle 0.1.26 registry+https://github.com/rust-lang/crates.io-index",
+        "sharded-slab 0.1.7 registry+https://github.com/rust-lang/crates.io-index",
+        "smallvec 1.15.1 registry+https://github.com/rust-lang/crates.io-index",
+        "syn 2.0.106 registry+https://github.com/rust-lang/crates.io-index",
+        "thiserror 1.0.69 registry+https://github.com/rust-lang/crates.io-index",
+        "thiserror-impl 1.0.69 registry+https://github.com/rust-lang/crates.io-index",
+        "thread_local 1.1.9 registry+https://github.com/rust-lang/crates.io-index",
+        "tracing 0.1.41 registry+https://github.com/rust-lang/crates.io-index",
+        "tracing-attributes 0.1.30 registry+https://github.com/rust-lang/crates.io-index",
+        "tracing-core 0.1.34 registry+https://github.com/rust-lang/crates.io-index",
+        "tracing-error 0.2.1 registry+https://github.com/rust-lang/crates.io-index",
+        "tracing-log 0.2.0 registry+https://github.com/rust-lang/crates.io-index",
+        "tracing-subscriber 0.3.20 registry+https://github.com/rust-lang/crates.io-index",
+        "unicode-ident 1.0.19 registry+https://github.com/rust-lang/crates.io-index"
+      ]
+    ],
+    [
+      "Unicode-3.0",
+      [
+        "unicode-ident 1.0.19 registry+https://github.com/rust-lang/crates.io-index"
+      ]
+    ],
+    [
+      "Unlicense",
+      [
+        "memchr 2.7.5 registry+https://github.com/rust-lang/crates.io-index"
+      ]
+    ],
+    [
+      "Zlib",
+      [
+        "dispatch2 0.3.0 registry+https://github.com/rust-lang/crates.io-index",
+        "miniz_oxide 0.8.9 registry+https://github.com/rust-lang/crates.io-index",
+        "objc2-app-kit 0.3.1 registry+https://github.com/rust-lang/crates.io-index",
+        "objc2-application-services 0.3.1 registry+https://github.com/rust-lang/crates.io-index",
+        "objc2-cloud-kit 0.3.1 registry+https://github.com/rust-lang/crates.io-index",
+        "objc2-core-data 0.3.1 registry+https://github.com/rust-lang/crates.io-index",
+        "objc2-core-foundation 0.3.1 registry+https://github.com/rust-lang/crates.io-index",
+        "objc2-core-graphics 0.3.1 registry+https://github.com/rust-lang/crates.io-index",
+        "objc2-core-image 0.3.1 registry+https://github.com/rust-lang/crates.io-index",
+        "objc2-core-services 0.3.1 registry+https://github.com/rust-lang/crates.io-index",
+        "objc2-metal 0.3.1 registry+https://github.com/rust-lang/crates.io-index",
+        "objc2-quartz-core 0.3.1 registry+https://github.com/rust-lang/crates.io-index"
+      ]
+    ]
+  ]
+}
