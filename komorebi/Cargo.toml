@@ -11,6 +11,8 @@ objc2-app-kit = "0.3"
 objc2-application-services = "0.3"
 objc2-core-foundation = { version = "0.3", features = ["CFDictionary", "CFString"] }
 objc2-core-graphics = { version = "0.3", features = ["CGWindow", "alloc"] }
-thiserror = "1"
+pastey = "0.1"
+serde = { version = "1", features = ["derive"]}
+thiserror = "2"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }

@@ -2,22 +2,17 @@
 
 use color_eyre::eyre;
 use color_eyre::eyre::eyre;
-use komorebi::application::Application;
-use komorebi::cf_array_as;
-use komorebi::core_graphics::CoreGraphicsApi;
 use komorebi::layout;
 use komorebi::rect::Rect;
-use komorebi::window::WindowInfo;
+use komorebi::window_manager::WindowManager;
 use objc2::rc::autoreleasepool;
 use objc2_application_services::AXIsProcessTrusted;
-use objc2_core_foundation::CFDictionary;
 use objc2_core_foundation::CFRunLoop;
 use objc2_core_foundation::kCFRunLoopDefaultMode;
 use objc2_core_graphics::CGDisplayBounds;
 use objc2_core_graphics::CGMainDisplayID;
 use objc2_core_graphics::CGPreflightScreenCaptureAccess;
 use objc2_core_graphics::CGRequestScreenCaptureAccess;
-use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
@@ -101,38 +96,27 @@ fn main() -> eyre::Result<()> {
     tracing::info!("display size for main display is: {:?}", display_size);
 
     let run_loop = CFRunLoop::current().ok_or(eyre!("couldn't get CFRunLoop::current"))?;
+    let mut wm = WindowManager::new(&run_loop);
+    wm.init()?;
 
-    if let Some(window_info_list) = CoreGraphicsApi::window_list_info() {
-        tracing::info!("{} windows found", window_info_list.len());
+    let containers = wm
+        .monitors
+        .focused()
+        .expect("must have a monitor at this point")
+        .focused_workspace()
+        .expect("must have a workspace at this point")
+        .containers();
 
-        let mut windows = vec![];
-        let mut applications = HashMap::new();
+    let layouts =
+        layout::recursive_fibonacci(0, containers.len(), &Rect::from(display_size), vec![]);
 
-        for entry in cf_array_as::<CFDictionary>(window_info_list.as_ref()) {
-            if let Some(info) = WindowInfo::new(entry).validated() {
-                let application = applications.entry(info.owner_pid).or_insert_with(|| {
-                    let application = Application::new(info.owner_pid).unwrap_or_else(|_| {
-                        panic!("failed to create application from pid {}", info.owner_pid)
-                    });
-                    application
-                        .observe(&run_loop)
-                        .expect("application must be observable");
-                    application
-                });
-
-                if let Some(window) = application.window_by_title(&info.name) {
-                    window.observe(&run_loop)?;
-                    windows.push(window);
-                }
-            }
-        }
-
-        tracing::info!("{} valid windows identified", windows.len());
-
-        let layouts =
-            layout::recursive_fibonacci(0, windows.len(), &Rect::from(display_size), vec![]);
-
-        windows.iter().zip(layouts).for_each(|(window, layout)| {
+    containers
+        .iter()
+        .zip(layouts)
+        .for_each(|(container, layout)| {
+            let window = container
+                .focused_window()
+                .expect("must have a window at this point");
             if let Err(error) = window.set_position(&layout) {
                 tracing::error!(
                     "failed to position window: {} ({error})",
@@ -167,39 +151,36 @@ fn main() -> eyre::Result<()> {
             // }
         });
 
-        let quit_ctrlc = Arc::new(AtomicBool::new(false));
-        let quit_thread = quit_ctrlc.clone();
+    let quit_ctrlc = Arc::new(AtomicBool::new(false));
+    let quit_thread = quit_ctrlc.clone();
 
-        std::thread::spawn(move || {
-            let (ctrlc_sender, ctrlc_receiver) = mpsc::channel();
-            ctrlc::set_handler(move || {
-                ctrlc_sender
-                    .send(())
-                    .expect("could not send signal on ctrl-c channel");
-            })
-            .expect("could not set ctrl-c handler");
+    std::thread::spawn(move || {
+        let (ctrlc_sender, ctrlc_receiver) = mpsc::channel();
+        ctrlc::set_handler(move || {
+            ctrlc_sender
+                .send(())
+                .expect("could not send signal on ctrl-c channel");
+        })
+        .expect("could not set ctrl-c handler");
 
-            ctrlc_receiver
-                .recv()
-                .expect("could not receive signal on ctrl-c channel");
+        ctrlc_receiver
+            .recv()
+            .expect("could not receive signal on ctrl-c channel");
 
-            tracing::info!("ctrl-c signal received");
-            quit_ctrlc.store(true, Ordering::Relaxed);
-        });
+        tracing::info!("ctrl-c signal received");
+        quit_ctrlc.store(true, Ordering::Relaxed);
+    });
 
-        tracing::info!("starting CFRunLoop to receive observer notifications");
+    tracing::info!("starting CFRunLoop to receive observer notifications");
 
-        loop {
-            if quit_thread.load(Ordering::Relaxed) {
-                tracing::info!("stopping CFRunLoop");
-                break;
-            }
-
-            // this gets our observer notification callbacks firing
-            autoreleasepool(|_| unsafe {
-                CFRunLoop::run_in_mode(kCFRunLoopDefaultMode, 2.0, false)
-            });
+    loop {
+        if quit_thread.load(Ordering::Relaxed) {
+            tracing::info!("stopping CFRunLoop");
+            break;
         }
+
+        // this gets our observer notification callbacks firing
+        autoreleasepool(|_| unsafe { CFRunLoop::run_in_mode(kCFRunLoopDefaultMode, 2.0, false) });
     }
 
     Ok(())

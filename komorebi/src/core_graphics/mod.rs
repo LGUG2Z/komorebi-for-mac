@@ -1,7 +1,10 @@
 use crate::core_graphics::error::CoreGraphicsError;
 use objc2_core_foundation::CFArray;
 use objc2_core_foundation::CFRetained;
+use objc2_core_foundation::CGRect;
+use objc2_core_graphics::CGDisplayBounds;
 use objc2_core_graphics::CGGetOnlineDisplayList;
+use objc2_core_graphics::CGRectIntersectsRect;
 use objc2_core_graphics::CGWindowListCopyWindowInfo;
 use objc2_core_graphics::CGWindowListOption;
 use objc2_core_graphics::kCGNullWindowID;
@@ -11,6 +14,10 @@ pub mod error;
 pub struct CoreGraphicsApi;
 
 impl CoreGraphicsApi {
+    pub fn contains_rect(smaller: CGRect, bigger: CGRect) -> bool {
+        unsafe { CGRectIntersectsRect(smaller, bigger) }
+    }
+
     pub fn connected_display_ids() -> Result<Vec<u32>, CoreGraphicsError> {
         let mut displays: Vec<u32> = Vec::with_capacity(16);
         let mut display_count = 0;
@@ -28,6 +35,10 @@ impl CoreGraphicsApi {
                 error => Err(error),
             }
         }
+    }
+
+    pub fn display_bounds(display_id: u32) -> CGRect {
+        unsafe { CGDisplayBounds(display_id) }
     }
 
     pub fn window_list_info() -> Option<CFRetained<CFArray>> {

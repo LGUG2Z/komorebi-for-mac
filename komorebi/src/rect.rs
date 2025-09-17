@@ -1,3 +1,7 @@
+use crate::core_graphics::CoreGraphicsApi;
+use crate::window::WindowBounds;
+use objc2_core_foundation::CGFloat;
+use objc2_core_foundation::CGPoint;
 use objc2_core_foundation::CGRect;
 use objc2_core_foundation::CGSize;
 
@@ -28,5 +32,37 @@ impl From<CGRect> for Rect {
             right: value.size.width as f32,
             bottom: value.size.height as f32,
         }
+    }
+}
+
+impl From<&Rect> for CGRect {
+    fn from(value: &Rect) -> Self {
+        Self {
+            origin: CGPoint {
+                x: value.left as CGFloat,
+                y: value.top as CGFloat,
+            },
+            size: CGSize {
+                width: value.right as CGFloat,
+                height: value.bottom as CGFloat,
+            },
+        }
+    }
+}
+
+impl From<WindowBounds> for Rect {
+    fn from(value: WindowBounds) -> Self {
+        Self {
+            left: value.x,
+            top: value.y,
+            right: value.width,
+            bottom: value.height,
+        }
+    }
+}
+
+impl Rect {
+    pub fn contains(&self, other: &Rect) -> bool {
+        CoreGraphicsApi::contains_rect(other.into(), self.into())
     }
 }

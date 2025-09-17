@@ -3,9 +3,9 @@ use objc2_application_services::AXError;
 #[derive(thiserror::Error, Debug)]
 pub enum AccessibilityError {
     #[error(transparent)]
-    Api(AccessibilityApiError),
+    Api(#[from] AccessibilityApiError),
     #[error(transparent)]
-    Custom(AccessibilityCustomError),
+    Custom(#[from] AccessibilityCustomError),
 }
 
 #[derive(thiserror::Error, Debug)]

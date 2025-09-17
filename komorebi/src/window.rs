@@ -95,7 +95,7 @@ pub struct ValidWindowInfo {
     pub owner_pid: i32,
     owner_name: String,
     alpha: f32,
-    bounds: WindowBounds,
+    pub bounds: WindowBounds,
 }
 
 impl WindowInfo {
@@ -247,13 +247,13 @@ impl From<&CFDictionary> for WindowInfo {
     }
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Copy, Clone)]
 #[allow(unused)]
-struct WindowBounds {
-    height: f32,
-    width: f32,
-    x: f32,
-    y: f32,
+pub struct WindowBounds {
+    pub height: f32,
+    pub width: f32,
+    pub x: f32,
+    pub y: f32,
 }
 
 impl From<&CFDictionary> for WindowBounds {
