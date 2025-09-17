@@ -7,6 +7,7 @@ use std::ptr::NonNull;
 
 pub mod accessibility;
 pub mod application;
+pub mod core_graphics;
 pub mod layout;
 pub mod rect;
 pub mod window;

@@ -4,23 +4,19 @@ use color_eyre::eyre;
 use color_eyre::eyre::eyre;
 use komorebi::application::Application;
 use komorebi::cf_array_as;
+use komorebi::core_graphics::CoreGraphicsApi;
 use komorebi::layout;
 use komorebi::rect::Rect;
 use komorebi::window::WindowInfo;
 use objc2::rc::autoreleasepool;
 use objc2_application_services::AXIsProcessTrusted;
-use objc2_core_foundation::CFArray;
 use objc2_core_foundation::CFDictionary;
-use objc2_core_foundation::CFRetained;
 use objc2_core_foundation::CFRunLoop;
 use objc2_core_foundation::kCFRunLoopDefaultMode;
 use objc2_core_graphics::CGDisplayBounds;
 use objc2_core_graphics::CGMainDisplayID;
 use objc2_core_graphics::CGPreflightScreenCaptureAccess;
 use objc2_core_graphics::CGRequestScreenCaptureAccess;
-use objc2_core_graphics::CGWindowListCopyWindowInfo;
-use objc2_core_graphics::CGWindowListOption;
-use objc2_core_graphics::kCGNullWindowID;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
@@ -106,7 +102,7 @@ fn main() -> eyre::Result<()> {
 
     let run_loop = CFRunLoop::current().ok_or(eyre!("couldn't get CFRunLoop::current"))?;
 
-    if let Some(window_info_list) = list_window_info() {
+    if let Some(window_info_list) = CoreGraphicsApi::window_list_info() {
         tracing::info!("{} windows found", window_info_list.len());
 
         let mut windows = vec![];
@@ -207,15 +203,4 @@ fn main() -> eyre::Result<()> {
     }
 
     Ok(())
-}
-
-fn list_window_info() -> Option<CFRetained<CFArray>> {
-    unsafe {
-        CGWindowListCopyWindowInfo(
-            // this is still way too many bogus windows
-            CGWindowListOption::OptionOnScreenOnly | CGWindowListOption::ExcludeDesktopElements,
-            // required when using OnScreenOnly
-            kCGNullWindowID,
-        )
-    }
 }

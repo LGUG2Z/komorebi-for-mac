@@ -1,0 +1,43 @@
+use crate::core_graphics::error::CoreGraphicsError;
+use objc2_core_foundation::CFArray;
+use objc2_core_foundation::CFRetained;
+use objc2_core_graphics::CGGetOnlineDisplayList;
+use objc2_core_graphics::CGWindowListCopyWindowInfo;
+use objc2_core_graphics::CGWindowListOption;
+use objc2_core_graphics::kCGNullWindowID;
+
+pub mod error;
+
+pub struct CoreGraphicsApi;
+
+impl CoreGraphicsApi {
+    pub fn connected_display_ids() -> Result<Vec<u32>, CoreGraphicsError> {
+        let mut displays: Vec<u32> = Vec::with_capacity(16);
+        let mut display_count = 0;
+
+        unsafe {
+            match CoreGraphicsError::from(CGGetOnlineDisplayList(
+                displays.capacity() as u32,
+                displays.as_mut_ptr(),
+                &mut display_count,
+            )) {
+                CoreGraphicsError::Success => {
+                    displays.set_len(display_count as usize);
+                    Ok(displays)
+                }
+                error => Err(error),
+            }
+        }
+    }
+
+    pub fn window_list_info() -> Option<CFRetained<CFArray>> {
+        unsafe {
+            CGWindowListCopyWindowInfo(
+                // this is still way too many bogus windows
+                CGWindowListOption::OptionOnScreenOnly | CGWindowListOption::ExcludeDesktopElements,
+                // required when using OnScreenOnly
+                kCGNullWindowID,
+            )
+        }
+    }
+}
