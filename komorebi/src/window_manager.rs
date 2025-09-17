@@ -1,9 +1,10 @@
 use crate::LibraryError;
 use crate::application::Application;
+use crate::core::rect::Rect;
 use crate::macos_api::MacosApi;
-use crate::rect::Rect;
 use crate::ring::Ring;
 use crate::window::Window;
+use crate::workspace::Workspace;
 use objc2_core_foundation::CFRetained;
 use objc2_core_foundation::CFRunLoop;
 use std::collections::HashMap;
@@ -41,9 +42,21 @@ pub struct Monitor {
 }
 
 impl Monitor {
+    #[allow(clippy::field_reassign_with_default)]
     pub fn new(id: u32, size: Rect) -> Self {
         let mut workspaces = Ring::default();
-        workspaces.elements_mut().push_back(Workspace::default());
+        let mut workspace = Workspace::default();
+        workspace.work_area = size;
+        workspace.container_padding = Some(20);
+        workspace.workspace_padding = Some(20);
+        workspace.work_area_offset = Some(Rect {
+            left: 0,
+            top: 0,
+            right: 0,
+            bottom: 40,
+        });
+
+        workspaces.elements_mut().push_back(workspace);
 
         Self {
             id,
@@ -51,12 +64,6 @@ impl Monitor {
             size,
         }
     }
-}
-
-impl_ring_elements!(Workspace, Container);
-#[derive(Debug, Default)]
-pub struct Workspace {
-    pub containers: Ring<Container>,
 }
 
 impl_ring_elements!(Container, Window);

@@ -2,8 +2,6 @@
 
 use color_eyre::eyre;
 use color_eyre::eyre::eyre;
-use komorebi::layout;
-use komorebi::rect::Rect;
 use komorebi::window_manager::WindowManager;
 use objc2::rc::autoreleasepool;
 use objc2_application_services::AXIsProcessTrusted;
@@ -99,57 +97,12 @@ fn main() -> eyre::Result<()> {
     let mut wm = WindowManager::new(&run_loop);
     wm.init()?;
 
-    let containers = wm
-        .monitors
-        .focused()
-        .expect("must have a monitor at this point")
-        .focused_workspace()
-        .expect("must have a workspace at this point")
-        .containers();
-
-    let layouts =
-        layout::recursive_fibonacci(0, containers.len(), &Rect::from(display_size), vec![]);
-
-    containers
-        .iter()
-        .zip(layouts)
-        .for_each(|(container, layout)| {
-            let window = container
-                .focused_window()
-                .expect("must have a window at this point");
-            if let Err(error) = window.set_position(&layout) {
-                tracing::error!(
-                    "failed to position window: {} ({error})",
-                    window
-                        .title()
-                        .unwrap_or_else(|| String::from("<NO TITLE FOUND>"))
-                );
-            }
-
-            // initial example to ensure that window focusing works
-            // if let Some(window_title) = window.title()
-            //     && window_title.contains("Komorebi Community Server")
-            // {
-            //     match window.focus() {
-            //         Err(error) => {
-            //             tracing::error!(
-            //                 "failed to focus window: {} ({error})",
-            //                 window
-            //                     .title()
-            //                     .unwrap_or_else(|| String::from("<NO TITLE FOUND>"))
-            //             );
-            //         }
-            //         Ok(()) => {
-            //             tracing::info!(
-            //                 "focused window: {}",
-            //                 window
-            //                     .title()
-            //                     .unwrap_or_else(|| String::from("<NO TITLE FOUND>"))
-            //             );
-            //         }
-            //     }
-            // }
-        });
+    wm.monitors
+        .focused_mut()
+        .unwrap()
+        .focused_workspace_mut()
+        .unwrap()
+        .update()?;
 
     let quit_ctrlc = Arc::new(AtomicBool::new(false));
     let quit_thread = quit_ctrlc.clone();

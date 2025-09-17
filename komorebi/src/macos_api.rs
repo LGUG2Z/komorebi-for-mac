@@ -1,8 +1,8 @@
 use crate::LibraryError;
 use crate::application::Application;
 use crate::cf_array_as;
+use crate::core::rect::Rect;
 use crate::core_graphics::CoreGraphicsApi;
-use crate::rect::Rect;
 use crate::ring::Ring;
 use crate::window::WindowInfo;
 use crate::window_manager::Container;

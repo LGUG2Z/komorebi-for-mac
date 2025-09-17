@@ -32,3 +32,7 @@ trace target $RUST_LOG="trace":
 depgen:
     cargo deny check
     cargo deny list --format json | jq 'del(.unlicensed)' > dependencies.json
+
+push:
+    git push origin master
+    git push komocorp master

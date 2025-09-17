@@ -12,12 +12,12 @@ pub mod ring;
 
 pub mod accessibility;
 pub mod application;
+pub mod core;
 pub mod core_graphics;
-pub mod layout;
 pub mod macos_api;
-pub mod rect;
 pub mod window;
 pub mod window_manager;
+pub mod workspace;
 
 pub fn cf_array_as<T>(array: &CFArray) -> impl Iterator<Item = NonNull<T>> + use<'_, T> {
     let count = CFArray::count(array);

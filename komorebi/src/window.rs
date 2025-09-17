@@ -12,7 +12,7 @@ use crate::accessibility::notification_constants::kAXWindowMovedNotification;
 use crate::accessibility::notification_constants::kAXWindowResizedNotification;
 use crate::application::Application;
 use crate::cf_dictionary_value;
-use crate::rect::Rect;
+use crate::core::rect::Rect;
 use objc2_app_kit::NSApplicationActivationOptions;
 use objc2_app_kit::NSRunningApplication;
 use objc2_application_services::AXObserver;
