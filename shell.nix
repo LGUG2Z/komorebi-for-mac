@@ -10,5 +10,6 @@ with pkgs;
       cargo-deny
       jq
       prettier
+      cargo-udeps
     ];
   }

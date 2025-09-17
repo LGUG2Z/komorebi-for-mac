@@ -2,7 +2,9 @@ use crate::core::arrangement::Axis;
 use crate::core::default_layout::DefaultLayout;
 use crate::core::default_layout::LayoutOptions;
 use crate::core::layout::Layout;
+use crate::core::operation_direction::OperationDirection;
 use crate::core::rect::Rect;
+use crate::lockable_sequence::LockableSequence;
 use crate::ring::Ring;
 use crate::window_manager::Container;
 use color_eyre::eyre;
@@ -18,7 +20,6 @@ pub struct Workspace {
     pub container_padding: Option<i32>,
     pub resize_dimensions: Vec<Option<Rect>>,
     pub layout: Layout,
-    pub work_area: Rect,
     pub work_area_offset: Option<Rect>,
     pub latest_layout: Vec<Rect>,
     pub layout_flip: Option<Axis>,
@@ -35,7 +36,6 @@ impl Default for Workspace {
             container_padding: None,
             resize_dimensions: vec![],
             layout: Layout::Default(DefaultLayout::UltrawideVerticalStack),
-            work_area: Default::default(),
             work_area_offset: None,
             latest_layout: vec![],
             layout_flip: None,
@@ -81,7 +81,7 @@ impl Workspace {
         //     self.globals.window_based_work_area_offset_limit;
 
         let mut adjusted_work_area = work_area_offset.map_or_else(
-            || self.work_area,
+            || work_area,
             |offset| {
                 let mut with_offset = work_area;
                 with_offset.left += offset.left;
@@ -129,5 +129,28 @@ impl Workspace {
         }
 
         Ok(())
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn focus_container(&mut self, idx: usize) {
+        tracing::info!("focusing container");
+
+        self.containers.focus(idx);
+    }
+
+    pub fn swap_containers(&mut self, i: usize, j: usize) {
+        self.containers.elements_mut().swap_respecting_locks(i, j);
+        self.focus_container(j);
+    }
+
+    pub fn new_idx_for_direction(&self, direction: OperationDirection) -> Option<usize> {
+        let len = NonZeroUsize::new(self.containers().len())?;
+
+        direction.destination(
+            self.layout.as_boxed_direction().as_ref(),
+            self.layout_flip,
+            self.focused_container_idx(),
+            len,
+        )
     }
 }

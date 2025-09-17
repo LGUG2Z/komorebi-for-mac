@@ -1,10 +1,11 @@
 use crate::core::Sizing;
 use crate::core::operation_direction::OperationDirection;
 use crate::core::rect::Rect;
+use clap::ValueEnum;
 use serde::Deserialize;
 use serde::Serialize;
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, Eq, PartialEq, ValueEnum)]
 pub enum DefaultLayout {
     BSP,
     Columns,

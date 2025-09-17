@@ -1,24 +1,48 @@
 use crate::LibraryError;
+use crate::accessibility::attribute_constants::kAXPositionAttribute;
+use crate::accessibility::attribute_constants::kAXSizeAttribute;
 use crate::application::Application;
 use crate::cf_array_as;
 use crate::core::rect::Rect;
 use crate::core_graphics::CoreGraphicsApi;
-use crate::ring::Ring;
+use crate::monitor::Monitor;
 use crate::window::WindowInfo;
 use crate::window_manager::Container;
-use crate::window_manager::Monitor;
 use crate::window_manager::WindowManager;
+use objc2::MainThreadMarker;
+use objc2_app_kit::NSScreen;
+use objc2_application_services::AXUIElement;
 use objc2_core_foundation::CFDictionary;
+use objc2_core_foundation::CFString;
+use objc2_core_foundation::CGPoint;
+use objc2_core_foundation::CGSize;
 use std::collections::HashMap;
+use std::ptr::NonNull;
 
 pub struct MacosApi;
 
 impl MacosApi {
     pub fn load_monitor_information(wm: &mut WindowManager) -> Result<(), LibraryError> {
+        let screens = NSScreen::screens(MainThreadMarker::new().unwrap());
+
         for display_id in CoreGraphicsApi::connected_display_ids()? {
-            let size = Rect::from(CoreGraphicsApi::display_bounds(display_id));
-            let monitor = Monitor::new(display_id, size);
-            wm.monitors.elements_mut().push_back(monitor);
+            let display_bounds = CoreGraphicsApi::display_bounds(display_id);
+
+            for screen in &screens {
+                let menu_bar_height = screen.frame().size.height
+                    - screen.visibleFrame().size.height
+                    - screen.visibleFrame().origin.y;
+
+                if screen.frame() == display_bounds {
+                    let size = Rect::from(display_bounds);
+                    let mut work_area_size = Rect::from(display_bounds);
+                    work_area_size.top += menu_bar_height as i32;
+                    work_area_size.bottom = screen.visibleFrame().size.height as i32;
+
+                    let monitor = Monitor::new(display_id, size, work_area_size);
+                    wm.monitors.elements_mut().push_back(monitor);
+                }
+            }
         }
 
         Ok(())
@@ -78,9 +102,7 @@ impl MacosApi {
 
         for (monitor_idx, windows) in monitor_window_map {
             for window in windows {
-                let mut container = Container {
-                    windows: Ring::default(),
-                };
+                let mut container = Container::default();
 
                 container.windows_mut().push_back(window);
                 if let Some(Some(workspace)) = monitor_workspace_map.get_mut(monitor_idx) {
@@ -90,5 +112,39 @@ impl MacosApi {
         }
 
         Ok(())
+    }
+
+    pub fn center_cursor_in_rect(rect: &Rect) -> Result<(), LibraryError> {
+        Ok(CoreGraphicsApi::warp_mouse_cursor_position(
+            rect.left + (rect.right / 2),
+            rect.top + (rect.bottom / 2),
+        )?)
+    }
+
+    pub fn window_rect(element: &AXUIElement) -> Rect {
+        let mut position_receiver = std::ptr::null();
+        let mut size_receiver = std::ptr::null();
+
+        unsafe {
+            element.copy_attribute_value(
+                &CFString::from_static_str(kAXPositionAttribute),
+                NonNull::from(&mut position_receiver),
+            );
+
+            element.copy_attribute_value(
+                &CFString::from_static_str(kAXSizeAttribute),
+                NonNull::from(&mut size_receiver),
+            );
+
+            let position = *position_receiver.cast::<CGPoint>();
+            let size = *position_receiver.cast::<CGSize>();
+
+            Rect {
+                left: position.x as i32,
+                top: position.y as i32,
+                right: size.width as i32,
+                bottom: size.height as i32,
+            }
+        }
     }
 }

@@ -1,10 +1,13 @@
 use crate::core_graphics::error::CoreGraphicsError;
 use objc2_core_foundation::CFArray;
 use objc2_core_foundation::CFRetained;
+use objc2_core_foundation::CGFloat;
+use objc2_core_foundation::CGPoint;
 use objc2_core_foundation::CGRect;
 use objc2_core_graphics::CGDisplayBounds;
 use objc2_core_graphics::CGGetOnlineDisplayList;
 use objc2_core_graphics::CGRectIntersectsRect;
+use objc2_core_graphics::CGWarpMouseCursorPosition;
 use objc2_core_graphics::CGWindowListCopyWindowInfo;
 use objc2_core_graphics::CGWindowListOption;
 use objc2_core_graphics::kCGNullWindowID;
@@ -14,6 +17,18 @@ pub mod error;
 pub struct CoreGraphicsApi;
 
 impl CoreGraphicsApi {
+    pub fn warp_mouse_cursor_position(x: i32, y: i32) -> Result<(), CoreGraphicsError> {
+        match unsafe {
+            CoreGraphicsError::from(CGWarpMouseCursorPosition(CGPoint::new(
+                x as CGFloat,
+                y as CGFloat,
+            )))
+        } {
+            CoreGraphicsError::Success => Ok(()),
+            error => Err(error),
+        }
+    }
+
     pub fn contains_rect(smaller: CGRect, bigger: CGRect) -> bool {
         unsafe { CGRectIntersectsRect(smaller, bigger) }
     }

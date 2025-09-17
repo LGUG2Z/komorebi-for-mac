@@ -134,7 +134,7 @@ impl AccessibilityApi {
         observer: &AXObserver,
         element: &AXUIElement,
         notifications: &[&'static str],
-        run_loop: &CFRetained<CFRunLoop>,
+        run_loop: &CFRunLoop,
     ) -> Result<(), AccessibilityError> {
         AccessibilityApi::add_notifications_to_observer(observer, element, notifications)?;
 

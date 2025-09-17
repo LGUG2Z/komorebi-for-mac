@@ -1,3 +1,6 @@
+use crate::AccessibilityObserver;
+use crate::AccessibilityUiElement;
+use crate::LibraryError;
 use crate::accessibility::AccessibilityApi;
 use crate::accessibility::attribute_constants::kAXMainAttribute;
 use crate::accessibility::attribute_constants::kAXPositionAttribute;
@@ -122,9 +125,9 @@ impl WindowInfo {
 #[derive(Debug)]
 #[allow(unused)]
 pub struct Window {
-    element: CFRetained<AXUIElement>,
+    element: AccessibilityUiElement,
     application: Application,
-    observer: CFRetained<AXObserver>,
+    observer: AccessibilityObserver,
 }
 
 impl Drop for Window {
@@ -150,14 +153,14 @@ impl Window {
         )?;
 
         Ok(Self {
-            element,
+            element: AccessibilityUiElement(element),
             application,
-            observer,
+            observer: AccessibilityObserver(observer),
         })
     }
 
     #[tracing::instrument(skip_all)]
-    pub fn observe(&self, run_loop: &CFRetained<CFRunLoop>) -> Result<(), AccessibilityError> {
+    pub fn observe(&self, run_loop: &CFRunLoop) -> Result<(), AccessibilityError> {
         tracing::info!(
             "registering observer for process: {}, title: {}",
             self.application.process_id,
@@ -183,7 +186,7 @@ impl Window {
         self.set_size(CGSize::new(rect.right as CGFloat, rect.bottom as CGFloat))
     }
 
-    pub fn focus(&self) -> Result<(), AccessibilityError> {
+    pub fn focus(&self, focus_follows_mouse: bool) -> Result<(), LibraryError> {
         unsafe {
             NSRunningApplication::runningApplicationWithProcessIdentifier(
                 self.application.process_id,
@@ -195,8 +198,14 @@ impl Window {
 
             let cf_boolean = CFBoolean::new(true);
             let value = &**cf_boolean;
-            AccessibilityApi::set_attribute_cf_value(&self.element, kAXMainAttribute, value)
+            AccessibilityApi::set_attribute_cf_value(&self.element, kAXMainAttribute, value)?;
         }
+
+        if focus_follows_mouse {
+            // MacosApi::center_cursor_in_rect(&MacosApi::window_rect(&self.element))?
+        }
+
+        Ok(())
     }
 
     pub fn set_point(&self, point: CGPoint) -> Result<(), AccessibilityError> {

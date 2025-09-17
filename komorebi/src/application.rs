@@ -1,3 +1,5 @@
+use crate::AccessibilityObserver;
+use crate::AccessibilityUiElement;
 use crate::accessibility::AccessibilityApi;
 use crate::accessibility::attribute_constants::kAXTitleAttribute;
 use crate::accessibility::attribute_constants::kAXWindowsAttribute;
@@ -36,9 +38,9 @@ const NOTIFICATIONS: &[&str] = &[
 
 #[derive(Debug, Clone)]
 pub struct Application {
-    element: CFRetained<AXUIElement>,
+    element: AccessibilityUiElement,
     pub process_id: i32,
-    pub observer: CFRetained<AXObserver>,
+    pub observer: AccessibilityObserver,
 }
 
 #[instrument(skip_all)]
@@ -84,12 +86,12 @@ impl Drop for Application {
 impl Application {
     pub fn new(process_id: i32) -> Result<Self, AccessibilityError> {
         Ok(Self {
-            element: AccessibilityApi::create_application(process_id),
+            element: AccessibilityUiElement(AccessibilityApi::create_application(process_id)),
             process_id,
-            observer: AccessibilityApi::create_observer(
+            observer: AccessibilityObserver(AccessibilityApi::create_observer(
                 process_id,
                 Some(application_observer_callback),
-            )?,
+            )?),
         })
     }
 
@@ -99,7 +101,7 @@ impl Application {
     }
 
     #[tracing::instrument(skip_all)]
-    pub fn observe(&self, run_loop: &CFRetained<CFRunLoop>) -> Result<(), AccessibilityError> {
+    pub fn observe(&self, run_loop: &CFRunLoop) -> Result<(), AccessibilityError> {
         tracing::info!(
             "registering observer for process: {}, name: {}",
             self.process_id,

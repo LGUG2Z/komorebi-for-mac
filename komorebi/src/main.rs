@@ -2,6 +2,8 @@
 
 use color_eyre::eyre;
 use color_eyre::eyre::eyre;
+use komorebi::DATA_DIR;
+use komorebi::process_command::listen_for_commands;
 use komorebi::window_manager::WindowManager;
 use objc2::rc::autoreleasepool;
 use objc2_application_services::AXIsProcessTrusted;
@@ -11,6 +13,7 @@ use objc2_core_graphics::CGDisplayBounds;
 use objc2_core_graphics::CGMainDisplayID;
 use objc2_core_graphics::CGPreflightScreenCaptureAccess;
 use objc2_core_graphics::CGRequestScreenCaptureAccess;
+use parking_lot::Mutex;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
@@ -90,19 +93,19 @@ fn main() -> eyre::Result<()> {
     setup()?;
     check_permissions()?;
 
+    if !DATA_DIR.is_dir() {
+        std::fs::create_dir_all(&*DATA_DIR)?;
+    }
+
     let display_size = unsafe { CGDisplayBounds(CGMainDisplayID()) };
     tracing::info!("display size for main display is: {:?}", display_size);
 
     let run_loop = CFRunLoop::current().ok_or(eyre!("couldn't get CFRunLoop::current"))?;
-    let mut wm = WindowManager::new(&run_loop);
-    wm.init()?;
+    let wm = Arc::new(Mutex::new(WindowManager::new(&run_loop, None)?));
+    wm.lock().init()?;
+    wm.lock().update_focused_workspace(true, true)?;
 
-    wm.monitors
-        .focused_mut()
-        .unwrap()
-        .focused_workspace_mut()
-        .unwrap()
-        .update()?;
+    listen_for_commands(wm.clone());
 
     let quit_ctrlc = Arc::new(AtomicBool::new(false));
     let quit_thread = quit_ctrlc.clone();

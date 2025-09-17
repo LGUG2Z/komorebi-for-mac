@@ -1,11 +1,11 @@
-use std::num::NonZeroUsize;
-
 use crate::core::arrangement::Axis;
 use crate::core::direction::Direction;
+use clap::ValueEnum;
 use serde::Deserialize;
 use serde::Serialize;
+use std::num::NonZeroUsize;
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, ValueEnum)]
 pub enum OperationDirection {
     Left,
     Right,

@@ -13,6 +13,7 @@
           overlays = [
             (import rust-overlay)
           ];
+
           pkgs = (import nixpkgs) {
             inherit system overlays;
           };
@@ -21,15 +22,12 @@
 
           toolchain = pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
           craneLib = (crane.mkLib pkgs).overrideToolchain toolchain;
-
-          pname = "komorebi";
+          src = craneLib.cleanCargoSource ./.;
           version = "0.1.0";
 
           commonArgs = {
-            inherit pname version;
-            nativeBuildInputs = with pkgs; [
-#              pkg-config
-            ];
+            inherit src;
+            nativeBuildInputs = with pkgs; [];
             doCheck = false;
             buildInputs = with pkgs; [
               gcc
@@ -37,23 +35,34 @@
             ];
           };
 
-          cargoArtifacts = craneLib.buildDepsOnly (commonArgs
-            // {
-              src = craneLib.cleanCargoSource (craneLib.path ./.);
-            });
+          cargoArtifacts = craneLib.buildDepsOnly commonArgs;
 
-          komorebi = craneLib.buildPackage (commonArgs
+          komorebi = craneLib.buildPackage (
+            commonArgs
             // {
-              inherit cargoArtifacts;
+              inherit version;
+              pname = "komorebi";
+              cargoExtraArgs = "-p komorebi";
               src = ./.;
-            });
+            }
+          );
+
+          komorebic = craneLib.buildPackage (
+            commonArgs
+            // {
+              inherit version;
+              pname = "komorebic";
+              cargoExtraArgs = "-p komorebic";
+              src = ./.;
+            }
+          );
         in {
           devShells = flake-utils.lib.flattenTree {
             default = import ./shell.nix {inherit pkgs;};
           };
 
           packages = flake-utils.lib.flattenTree rec {
-            inherit komorebi;
+            inherit komorebi komorebic;
             default = komorebi;
           };
         }
