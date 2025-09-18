@@ -1,6 +1,5 @@
 use crate::accessibility::AccessibilityApi;
 use crate::accessibility::notification_constants::AccessibilityNotification;
-use crate::application::Application;
 use crate::window::Window;
 use crate::window_manager::WindowManager;
 use crate::window_manager_event::WindowManagerEvent;
@@ -43,9 +42,9 @@ impl WindowManager {
 
         match event {
             WindowManagerEvent::FocusChange(notification, process_id, _) => {
-                if let Some(application) = self.applications.get(&process_id)
-                    && let Some(window_id) = application.main_window_id()
-                {
+                let application = self.application(process_id)?;
+
+                if let Some(window_id) = application.main_window_id() {
                     self.focused_workspace_mut()?
                         .focus_container_by_window(window_id)?;
                 }
@@ -57,22 +56,16 @@ impl WindowManager {
             }
             WindowManagerEvent::Show(_, process_id) => {
                 let mut window_id = None;
+                let mut window_element = None;
                 let mut create = true;
 
                 {
-                    let application = self.applications.entry(process_id).or_insert_with(|| {
-                        let application =
-                            Application::new(process_id).expect("could not create application");
-                        application
-                            .observe(&self.run_loop)
-                            .expect("could not observe application");
-                        application
-                    });
-
+                    let application = self.application(process_id)?;
                     if let Some(element) = application.main_window()
                         && let Ok(wid) = AccessibilityApi::window_id(&element)
                     {
                         window_id = Some(wid);
+                        window_element = Some(element.clone());
                     }
                 }
 
@@ -86,22 +79,14 @@ impl WindowManager {
                 }
 
                 if create {
-                    let application = self.applications.entry(process_id).or_insert_with(|| {
-                        let application =
-                            Application::new(process_id).expect("could not create application");
-                        application
-                            .observe(&self.run_loop)
-                            .expect("could not observe application");
-                        application
-                    });
-
-                    if let Some(element) = application.main_window()
+                    let application = self.application(process_id)?;
+                    if let Some(element) = window_element
                         && let Ok(window) = Window::new(element, application.clone())
                     {
                         window.observe(&self.run_loop)?;
 
                         let workspace = self.focused_workspace_mut()?;
-                        workspace.new_container_for_window(window);
+                        workspace.new_container_for_window(&window)?;
 
                         self.update_focused_workspace(false, false)?;
                     }
@@ -120,7 +105,7 @@ impl WindowManager {
                     None => {}
                     Some(window) => {
                         let workspace = self.focused_workspace_mut()?;
-                        workspace.new_container_for_window(window);
+                        workspace.new_container_for_window(&window)?;
                         self.update_focused_workspace(false, false)?;
                     }
                 }

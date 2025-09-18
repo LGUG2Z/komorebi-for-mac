@@ -3,6 +3,7 @@ use crate::AccessibilityUiElement;
 use crate::LibraryError;
 use crate::accessibility::AccessibilityApi;
 use crate::accessibility::attribute_constants::kAXMainAttribute;
+use crate::accessibility::attribute_constants::kAXMinimizedAttribute;
 use crate::accessibility::attribute_constants::kAXPositionAttribute;
 use crate::accessibility::attribute_constants::kAXSizeAttribute;
 use crate::accessibility::attribute_constants::kAXTitleAttribute;
@@ -18,6 +19,7 @@ use crate::application::Application;
 use crate::ax_event_listener::event_tx;
 use crate::cf_dictionary_value;
 use crate::core::rect::Rect;
+use crate::macos_api::MacosApi;
 use crate::window_manager_event::WindowManagerEvent;
 use objc2_app_kit::NSApplicationActivationOptions;
 use objc2_app_kit::NSRunningApplication;
@@ -135,24 +137,30 @@ impl WindowInfo {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[allow(unused)]
 pub struct Window {
     pub id: u32,
     element: AccessibilityUiElement,
     pub application: Application,
     observer: AccessibilityObserver,
+    pub restore_point: Option<(f32, f32)>,
 }
 
 impl Drop for Window {
     fn drop(&mut self) {
-        // make sure the observer gets removed from any run loops
-        tracing::info!(
-            "invalidating window observer for {}",
-            self.title()
-                .unwrap_or_else(|| String::from("<NO TITLE FOUND>"))
-        );
-        AccessibilityApi::invalidate_observer(&self.observer);
+        // this gets called when a cloned Window is dropped, so we need to make sure it only
+        // invalidates the observer if the Window is no longer open
+        if !self.is_valid() {
+            tracing::info!(
+                "invalidating window observer for {}",
+                self.title()
+                    .unwrap_or_else(|| String::from("<NO TITLE FOUND>"))
+            );
+
+            // make sure the observer gets removed from any run loops
+            AccessibilityApi::invalidate_observer(&self.observer);
+        }
     }
 }
 
@@ -171,6 +179,7 @@ impl Window {
             element: AccessibilityUiElement(element),
             application,
             observer: AccessibilityObserver(observer),
+            restore_point: None,
         })
     }
 
@@ -193,6 +202,60 @@ impl Window {
             NOTIFICATIONS,
             run_loop,
         )
+    }
+
+    #[tracing::instrument(skip_all)]
+    pub fn hide(&mut self) -> Result<(), AccessibilityError> {
+        if self.restore_point.is_none() {
+            let rect = MacosApi::window_rect(&self.element)?;
+            self.restore_point = Some((rect.left as f32, rect.top as f32));
+
+            tracing::debug!(
+                "hiding {} and setting restore point to {},{}",
+                self.title()
+                    .unwrap_or_else(|| String::from("<NO TITLE FOUND>")),
+                rect.left,
+                rect.top,
+            );
+
+            // todo: this doesn't really do what I want
+            self.set_point(CGPoint::new(-5000.0 as CGFloat, rect.top as CGFloat))?;
+        }
+
+        Ok(())
+    }
+
+    pub fn minimize(&mut self) -> Result<(), AccessibilityError> {
+        let cf_boolean = CFBoolean::new(true);
+        let value = &**cf_boolean;
+        AccessibilityApi::set_attribute_cf_value(&self.element, kAXMinimizedAttribute, value)
+    }
+
+    pub fn unminimize(&mut self) -> Result<(), AccessibilityError> {
+        let cf_boolean = CFBoolean::new(false);
+        let value = &**cf_boolean;
+        AccessibilityApi::set_attribute_cf_value(&self.element, kAXMinimizedAttribute, value)
+    }
+
+    #[tracing::instrument(skip_all)]
+    pub fn restore(&mut self) -> Result<(), AccessibilityError> {
+        let mut should_unset_restore_point = false;
+        if let Some((x, y)) = self.restore_point {
+            tracing::debug!(
+                "restoring {:?} to point {x},{y}",
+                self.title()
+                    .unwrap_or_else(|| String::from("<NO TITLE FOUND>"))
+            );
+
+            self.set_point(CGPoint::new(x as CGFloat, y as CGFloat))?;
+            should_unset_restore_point = true;
+        }
+
+        if should_unset_restore_point {
+            self.restore_point = None;
+        }
+
+        Ok(())
     }
 
     pub fn title(&self) -> Option<String> {

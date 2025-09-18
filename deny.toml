@@ -16,9 +16,11 @@ allow = [
     "0BSD",
     "Apache-2.0",
     "MIT",
+    "MPL-2.0",
     "Unicode-3.0",
     "Zlib",
-    "LicenseRef-Komorebi-2.0"
+
+    "LicenseRef-Komorebi-2.0",
 
     # these are also ok, but not yet used
 
@@ -29,7 +31,6 @@ allow = [
     #    "CC0-1.0",
     #    "ISC",
     #    "MIT-0",
-    #    "MPL-2.0",
     #    "OFL-1.1",
     #    "Ubuntu-font-1.0",
 ]
@@ -37,6 +38,16 @@ confidence-threshold = 0.8
 
 [[licenses.clarify]]
 crate = "komorebi"
+expression = "LicenseRef-Komorebi-2.0"
+license-files = []
+
+[[licenses.clarify]]
+crate = "komorebi-client"
+expression = "LicenseRef-Komorebi-2.0"
+license-files = []
+
+[[licenses.clarify]]
+crate = "komorebic"
 expression = "LicenseRef-Komorebi-2.0"
 license-files = []
 

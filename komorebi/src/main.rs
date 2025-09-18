@@ -146,5 +146,7 @@ fn main() -> eyre::Result<()> {
         autoreleasepool(|_| unsafe { CFRunLoop::run_in_mode(kCFRunLoopDefaultMode, 2.0, false) });
     }
 
+    wm.lock().restore_all_windows(false)?;
+
     Ok(())
 }

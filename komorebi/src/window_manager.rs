@@ -4,6 +4,7 @@ use crate::LibraryError;
 use crate::accessibility::AccessibilityApi;
 use crate::application::Application;
 use crate::container::Container;
+use crate::core::cycle_direction::CycleDirection;
 use crate::core::default_layout::DefaultLayout;
 use crate::core::layout::Layout;
 use crate::core::operation_direction::OperationDirection;
@@ -20,7 +21,9 @@ use crossbeam_channel::Receiver;
 use objc2_core_foundation::CFRetained;
 use objc2_core_foundation::CFRunLoop;
 use std::collections::HashMap;
+use std::collections::hash_map::Entry;
 use std::io::ErrorKind;
+use std::num::NonZeroUsize;
 use std::os::unix::net::UnixListener;
 use std::path::PathBuf;
 
@@ -78,9 +81,18 @@ impl WindowManager {
         MacosApi::load_monitor_information(self)?;
         MacosApi::load_workspace_information(self)
     }
-}
 
-impl WindowManager {
+    pub fn application(&mut self, process_id: i32) -> Result<&mut Application, LibraryError> {
+        match self.applications.entry(process_id) {
+            Entry::Occupied(entry) => Ok(entry.into_mut()),
+            Entry::Vacant(vacant) => {
+                let application = Application::new(process_id)?;
+                application.observe(&self.run_loop)?;
+                Ok(vacant.insert(application))
+            }
+        }
+    }
+
     #[tracing::instrument(skip(self))]
     pub fn focus_container_in_direction(
         &mut self,
@@ -259,22 +271,151 @@ impl WindowManager {
     }
 
     pub fn reap_invalid_windows_for_application(&mut self, process_id: i32) -> eyre::Result<()> {
-        if let Some(application) = self.applications.get(&process_id) {
-            let mut valid_window_ids = vec![];
-            if let Some(elements) = application.window_elements() {
-                for element in elements {
-                    if let Ok(window_id) = AccessibilityApi::window_id(&element) {
-                        valid_window_ids.push(window_id);
-                    }
+        let application = self.application(process_id)?;
+        let mut valid_window_ids = vec![];
+        if let Some(elements) = application.window_elements() {
+            for element in elements {
+                if let Ok(window_id) = AccessibilityApi::window_id(&element) {
+                    valid_window_ids.push(window_id);
+                }
+            }
+        }
+
+        let focused_workspace = self.focused_workspace_mut()?;
+        focused_workspace.reap_invalid_windows_for_application(process_id, &valid_window_ids)?;
+        self.update_focused_workspace(false, false)
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn add_window_to_container(&mut self, direction: OperationDirection) -> eyre::Result<()> {
+        tracing::info!("adding window to container");
+        let mouse_follows_focus = self.mouse_follows_focus;
+
+        let workspace = self.focused_workspace_mut()?;
+        let len = NonZeroUsize::new(workspace.containers_mut().len())
+            .ok_or_else(|| eyre!("there must be at least one container"))?;
+        let current_container_idx = workspace.focused_container_idx();
+
+        let is_valid = direction
+            .destination(
+                workspace.layout.as_boxed_direction().as_ref(),
+                workspace.layout_flip,
+                workspace.focused_container_idx(),
+                len,
+            )
+            .is_some();
+
+        if is_valid {
+            let new_idx = workspace
+                .new_idx_for_direction(direction)
+                .ok_or_else(|| eyre!("this is not a valid direction from the current position"))?;
+
+            let mut changed_focus = false;
+
+            let adjusted_new_index = if new_idx > current_container_idx
+                && !matches!(
+                    workspace.layout,
+                    Layout::Default(DefaultLayout::Grid)
+                        | Layout::Default(DefaultLayout::UltrawideVerticalStack)
+                ) {
+                workspace.focus_container(new_idx);
+                changed_focus = true;
+                new_idx.saturating_sub(1)
+            } else {
+                new_idx
+            };
+
+            let mut target_container_is_stack = false;
+
+            if let Some(container) = workspace.containers().get(adjusted_new_index)
+                && container.windows().len() > 1
+            {
+                target_container_is_stack = true;
+            }
+
+            if let Some(current) = workspace.focused_container() {
+                if current.windows().len() > 1 && !target_container_is_stack {
+                    workspace.focus_container(adjusted_new_index);
+                    changed_focus = true;
+                    workspace.move_window_to_container(current_container_idx)?;
+                } else {
+                    workspace.move_window_to_container(adjusted_new_index)?;
                 }
             }
 
-            let focused_workspace = self.focused_workspace_mut()?;
-            focused_workspace
-                .reap_invalid_windows_for_application(process_id, &valid_window_ids)?;
-            self.update_focused_workspace(false, false)?;
+            if changed_focus && let Some(container) = workspace.focused_container_mut() {
+                container.load_focused_window()?;
+                if let Some(window) = container.focused_window() {
+                    window.focus(mouse_follows_focus)?;
+                }
+            }
+
+            self.update_focused_workspace(mouse_follows_focus, false)?;
         }
 
         Ok(())
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn remove_window_from_container(&mut self) -> eyre::Result<()> {
+        tracing::info!("removing window");
+
+        if self.focused_container()?.windows().len() == 1 {
+            Err(eyre!("a container must have at least one window"))?;
+        }
+
+        let workspace = self.focused_workspace_mut()?;
+
+        workspace.new_container_for_focused_window()?;
+        self.update_focused_workspace(self.mouse_follows_focus, false)
+    }
+    #[tracing::instrument(skip(self))]
+    pub fn restore_all_windows(&mut self, ignore_restore: bool) -> eyre::Result<()> {
+        tracing::info!("restoring all hidden windows");
+
+        for monitor in self.monitors_mut() {
+            for workspace in monitor.workspaces_mut() {
+                for containers in workspace.containers_mut() {
+                    for window in containers.windows_mut() {
+                        if !ignore_restore && let Err(error) = window.restore() {
+                            tracing::error!("failed to restore window: {}", error);
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn cycle_container_window_in_direction(
+        &mut self,
+        direction: CycleDirection,
+    ) -> eyre::Result<()> {
+        tracing::info!("cycling container windows");
+
+        let mouse_follows_focus = self.mouse_follows_focus;
+
+        let container = self.focused_container_mut()?;
+
+        let len = NonZeroUsize::new(container.windows().len())
+            .ok_or_else(|| eyre!("there must be at least one window in a container"))?;
+
+        if len.get() == 1 {
+            return Err(eyre!("there is only one window in this container"));
+        }
+
+        let current_idx = container.focused_window_idx();
+        let next_idx = direction.next_idx(current_idx, len);
+
+        container.focus_window(next_idx);
+        container.load_focused_window()?;
+
+        if let Some(window) = container.focused_window() {
+            window.focus(mouse_follows_focus)?;
+        }
+
+        self.update_focused_workspace(mouse_follows_focus, true)
     }
 }

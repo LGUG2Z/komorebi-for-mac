@@ -1,3 +1,4 @@
+use crate::core::cycle_direction::CycleDirection;
 use crate::core::default_layout::DefaultLayout;
 use crate::core::operation_direction::OperationDirection;
 use color_eyre::eyre;
@@ -7,6 +8,7 @@ use std::str::FromStr;
 use strum::Display;
 
 pub mod arrangement;
+pub mod cycle_direction;
 pub mod default_layout;
 pub mod direction;
 pub mod layout;
@@ -27,6 +29,9 @@ pub enum SocketMessage {
     // Window / Container Commands
     FocusWindow(OperationDirection),
     MoveWindow(OperationDirection),
+    StackWindow(OperationDirection),
+    CycleStack(CycleDirection),
+    UnstackWindow,
     ChangeLayout(DefaultLayout),
     TogglePause,
 }

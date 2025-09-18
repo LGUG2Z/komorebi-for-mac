@@ -2,6 +2,7 @@
 
 use clap::Parser;
 use color_eyre::eyre;
+use komorebi_client::CycleDirection;
 use komorebi_client::DefaultLayout;
 use komorebi_client::OperationDirection;
 use komorebi_client::PathExt;
@@ -54,6 +55,8 @@ gen_enum_subcommand_args! {
     Focus: OperationDirection,
     Move: OperationDirection,
     ChangeLayout: DefaultLayout,
+    Stack: OperationDirection,
+    CycleStack: CycleDirection,
 }
 
 #[derive(Parser)]
@@ -71,6 +74,14 @@ enum SubCommand {
     /// Move the focused window in the specified direction
     #[clap(arg_required_else_help = true)]
     Move(Move),
+    /// Stack the focused window in the specified direction
+    #[clap(arg_required_else_help = true)]
+    Stack(Stack),
+    /// Unstack the focused window
+    Unstack,
+    /// Cycle the focused stack in the specified cycle direction
+    #[clap(arg_required_else_help = true)]
+    CycleStack(CycleStack),
     /// Toggle the paused state for all window tiling
     TogglePause,
     /// Set the layout on the focused workspace
@@ -93,6 +104,15 @@ fn main() -> eyre::Result<()> {
         }
         SubCommand::ChangeLayout(arg) => {
             send_message(&SocketMessage::ChangeLayout(arg.default_layout))?;
+        }
+        SubCommand::Stack(arg) => {
+            send_message(&SocketMessage::StackWindow(arg.operation_direction))?;
+        }
+        SubCommand::Unstack => {
+            send_message(&SocketMessage::UnstackWindow)?;
+        }
+        SubCommand::CycleStack(arg) => {
+            send_message(&SocketMessage::CycleStack(arg.cycle_direction))?;
         }
     }
 

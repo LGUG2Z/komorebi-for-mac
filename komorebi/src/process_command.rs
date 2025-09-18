@@ -31,7 +31,7 @@ pub fn listen_for_commands(wm: Arc<Mutex<WindowManager>>) {
                                 match read_commands_uds(&wm_clone, stream) {
                                     Ok(()) => {}
                                     Err(error) => {
-                                        tracing::error!("failed to read command from uds {}", error)
+                                        tracing::error!("{error}")
                                     }
                                 }
                             });
@@ -63,6 +63,11 @@ impl WindowManager {
             }
             SocketMessage::MoveWindow(direction) => {
                 self.move_container_in_direction(direction)?;
+            }
+            SocketMessage::StackWindow(direction) => self.add_window_to_container(direction)?,
+            SocketMessage::UnstackWindow => self.remove_window_from_container()?,
+            SocketMessage::CycleStack(direction) => {
+                self.cycle_container_window_in_direction(direction)?;
             }
             SocketMessage::ChangeLayout(layout) => self.change_workspace_layout_default(layout)?,
             SocketMessage::TogglePause => {

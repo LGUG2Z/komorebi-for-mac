@@ -1,6 +1,8 @@
 use crate::LibraryError;
 use crate::accessibility::attribute_constants::kAXPositionAttribute;
 use crate::accessibility::attribute_constants::kAXSizeAttribute;
+use crate::accessibility::error::AccessibilityApiError;
+use crate::accessibility::error::AccessibilityError;
 use crate::application::Application;
 use crate::cf_array_as;
 use crate::container::Container;
@@ -12,11 +14,13 @@ use crate::window_manager::WindowManager;
 use objc2::MainThreadMarker;
 use objc2_app_kit::NSScreen;
 use objc2_application_services::AXUIElement;
+use objc2_application_services::AXValue;
+use objc2_application_services::AXValueType;
 use objc2_core_foundation::CFDictionary;
 use objc2_core_foundation::CFString;
-use objc2_core_foundation::CGPoint;
-use objc2_core_foundation::CGSize;
+use objc2_core_foundation::CGRect;
 use std::collections::HashMap;
+use std::ffi::c_void;
 use std::ptr::NonNull;
 
 pub struct MacosApi;
@@ -121,30 +125,50 @@ impl MacosApi {
         )?)
     }
 
-    pub fn window_rect(element: &AXUIElement) -> Rect {
+    pub fn window_rect(element: &AXUIElement) -> Result<Rect, AccessibilityError> {
         let mut position_receiver = std::ptr::null();
         let mut size_receiver = std::ptr::null();
 
+        // let mut position_receiver = CGPoint::default();
+        // let mut size_receiver = CGSize::default();
+
         unsafe {
-            element.copy_attribute_value(
+            match AccessibilityApiError::from(element.copy_attribute_value(
                 &CFString::from_static_str(kAXPositionAttribute),
-                NonNull::from(&mut position_receiver),
-            );
+                NonNull::from_mut(&mut position_receiver),
+            )) {
+                AccessibilityApiError::Success => {}
+                error => {
+                    tracing::error!("failed to get window position: {error}");
+                    return Err(error.into());
+                }
+            };
 
-            element.copy_attribute_value(
+            match AccessibilityApiError::from(element.copy_attribute_value(
                 &CFString::from_static_str(kAXSizeAttribute),
-                NonNull::from(&mut size_receiver),
+                NonNull::from_mut(&mut size_receiver),
+            )) {
+                AccessibilityApiError::Success => {}
+                error => {
+                    tracing::error!("failed to get window size: {error}");
+                    return Err(error.into());
+                }
+            };
+
+            let mut rect = CGRect::default();
+
+            AXValue::value(
+                &*position_receiver.cast::<AXValue>(),
+                AXValueType::CGPoint,
+                NonNull::from_mut(&mut rect.origin).cast::<c_void>(),
+            );
+            AXValue::value(
+                &*size_receiver.cast::<AXValue>(),
+                AXValueType::CGSize,
+                NonNull::from_mut(&mut rect.size).cast::<c_void>(),
             );
 
-            let position = *position_receiver.cast::<CGPoint>();
-            let size = *position_receiver.cast::<CGSize>();
-
-            Rect {
-                left: position.x as i32,
-                top: position.y as i32,
-                right: size.width as i32,
-                bottom: size.height as i32,
-            }
+            Ok(Rect::from(rect))
         }
     }
 }

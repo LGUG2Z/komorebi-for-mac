@@ -44,4 +44,14 @@ impl WindowManagerEvent {
             _ => None,
         }
     }
+
+    pub fn process_id(&self) -> i32 {
+        match self {
+            WindowManagerEvent::FocusChange(_, process_id, _)
+            | WindowManagerEvent::Show(_, process_id)
+            | WindowManagerEvent::Destroy(_, process_id)
+            | WindowManagerEvent::Minimize(_, process_id, _)
+            | WindowManagerEvent::Restore(_, process_id, _) => *process_id,
+        }
+    }
 }

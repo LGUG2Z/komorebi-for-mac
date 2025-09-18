@@ -189,7 +189,7 @@ impl Workspace {
         container.focus_window(window_idx);
 
         if should_load {
-            container.load_focused_window();
+            container.load_focused_window()?;
         }
 
         self.focus_container(container_idx);
@@ -197,7 +197,7 @@ impl Workspace {
         Ok(())
     }
 
-    pub fn new_container_for_window(&mut self, window: Window) {
+    pub fn new_container_for_window(&mut self, window: &Window) -> eyre::Result<()> {
         let next_idx = if self.containers().is_empty() {
             0
         } else {
@@ -205,9 +205,11 @@ impl Workspace {
         };
 
         let mut container = Container::default();
-        container.add_window(window);
+        container.add_window(window)?;
 
         self.insert_container_at_idx(next_idx, container);
+
+        Ok(())
     }
 
     // this fn respects locked container indexes - we should use it for pretty much everything
@@ -274,7 +276,7 @@ impl Workspace {
             self.remove_container_by_idx(container_idx);
             self.focus_previous_container();
         } else {
-            container.load_focused_window();
+            container.load_focused_window()?;
             if let Some(window) = container.focused_window() {
                 window.focus(false)?;
             }
@@ -308,5 +310,70 @@ impl Workspace {
         }
 
         false
+    }
+
+    // this is what we use for stacking
+    pub fn move_window_to_container(&mut self, target_container_idx: usize) -> eyre::Result<()> {
+        let focused_idx = self.focused_container_idx();
+
+        let container = self
+            .focused_container_mut()
+            .ok_or_else(|| eyre!("there is no container"))?;
+
+        let window = container
+            .remove_focused_window()
+            .ok_or_else(|| eyre!("there is no window"))?;
+
+        // This is a little messy
+        let adjusted_target_container_index = if container.windows().is_empty() {
+            self.remove_container_by_idx(focused_idx);
+
+            if focused_idx < target_container_idx {
+                target_container_idx.saturating_sub(1)
+            } else {
+                target_container_idx
+            }
+        } else {
+            container.load_focused_window()?;
+            target_container_idx
+        };
+
+        let target_container = self
+            .containers_mut()
+            .get_mut(adjusted_target_container_index)
+            .ok_or_else(|| eyre!("there is no container"))?;
+
+        target_container.add_window(&window)?;
+
+        self.focus_container(adjusted_target_container_index);
+        self.focused_container_mut()
+            .ok_or_else(|| eyre!("there is no container"))?
+            .load_focused_window()?;
+
+        Ok(())
+    }
+
+    pub fn new_container_for_focused_window(&mut self) -> eyre::Result<()> {
+        let focused_container_idx = self.focused_container_idx();
+
+        let container = self
+            .focused_container_mut()
+            .ok_or_else(|| eyre!("there is no container"))?;
+
+        let window = container
+            .remove_focused_window()
+            .ok_or_else(|| eyre!("there is no window"))?;
+
+        if container.windows().is_empty() {
+            self.remove_container_by_idx(focused_container_idx);
+        } else {
+            container.load_focused_window()?;
+        }
+
+        self.new_container_for_window(&window)?;
+
+        let mut container = Container::default();
+        container.add_window(&window)?;
+        Ok(())
     }
 }

@@ -1,6 +1,8 @@
+use crate::accessibility::error::AccessibilityError;
 use crate::lockable_sequence::Lockable;
 use crate::ring::Ring;
 use crate::window::Window;
+use color_eyre::eyre;
 
 impl_ring_elements!(Container, Window);
 
@@ -42,16 +44,23 @@ impl Container {
         None
     }
 
-    pub fn add_window(&mut self, window: Window) {
-        self.windows_mut().push_back(window);
-        self.focus_window(self.windows().len().saturating_sub(1));
-        // let focused_window_idx = self.focused_window_idx();
+    pub fn remove_focused_window(&mut self) -> Option<Window> {
+        let focused_idx = self.focused_window_idx();
+        self.remove_window_by_idx(focused_idx)
+    }
 
-        // for (i, window) in self.windows().iter().enumerate() {
-        //     if i != focused_window_idx {
-        // window.hide();
-        // }
-        // }
+    pub fn add_window(&mut self, window: &Window) -> eyre::Result<()> {
+        self.windows_mut().push_back(window.clone());
+        self.focus_window(self.windows().len().saturating_sub(1));
+        let focused_window_idx = self.focused_window_idx();
+
+        for (i, window) in self.windows_mut().iter_mut().enumerate() {
+            if i != focused_window_idx {
+                window.hide()?;
+            }
+        }
+
+        Ok(())
     }
 
     #[tracing::instrument(skip(self))]
@@ -63,16 +72,18 @@ impl Container {
     /// Hides the unfocused windows of the container and restores the focused one. This function
     /// is used to make sure we update the window that should be shown on a stack. If the container
     /// isn't a stack this function won't change anything.
-    pub fn load_focused_window(&mut self) {
-        // let focused_idx = self.focused_window_idx();
+    pub fn load_focused_window(&mut self) -> Result<(), AccessibilityError> {
+        let focused_idx = self.focused_window_idx();
 
-        // for (i, window) in self.windows_mut().iter_mut().enumerate() {
-        //     if i == focused_idx {
-        //         window.restore_with_border(false);
-        //     } else {
-        //         window.hide_with_border(false);
-        //     }
-        // }
+        for (i, window) in self.windows_mut().iter_mut().enumerate() {
+            if i == focused_idx {
+                window.restore()?;
+            } else {
+                window.hide()?;
+            }
+        }
+
+        Ok(())
     }
 
     pub fn remove_window_by_idx(&mut self, idx: usize) -> Option<Window> {

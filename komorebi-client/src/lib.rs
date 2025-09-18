@@ -1,5 +1,6 @@
 pub use komorebi::DATA_DIR;
 pub use komorebi::core::SocketMessage;
+pub use komorebi::core::cycle_direction::CycleDirection;
 pub use komorebi::core::default_layout::DefaultLayout;
 pub use komorebi::core::operation_direction::OperationDirection;
 pub use komorebi::core::pathext::PathExt;
