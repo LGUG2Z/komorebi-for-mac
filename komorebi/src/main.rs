@@ -3,7 +3,9 @@
 use color_eyre::eyre;
 use color_eyre::eyre::eyre;
 use komorebi::DATA_DIR;
+use komorebi::ax_event_listener;
 use komorebi::process_command::listen_for_commands;
+use komorebi::process_event::listen_for_events;
 use komorebi::window_manager::WindowManager;
 use objc2::rc::autoreleasepool;
 use objc2_application_services::AXIsProcessTrusted;
@@ -101,11 +103,16 @@ fn main() -> eyre::Result<()> {
     tracing::info!("display size for main display is: {:?}", display_size);
 
     let run_loop = CFRunLoop::current().ok_or(eyre!("couldn't get CFRunLoop::current"))?;
-    let wm = Arc::new(Mutex::new(WindowManager::new(&run_loop, None)?));
+    let wm = Arc::new(Mutex::new(WindowManager::new(
+        &run_loop,
+        ax_event_listener::event_rx(),
+        None,
+    )?));
     wm.lock().init()?;
     wm.lock().update_focused_workspace(true, true)?;
 
     listen_for_commands(wm.clone());
+    listen_for_events(wm.clone());
 
     let quit_ctrlc = Arc::new(AtomicBool::new(false));
     let quit_thread = quit_ctrlc.clone();

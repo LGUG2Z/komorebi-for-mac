@@ -1,5 +1,10 @@
 #![allow(non_upper_case_globals, unused)]
 
+use serde::Deserialize;
+use serde::Serialize;
+use strum::Display;
+use strum::EnumString;
+
 pub const kAXMainWindowChangedNotification: &str = "AXMainWindowChanged";
 pub const kAXFocusedWindowChangedNotification: &str = "AXFocusedWindowChanged";
 pub const kAXFocusedUIElementChangedNotification: &str = "AXFocusedUIElementChanged";
@@ -41,3 +46,48 @@ pub const kAXUIElementsKey: &str = "AXUIElementsKey";
 pub const kAXPriorityKey: &str = "AXPriorityKey";
 pub const kAXAnnouncementKey: &str = "AXAnnouncementKey";
 pub const kAXUIElementTitleKey: &str = "AXUIElementTitleKey";
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, EnumString, Display, Serialize, Deserialize)]
+pub enum AccessibilityNotification {
+    AXMainWindowChanged,
+    AXFocusedWindowChanged,
+    AXFocusedUIElementChanged,
+    AXApplicationActivated,
+    AXApplicationDeactivated,
+    AXApplicationHidden,
+    AXApplicationShown,
+    AXWindowCreated,
+    AXWindowMoved,
+    AXWindowResized,
+    AXWindowMiniaturized,
+    AXWindowDeminiaturized,
+    AXDrawerCreated,
+    AXSheetCreated,
+    AXHelpTagCreated,
+    AXValueChanged,
+    AXUIElementDestroyed,
+    AXElementBusyChanged,
+    AXMenuOpened,
+    AXMenuClosed,
+    AXMenuItemSelected,
+    AXRowCountChanged,
+    AXRowExpanded,
+    AXRowCollapsed,
+    AXSelectedCellsChanged,
+    AXUnitsChanged,
+    AXSelectedChildrenMoved,
+    AXSelectedChildrenChanged,
+    AXResized,
+    AXMoved,
+    AXCreated,
+    AXSelectedRowsChanged,
+    AXSelectedColumnsChanged,
+    AXSelectedTextChanged,
+    AXTitleChanged,
+    AXLayoutChanged,
+    AXAnnouncementRequested,
+    AXUIElementsKey,
+    AXPriorityKey,
+    AXAnnouncementKey,
+    AXUIElementTitleKey,
+}

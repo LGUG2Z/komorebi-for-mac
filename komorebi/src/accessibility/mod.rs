@@ -1,3 +1,4 @@
+use crate::accessibility::private::_AXUIElementGetWindow;
 use error::AccessibilityApiError;
 use error::AccessibilityCustomError;
 use error::AccessibilityError;
@@ -6,21 +7,34 @@ use objc2_application_services::AXObserverCallback;
 use objc2_application_services::AXUIElement;
 use objc2_application_services::AXValue;
 use objc2_application_services::AXValueType;
+use objc2_core_foundation::CFArray;
 use objc2_core_foundation::CFRetained;
 use objc2_core_foundation::CFRunLoop;
 use objc2_core_foundation::CFRunLoopSource;
 use objc2_core_foundation::CFString;
 use objc2_core_foundation::CFType;
 use objc2_core_foundation::kCFRunLoopDefaultMode;
+use objc2_core_graphics::CGWindowID;
 use std::ptr::NonNull;
 
 pub mod attribute_constants;
 pub mod error;
 pub mod notification_constants;
+pub mod private;
 
 pub struct AccessibilityApi;
 
 impl AccessibilityApi {
+    pub fn window_id(element: &AXUIElement) -> Result<u32, AccessibilityError> {
+        let mut window_id = CGWindowID::default();
+        unsafe {
+            match AccessibilityError::from(_AXUIElementGetWindow(element, &mut window_id)) {
+                AccessibilityError::Api(AccessibilityApiError::Success) => Ok(window_id),
+                error => Err(error),
+            }
+        }
+    }
+
     pub fn copy_attribute_value<T: objc2_core_foundation::Type>(
         element: &AXUIElement,
         attribute: &'static str,
@@ -34,6 +48,17 @@ impl AccessibilityApi {
             );
 
             NonNull::new(receiver.cast::<T>().cast_mut())
+                .map(|cf_type| CFRetained::from_raw(cf_type))
+        }
+    }
+
+    pub fn copy_attribute_names(element: &AXUIElement) -> Option<CFRetained<CFArray>> {
+        let mut receiver = std::ptr::null();
+
+        unsafe {
+            element.copy_attribute_names(NonNull::from(&mut receiver));
+
+            NonNull::new(receiver.cast::<CFArray>().cast_mut())
                 .map(|cf_type| CFRetained::from_raw(cf_type))
         }
     }

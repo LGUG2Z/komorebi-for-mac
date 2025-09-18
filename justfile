@@ -9,7 +9,7 @@ fmt:
     prettier --write README.md
 
 install target:
-    cargo +stable install --path {{ target }} --locked
+    cargo +stable install --path {{ target }} --locked --target-dir ~/.cargo/bin
 
 build target:
     cargo +stable build --package {{ target }} --locked --release

@@ -1,9 +1,11 @@
 use crate::AccessibilityObserver;
 use crate::AccessibilityUiElement;
 use crate::accessibility::AccessibilityApi;
+use crate::accessibility::attribute_constants::kAXMainWindowAttribute;
 use crate::accessibility::attribute_constants::kAXTitleAttribute;
 use crate::accessibility::attribute_constants::kAXWindowsAttribute;
 use crate::accessibility::error::AccessibilityError;
+use crate::accessibility::notification_constants::AccessibilityNotification;
 use crate::accessibility::notification_constants::kAXApplicationActivatedNotification;
 use crate::accessibility::notification_constants::kAXApplicationDeactivatedNotification;
 use crate::accessibility::notification_constants::kAXApplicationHiddenNotification;
@@ -11,7 +13,9 @@ use crate::accessibility::notification_constants::kAXApplicationShownNotificatio
 use crate::accessibility::notification_constants::kAXMainWindowChangedNotification;
 use crate::accessibility::notification_constants::kAXUIElementDestroyedNotification;
 use crate::accessibility::notification_constants::kAXWindowCreatedNotification;
+use crate::ax_event_listener::event_tx;
 use crate::window::Window;
+use crate::window_manager_event::WindowManagerEvent;
 use objc2_application_services::AXObserver;
 use objc2_application_services::AXUIElement;
 use objc2_core_foundation::CFArray;
@@ -20,6 +24,7 @@ use objc2_core_foundation::CFRunLoop;
 use objc2_core_foundation::CFString;
 use std::ffi::c_void;
 use std::ptr::NonNull;
+use std::str::FromStr;
 use tracing::instrument;
 
 const NOTIFICATIONS: &[&str] = &[
@@ -55,31 +60,42 @@ unsafe extern "C-unwind" fn application_observer_callback(
             AccessibilityApi::copy_attribute_value::<CFString>(element.as_ref(), kAXTitleAttribute)
                 .map(|s| s.to_string());
 
-        let mut pid = 0;
-
-        element.as_ref().pid(NonNull::from_mut(&mut pid));
-
         if let Some(name) = name
             && !name.is_empty()
         {
-            tracing::info!(
-                "notification: {}, process: {pid}, name: \"{name}\"",
-                notification.as_ref()
-            );
-        } else {
-            tracing::info!("notification: {}, process: {pid}", notification.as_ref());
+            let mut process_id = 0;
+            element.as_ref().pid(NonNull::from_mut(&mut process_id));
+
+            if let Ok(notification) =
+                AccessibilityNotification::from_str(&notification.as_ref().to_string())
+                && let Some(event) =
+                    WindowManagerEvent::from_ax_notification(notification, process_id, None)
+            {
+                if let Err(error) = event_tx().send(event) {
+                    tracing::error!("failed to send window manager event: {error}");
+                } else {
+                    tracing::debug!(
+                        "notification: {notification}, process: {process_id}, name: \"{name}\"",
+                    );
+                }
+            }
         }
     }
 }
 
 impl Drop for Application {
     fn drop(&mut self) {
-        tracing::info!(
-            "invalidating application observer for process id {}",
-            self.process_id
-        );
-        // make sure the observer gets removed from any run loops
-        AccessibilityApi::invalidate_observer(&self.observer);
+        // this gets called when an Application clone on a Window is dropped, so we need
+        // to make sure it only invalidates the observer if the Application is no longer
+        // running
+        if !self.is_valid() {
+            tracing::info!(
+                "invalidating application observer for process id {}",
+                self.process_id
+            );
+            // make sure the observer gets removed from any run loops
+            AccessibilityApi::invalidate_observer(&self.observer);
+        }
     }
 }
 
@@ -117,11 +133,27 @@ impl Application {
         )
     }
 
-    fn window_elements(&self) -> Option<CFRetained<CFArray<AXUIElement>>> {
+    pub fn is_valid(&self) -> bool {
+        AccessibilityApi::copy_attribute_names(&self.element).is_some()
+    }
+
+    pub fn window_elements(&self) -> Option<CFRetained<CFArray<AXUIElement>>> {
         AccessibilityApi::copy_attribute_value::<CFArray<AXUIElement>>(
             &self.element,
             kAXWindowsAttribute,
         )
+    }
+
+    pub fn main_window(&self) -> Option<CFRetained<AXUIElement>> {
+        AccessibilityApi::copy_attribute_value::<AXUIElement>(&self.element, kAXMainWindowAttribute)
+    }
+
+    pub fn main_window_id(&self) -> Option<u32> {
+        let window = AccessibilityApi::copy_attribute_value::<AXUIElement>(
+            &self.element,
+            kAXMainWindowAttribute,
+        )?;
+        AccessibilityApi::window_id(window.as_ref()).ok()
     }
 
     pub fn window_by_title(&self, title: &str) -> Option<Window> {

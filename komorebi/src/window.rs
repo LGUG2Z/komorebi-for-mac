@@ -8,14 +8,17 @@ use crate::accessibility::attribute_constants::kAXSizeAttribute;
 use crate::accessibility::attribute_constants::kAXTitleAttribute;
 use crate::accessibility::error::AccessibilityCustomError;
 use crate::accessibility::error::AccessibilityError;
+use crate::accessibility::notification_constants::AccessibilityNotification;
 use crate::accessibility::notification_constants::kAXTitleChangedNotification;
 use crate::accessibility::notification_constants::kAXWindowDeminiaturizedNotification;
 use crate::accessibility::notification_constants::kAXWindowMiniaturizedNotification;
 use crate::accessibility::notification_constants::kAXWindowMovedNotification;
 use crate::accessibility::notification_constants::kAXWindowResizedNotification;
 use crate::application::Application;
+use crate::ax_event_listener::event_tx;
 use crate::cf_dictionary_value;
 use crate::core::rect::Rect;
+use crate::window_manager_event::WindowManagerEvent;
 use objc2_app_kit::NSApplicationActivationOptions;
 use objc2_app_kit::NSRunningApplication;
 use objc2_application_services::AXObserver;
@@ -37,6 +40,7 @@ use objc2_core_graphics::kCGWindowOwnerName;
 use objc2_core_graphics::kCGWindowOwnerPID;
 use std::ffi::c_void;
 use std::ptr::NonNull;
+use std::str::FromStr;
 use tracing::instrument;
 
 const NOTIFICATIONS: &[&str] = &[
@@ -55,23 +59,32 @@ unsafe extern "C-unwind" fn window_observer_callback(
     _context: *mut c_void,
 ) {
     unsafe {
-        let title =
+        let name =
             AccessibilityApi::copy_attribute_value::<CFString>(element.as_ref(), kAXTitleAttribute)
                 .map(|s| s.to_string());
 
-        let mut pid = 0;
-
-        element.as_ref().pid(NonNull::from_mut(&mut pid));
-
-        if let Some(title) = title
-            && !title.is_empty()
+        if let Some(name) = name
+            && !name.is_empty()
         {
-            tracing::info!(
-                "notification: {}, process: {pid}, title: \"{title}\"",
-                notification.as_ref()
-            );
-        } else {
-            tracing::info!("notification: {}, process: {pid}", notification.as_ref());
+            let mut process_id = 0;
+            element.as_ref().pid(NonNull::from_mut(&mut process_id));
+
+            let window_id = AccessibilityApi::window_id(element.as_ref()).ok();
+
+            if let Ok(notification) =
+                AccessibilityNotification::from_str(&notification.as_ref().to_string())
+                && let Some(event) =
+                    WindowManagerEvent::from_ax_notification(notification, process_id, window_id)
+            {
+                if let Err(error) = event_tx().send(event) {
+                    tracing::error!("failed to send window manager event: {error}");
+                } else {
+                    tracing::debug!(
+                        "notification: {}, process: {process_id}, name: \"{name}\"",
+                        notification,
+                    );
+                }
+            }
         }
     }
 }
@@ -125,8 +138,9 @@ impl WindowInfo {
 #[derive(Debug)]
 #[allow(unused)]
 pub struct Window {
+    pub id: u32,
     element: AccessibilityUiElement,
-    application: Application,
+    pub application: Application,
     observer: AccessibilityObserver,
 }
 
@@ -153,10 +167,15 @@ impl Window {
         )?;
 
         Ok(Self {
+            id: AccessibilityApi::window_id(&element)?,
             element: AccessibilityUiElement(element),
             application,
             observer: AccessibilityObserver(observer),
         })
+    }
+
+    pub fn is_valid(&self) -> bool {
+        AccessibilityApi::copy_attribute_names(&self.element).is_some()
     }
 
     #[tracing::instrument(skip_all)]

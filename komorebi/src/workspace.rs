@@ -1,3 +1,4 @@
+use crate::container::Container;
 use crate::core::arrangement::Axis;
 use crate::core::default_layout::DefaultLayout;
 use crate::core::default_layout::LayoutOptions;
@@ -6,7 +7,7 @@ use crate::core::operation_direction::OperationDirection;
 use crate::core::rect::Rect;
 use crate::lockable_sequence::LockableSequence;
 use crate::ring::Ring;
-use crate::window_manager::Container;
+use crate::window::Window;
 use color_eyre::eyre;
 use color_eyre::eyre::eyre;
 use std::num::NonZeroUsize;
@@ -152,5 +153,160 @@ impl Workspace {
             self.focused_container_idx(),
             len,
         )
+    }
+
+    pub fn container_idx_for_window(&self, window_id: u32) -> Option<usize> {
+        let mut idx = None;
+        for (i, x) in self.containers().iter().enumerate() {
+            if x.contains_window(window_id) {
+                idx = Option::from(i);
+            }
+        }
+
+        idx
+    }
+
+    pub fn focus_container_by_window(&mut self, window_id: u32) -> eyre::Result<()> {
+        let container_idx = self
+            .container_idx_for_window(window_id)
+            .ok_or_else(|| eyre!("there is no container/window"))?;
+
+        let container = self
+            .containers_mut()
+            .get_mut(container_idx)
+            .ok_or_else(|| eyre!("there is no container"))?;
+
+        let window_idx = container
+            .idx_for_window(window_id)
+            .ok_or_else(|| eyre!("there is no window"))?;
+
+        let mut should_load = false;
+
+        if container.focused_window_idx() != window_idx {
+            should_load = true
+        }
+
+        container.focus_window(window_idx);
+
+        if should_load {
+            container.load_focused_window();
+        }
+
+        self.focus_container(container_idx);
+
+        Ok(())
+    }
+
+    pub fn new_container_for_window(&mut self, window: Window) {
+        let next_idx = if self.containers().is_empty() {
+            0
+        } else {
+            self.focused_container_idx() + 1
+        };
+
+        let mut container = Container::default();
+        container.add_window(window);
+
+        self.insert_container_at_idx(next_idx, container);
+    }
+
+    // this fn respects locked container indexes - we should use it for pretty much everything
+    // except monocle and maximize toggles
+    pub fn insert_container_at_idx(&mut self, idx: usize, container: Container) -> usize {
+        let insertion_idx = self
+            .containers_mut()
+            .insert_respecting_locks(idx, container);
+
+        if insertion_idx > self.resize_dimensions.len() {
+            self.resize_dimensions.push(None);
+        } else {
+            self.resize_dimensions.insert(insertion_idx, None);
+        }
+
+        self.focus_container(insertion_idx);
+
+        insertion_idx
+    }
+
+    pub fn reap_invalid_windows_for_application(
+        &mut self,
+        process_id: i32,
+        valid_window_ids: &[u32],
+    ) -> eyre::Result<()> {
+        let mut invalid_window_ids = vec![];
+        for container in self.containers() {
+            if let Some(focused_window) = container.focused_window()
+                && focused_window.application.process_id == process_id
+                && !valid_window_ids.contains(&focused_window.id)
+            {
+                invalid_window_ids.push(focused_window.id);
+            }
+        }
+
+        for window_id in invalid_window_ids {
+            self.remove_window(window_id)?;
+        }
+
+        Ok(())
+    }
+
+    pub fn remove_window(&mut self, window_id: u32) -> eyre::Result<Window> {
+        let container_idx = self
+            .container_idx_for_window(window_id)
+            .ok_or_else(|| eyre!("there is no window"))?;
+
+        let container = self
+            .containers_mut()
+            .get_mut(container_idx)
+            .ok_or_else(|| eyre!("there is no container"))?;
+
+        let window_idx = container
+            .windows()
+            .iter()
+            .position(|window| window.id == window_id)
+            .ok_or_else(|| eyre!("there is no window"))?;
+
+        let window = container
+            .remove_window_by_idx(window_idx)
+            .ok_or_else(|| eyre!("there is no window"))?;
+
+        if container.windows().is_empty() {
+            self.remove_container_by_idx(container_idx);
+            self.focus_previous_container();
+        } else {
+            container.load_focused_window();
+            if let Some(window) = container.focused_window() {
+                window.focus(false)?;
+            }
+        }
+
+        Ok(window)
+    }
+
+    // this fn respects locked container indexes - we should use it for pretty much everything
+    // except monocle and maximize toggles
+    pub fn remove_container_by_idx(&mut self, idx: usize) -> Option<Container> {
+        let container = self.containers_mut().remove_respecting_locks(idx);
+
+        if idx < self.resize_dimensions.len() {
+            self.resize_dimensions.remove(idx);
+        }
+
+        container
+    }
+
+    pub fn focus_previous_container(&mut self) {
+        let focused_idx = self.focused_container_idx();
+        self.focus_container(focused_idx.saturating_sub(1));
+    }
+
+    pub fn contains_window(&self, window_id: u32) -> bool {
+        for container in self.containers() {
+            if container.contains_window(window_id) {
+                return true;
+            }
+        }
+
+        false
     }
 }

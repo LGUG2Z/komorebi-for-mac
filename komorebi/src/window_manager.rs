@@ -1,19 +1,22 @@
 use crate::CoreFoundationRunLoop;
 use crate::DATA_DIR;
 use crate::LibraryError;
+use crate::accessibility::AccessibilityApi;
 use crate::application::Application;
+use crate::container::Container;
 use crate::core::default_layout::DefaultLayout;
 use crate::core::layout::Layout;
 use crate::core::operation_direction::OperationDirection;
 use crate::core::rect::Rect;
-use crate::lockable_sequence::Lockable;
 use crate::macos_api::MacosApi;
 use crate::monitor::Monitor;
 use crate::ring::Ring;
 use crate::window::Window;
+use crate::window_manager_event::WindowManagerEvent;
 use crate::workspace::Workspace;
 use color_eyre::eyre;
 use color_eyre::eyre::eyre;
+use crossbeam_channel::Receiver;
 use objc2_core_foundation::CFRetained;
 use objc2_core_foundation::CFRunLoop;
 use std::collections::HashMap;
@@ -30,6 +33,8 @@ pub struct WindowManager {
     pub is_paused: bool,
     pub mouse_follows_focus: bool,
     pub work_area_offset: Option<Rect>,
+    pub incoming_events: Receiver<WindowManagerEvent>,
+    pub minimized_windows: HashMap<u32, Window>,
 }
 
 impl_ring_elements!(WindowManager, Monitor);
@@ -37,6 +42,7 @@ impl_ring_elements!(WindowManager, Monitor);
 impl WindowManager {
     pub fn new(
         run_loop: &CFRetained<CFRunLoop>,
+        incoming: Receiver<WindowManagerEvent>,
         custom_socket_path: Option<PathBuf>,
     ) -> eyre::Result<Self> {
         let socket = custom_socket_path.unwrap_or_else(|| DATA_DIR.join("komorebi.sock"));
@@ -61,6 +67,8 @@ impl WindowManager {
             is_paused: false,
             mouse_follows_focus: true,
             work_area_offset: None,
+            incoming_events: incoming,
+            minimized_windows: HashMap::new(),
         })
     }
 
@@ -241,22 +249,32 @@ impl WindowManager {
             .focused_window_mut()
             .ok_or_else(|| eyre!("there is no window"))
     }
-}
 
-impl_ring_elements!(Container, Window);
-#[derive(Debug, Default)]
-pub struct Container {
-    pub windows: Ring<Window>,
-    pub locked: bool,
-}
+    pub fn extract_minimized_window(&mut self, window_id: u32) -> eyre::Result<()> {
+        let workspace = self.focused_workspace_mut()?;
+        let window = workspace.remove_window(window_id)?;
+        self.minimized_windows.insert(window_id, window);
 
-impl Lockable for Container {
-    fn locked(&self) -> bool {
-        self.locked
+        Ok(())
     }
 
-    fn set_locked(&mut self, locked: bool) -> &mut Self {
-        self.locked = locked;
-        self
+    pub fn reap_invalid_windows_for_application(&mut self, process_id: i32) -> eyre::Result<()> {
+        if let Some(application) = self.applications.get(&process_id) {
+            let mut valid_window_ids = vec![];
+            if let Some(elements) = application.window_elements() {
+                for element in elements {
+                    if let Ok(window_id) = AccessibilityApi::window_id(&element) {
+                        valid_window_ids.push(window_id);
+                    }
+                }
+            }
+
+            let focused_workspace = self.focused_workspace_mut()?;
+            focused_workspace
+                .reap_invalid_windows_for_application(process_id, &valid_window_ids)?;
+            self.update_focused_workspace(false, false)?;
+        }
+
+        Ok(())
     }
 }
