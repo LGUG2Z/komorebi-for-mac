@@ -6,7 +6,7 @@ use color_eyre::eyre;
 
 impl_ring_elements!(Container, Window);
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Container {
     pub windows: Ring<Window>,
     pub locked: bool,
@@ -90,5 +90,32 @@ impl Container {
         let window = self.windows_mut().remove(idx);
         self.focus_window(idx.saturating_sub(1));
         window
+    }
+
+    pub fn hide(&mut self, omit: Option<u32>) -> eyre::Result<()> {
+        for window in self.windows_mut().iter_mut().rev() {
+            let mut should_hide = omit.is_none();
+
+            if !should_hide
+                && let Some(omit) = omit
+                && omit != window.id
+            {
+                should_hide = true
+            }
+
+            if should_hide {
+                window.hide()?;
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn restore(&mut self) -> eyre::Result<()> {
+        if let Some(window) = self.focused_window_mut() {
+            window.restore()?;
+        }
+
+        Ok(())
     }
 }

@@ -11,6 +11,9 @@ use objc2_core_foundation::CFDictionary;
 use objc2_core_foundation::CFRetained;
 use objc2_core_foundation::CFRunLoop;
 use objc2_core_foundation::CFString;
+use objc2_core_foundation::CGPoint;
+use objc2_core_foundation::CGRect;
+use objc2_core_foundation::CGSize;
 use std::ops::Deref;
 use std::path::PathBuf;
 use std::ptr::NonNull;
@@ -112,4 +115,12 @@ pub enum LibraryError {
     Accessibility(#[from] AccessibilityError),
     #[error(transparent)]
     CoreGraphics(#[from] CoreGraphicsError),
+}
+
+pub fn hidden_frame_bottom_left(screen_frame: CGRect, window_size: CGSize) -> CGRect {
+    let visible_sliver: f64 = 1.0;
+    let origin_x = screen_frame.origin.x - (window_size.width - visible_sliver);
+    let origin_y = screen_frame.origin.y - (window_size.height - visible_sliver);
+
+    CGRect::new(CGPoint::new(origin_x, origin_y), window_size)
 }

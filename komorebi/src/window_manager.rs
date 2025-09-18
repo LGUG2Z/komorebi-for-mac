@@ -418,4 +418,40 @@ impl WindowManager {
 
         self.update_focused_workspace(mouse_follows_focus, true)
     }
+    #[tracing::instrument(skip(self))]
+    pub fn focus_workspace(&mut self, idx: usize) -> eyre::Result<()> {
+        tracing::info!("focusing workspace");
+
+        let mouse_follows_focus = self.mouse_follows_focus;
+        let monitor = self
+            .focused_monitor_mut()
+            .ok_or_else(|| eyre!("there is no workspace"))?;
+
+        monitor.focus_workspace(idx)?;
+        monitor.load_focused_workspace(mouse_follows_focus)?;
+
+        self.update_focused_workspace(false, true)
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn move_container_to_workspace(
+        &mut self,
+        idx: usize,
+        follow: bool,
+        direction: Option<OperationDirection>,
+    ) -> eyre::Result<()> {
+        tracing::info!("moving container");
+
+        let mouse_follows_focus = self.mouse_follows_focus;
+        let monitor = self
+            .focused_monitor_mut()
+            .ok_or_else(|| eyre!("there is no monitor"))?;
+
+        monitor.move_container_to_workspace(idx, follow, direction)?;
+        monitor.load_focused_workspace(mouse_follows_focus)?;
+
+        self.update_focused_workspace(mouse_follows_focus, true)?;
+
+        Ok(())
+    }
 }

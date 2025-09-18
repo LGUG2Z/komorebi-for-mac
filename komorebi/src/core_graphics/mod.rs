@@ -5,6 +5,7 @@ use objc2_core_foundation::CGFloat;
 use objc2_core_foundation::CGPoint;
 use objc2_core_foundation::CGRect;
 use objc2_core_graphics::CGDisplayBounds;
+use objc2_core_graphics::CGGetDisplaysWithPoint;
 use objc2_core_graphics::CGGetOnlineDisplayList;
 use objc2_core_graphics::CGRectIntersectsRect;
 use objc2_core_graphics::CGWarpMouseCursorPosition;
@@ -54,6 +55,32 @@ impl CoreGraphicsApi {
 
     pub fn display_bounds(display_id: u32) -> CGRect {
         unsafe { CGDisplayBounds(display_id) }
+    }
+
+    pub fn display_bounds_for_window_rect(window_rect: CGRect) -> Option<CGRect> {
+        let mut displays: Vec<u32> = Vec::with_capacity(1);
+        let mut display_count = 0;
+
+        unsafe {
+            match CoreGraphicsError::from(CGGetDisplaysWithPoint(
+                window_rect.origin,
+                displays.capacity() as u32,
+                displays.as_mut_ptr(),
+                &mut display_count,
+            )) {
+                CoreGraphicsError::Success => {
+                    displays.set_len(display_count as usize);
+                }
+                error => {
+                    tracing::error!("failed to find display for point: {error}");
+                    return None;
+                }
+            }
+        }
+
+        displays
+            .first()
+            .map(|display| CoreGraphicsApi::display_bounds(*display))
     }
 
     pub fn window_list_info() -> Option<CFRetained<CFArray>> {

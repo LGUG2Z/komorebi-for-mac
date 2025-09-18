@@ -14,7 +14,7 @@ use std::num::NonZeroUsize;
 
 impl_ring_elements!(Workspace, Container);
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Workspace {
     pub containers: Ring<Container>,
     pub workspace_padding: Option<i32>,
@@ -375,5 +375,66 @@ impl Workspace {
         let mut container = Container::default();
         container.add_window(&window)?;
         Ok(())
+    }
+
+    pub fn hide(&mut self, omit: Option<u32>) -> eyre::Result<()> {
+        for container in self.containers_mut() {
+            container.hide(omit)?;
+        }
+
+        Ok(())
+    }
+
+    pub fn restore(&mut self, mouse_follows_focus: bool) -> eyre::Result<()> {
+        let idx = self.focused_container_idx();
+        let mut to_focus = None;
+
+        for (i, container) in self.containers().iter().enumerate() {
+            if let Some(window) = container.focused_window()
+                && idx == i
+            {
+                to_focus = Option::from(window.clone());
+            }
+        }
+
+        for container in self.containers_mut() {
+            container.restore()?;
+        }
+
+        if let Some(container) = self.focused_container_mut() {
+            container.focus_window(container.focused_window_idx());
+        }
+
+        if let Some(window) = to_focus {
+            window.focus(mouse_follows_focus)?;
+        }
+
+        Ok(())
+    }
+
+    pub fn remove_focused_container(&mut self) -> Option<Container> {
+        let focused_idx = self.focused_container_idx();
+        let container = self.remove_container_by_idx(focused_idx);
+        self.focus_previous_container();
+
+        container
+    }
+
+    pub fn add_container_to_back(&mut self, container: Container) {
+        self.containers_mut().push_back(container);
+        self.focus_last_container();
+    }
+
+    pub fn add_container_to_front(&mut self, container: Container) {
+        self.containers_mut().push_front(container);
+        self.focus_first_container();
+    }
+
+    fn focus_last_container(&mut self) {
+        self.focus_container(self.containers().len().saturating_sub(1));
+    }
+
+    fn focus_first_container(&mut self) {
+        self.focus_container(0);
     }
 }

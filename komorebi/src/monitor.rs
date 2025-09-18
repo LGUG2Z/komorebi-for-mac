@@ -1,5 +1,9 @@
 use crate::DEFAULT_CONTAINER_PADDING;
 use crate::DEFAULT_WORKSPACE_PADDING;
+use crate::container::Container;
+use crate::core::default_layout::DefaultLayout;
+use crate::core::layout::Layout;
+use crate::core::operation_direction::OperationDirection;
 use crate::core::rect::Rect;
 use crate::ring::Ring;
 use crate::workspace::Workspace;
@@ -21,6 +25,7 @@ pub struct Monitor {
     pub window_based_work_area_offset_limit: isize,
     pub container_padding: Option<i32>,
     pub workspace_padding: Option<i32>,
+    pub last_focused_workspace: Option<usize>,
 }
 
 impl Monitor {
@@ -39,6 +44,7 @@ impl Monitor {
             window_based_work_area_offset_limit: 0,
             container_padding: None,
             workspace_padding: None,
+            last_focused_workspace: None,
         }
     }
 
@@ -84,5 +90,148 @@ impl Monitor {
                 window_based_work_area_offset_limit,
             }
         }
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn focus_workspace(&mut self, idx: usize) -> eyre::Result<()> {
+        tracing::info!("focusing workspace");
+
+        {
+            let workspaces = self.workspaces_mut();
+
+            if workspaces.get(idx).is_none() {
+                workspaces.resize(idx + 1, Workspace::default());
+            }
+            self.last_focused_workspace = Some(self.workspaces.focused_idx());
+            self.workspaces.focus(idx);
+        }
+
+        Ok(())
+    }
+
+    pub fn load_focused_workspace(&mut self, mouse_follows_focus: bool) -> eyre::Result<()> {
+        let focused_idx = self.focused_workspace_idx();
+        for (i, workspace) in self.workspaces_mut().iter_mut().enumerate() {
+            if i == focused_idx {
+                workspace.restore(mouse_follows_focus)?;
+            } else {
+                workspace.hide(None)?;
+            }
+        }
+
+        Ok(())
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn move_container_to_workspace(
+        &mut self,
+        target_workspace_idx: usize,
+        follow: bool,
+        direction: Option<OperationDirection>,
+    ) -> eyre::Result<()> {
+        let workspace = self
+            .focused_workspace_mut()
+            .ok_or_else(|| eyre!("there is no workspace"))?;
+
+        let container = workspace
+            .remove_focused_container()
+            .ok_or_else(|| eyre!("there is no container"))?;
+
+        let workspaces = self.workspaces_mut();
+
+        #[allow(clippy::option_if_let_else)]
+        let target_workspace = match workspaces.get_mut(target_workspace_idx) {
+            None => {
+                workspaces.resize(target_workspace_idx + 1, Workspace::default());
+                workspaces.get_mut(target_workspace_idx).unwrap()
+            }
+            Some(workspace) => workspace,
+        };
+
+        if let Some(direction) = direction {
+            self.add_container_with_direction(container, Some(target_workspace_idx), direction)?;
+        } else {
+            target_workspace.add_container_to_back(container);
+        }
+
+        if follow {
+            self.focus_workspace(target_workspace_idx)?;
+        }
+
+        Ok(())
+    }
+
+    /// Adds a container to this `Monitor` using the move direction to calculate if the container
+    /// should be added in front of all containers, in the back or in place of the focused
+    /// container, moving the rest along. The move direction should be from the origin monitor
+    /// towards the target monitor or from the origin workspace towards the target workspace.
+    pub fn add_container_with_direction(
+        &mut self,
+        container: Container,
+        workspace_idx: Option<usize>,
+        direction: OperationDirection,
+    ) -> eyre::Result<()> {
+        let workspace = if let Some(idx) = workspace_idx {
+            self.workspaces_mut()
+                .get_mut(idx)
+                .ok_or_else(|| eyre!("there is no workspace at index {}", idx))?
+        } else {
+            self.focused_workspace_mut()
+                .ok_or_else(|| eyre!("there is no workspace"))?
+        };
+
+        match direction {
+            OperationDirection::Left => {
+                // insert the container into the workspace on the monitor at the back (or rightmost position)
+                // if we are moving across a boundary to the left (back = right side of the target)
+                match workspace.layout {
+                    Layout::Default(layout) => match layout {
+                        DefaultLayout::RightMainVerticalStack => {
+                            workspace.add_container_to_front(container);
+                        }
+                        DefaultLayout::UltrawideVerticalStack => {
+                            if workspace.containers().len() == 1 {
+                                workspace.insert_container_at_idx(0, container);
+                            } else {
+                                workspace.add_container_to_back(container);
+                            }
+                        }
+                        _ => {
+                            workspace.add_container_to_back(container);
+                        }
+                    },
+                }
+            }
+            OperationDirection::Right => {
+                // insert the container into the workspace on the monitor at the front (or leftmost position)
+                // if we are moving across a boundary to the right (front = left side of the target)
+                match workspace.layout {
+                    Layout::Default(layout) => {
+                        let target_index = layout.leftmost_index(workspace.containers().len());
+
+                        match layout {
+                            DefaultLayout::RightMainVerticalStack
+                            | DefaultLayout::UltrawideVerticalStack => {
+                                if workspace.containers().len() == 1 {
+                                    workspace.add_container_to_back(container);
+                                } else {
+                                    workspace.insert_container_at_idx(target_index, container);
+                                }
+                            }
+                            _ => {
+                                workspace.insert_container_at_idx(target_index, container);
+                            }
+                        }
+                    }
+                }
+            }
+            OperationDirection::Up | OperationDirection::Down => {
+                // insert the container into the workspace on the monitor at the position
+                // where the currently focused container on that workspace is
+                workspace.insert_container_at_idx(workspace.focused_container_idx(), container);
+            }
+        };
+
+        Ok(())
     }
 }

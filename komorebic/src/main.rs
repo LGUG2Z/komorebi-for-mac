@@ -59,6 +59,25 @@ gen_enum_subcommand_args! {
     CycleStack: CycleDirection,
 }
 
+macro_rules! gen_target_subcommand_args {
+    // SubCommand Pattern
+    ( $( $name:ident ),+ $(,)? ) => {
+        $(
+            #[derive(clap::Parser)]
+            pub struct $name {
+                /// Target index (zero-indexed)
+                target: usize,
+            }
+        )+
+    };
+}
+
+gen_target_subcommand_args! {
+    FocusWorkspace,
+    MoveToWorkspace,
+    SendToWorkspace
+}
+
 #[derive(Parser)]
 #[clap(author, about, version)]
 struct Opts {
@@ -87,6 +106,15 @@ enum SubCommand {
     /// Set the layout on the focused workspace
     #[clap(arg_required_else_help = true)]
     ChangeLayout(ChangeLayout),
+    /// Focus the specified workspace on the focused monitor
+    #[clap(arg_required_else_help = true)]
+    FocusWorkspace(FocusWorkspace),
+    /// Move the focused window to the specified workspace
+    #[clap(arg_required_else_help = true)]
+    MoveToWorkspace(MoveToWorkspace),
+    /// Send the focused window to the specified workspace
+    #[clap(arg_required_else_help = true)]
+    SendToWorkspace(SendToWorkspace),
 }
 
 fn main() -> eyre::Result<()> {
@@ -113,6 +141,15 @@ fn main() -> eyre::Result<()> {
         }
         SubCommand::CycleStack(arg) => {
             send_message(&SocketMessage::CycleStack(arg.cycle_direction))?;
+        }
+        SubCommand::FocusWorkspace(arg) => {
+            send_message(&SocketMessage::FocusWorkspaceNumber(arg.target))?;
+        }
+        SubCommand::MoveToWorkspace(arg) => {
+            send_message(&SocketMessage::MoveContainerToWorkspaceNumber(arg.target))?;
+        }
+        SubCommand::SendToWorkspace(arg) => {
+            send_message(&SocketMessage::SendContainerToWorkspaceNumber(arg.target))?;
         }
     }
 

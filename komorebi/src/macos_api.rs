@@ -125,7 +125,7 @@ impl MacosApi {
         )?)
     }
 
-    pub fn window_rect(element: &AXUIElement) -> Result<Rect, AccessibilityError> {
+    pub fn window_rect(element: &AXUIElement) -> Result<CGRect, AccessibilityError> {
         let mut position_receiver = std::ptr::null();
         let mut size_receiver = std::ptr::null();
 
@@ -168,7 +168,7 @@ impl MacosApi {
                 NonNull::from_mut(&mut rect.size).cast::<c_void>(),
             );
 
-            Ok(Rect::from(rect))
+            Ok(rect)
         }
     }
 }

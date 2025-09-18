@@ -19,6 +19,8 @@ use crate::application::Application;
 use crate::ax_event_listener::event_tx;
 use crate::cf_dictionary_value;
 use crate::core::rect::Rect;
+use crate::core_graphics::CoreGraphicsApi;
+use crate::hidden_frame_bottom_left;
 use crate::macos_api::MacosApi;
 use crate::window_manager_event::WindowManagerEvent;
 use objc2_app_kit::NSApplicationActivationOptions;
@@ -206,20 +208,24 @@ impl Window {
 
     #[tracing::instrument(skip_all)]
     pub fn hide(&mut self) -> Result<(), AccessibilityError> {
+        // I don't love this, but it's basically what Aerospace does in lieu of an actual "Hide" API
         if self.restore_point.is_none() {
             let rect = MacosApi::window_rect(&self.element)?;
-            self.restore_point = Some((rect.left as f32, rect.top as f32));
+            if let Some(monitor_size) = CoreGraphicsApi::display_bounds_for_window_rect(rect) {
+                self.restore_point = Some((rect.origin.x as f32, rect.origin.y as f32));
+                let hidden_rect = hidden_frame_bottom_left(monitor_size, rect.size);
 
-            tracing::debug!(
-                "hiding {} and setting restore point to {},{}",
-                self.title()
-                    .unwrap_or_else(|| String::from("<NO TITLE FOUND>")),
-                rect.left,
-                rect.top,
-            );
+                tracing::debug!(
+                    "hiding {} and setting restore point to {},{}",
+                    self.title()
+                        .unwrap_or_else(|| String::from("<NO TITLE FOUND>")),
+                    rect.origin.x,
+                    rect.origin.y,
+                );
 
-            // todo: this doesn't really do what I want
-            self.set_point(CGPoint::new(-5000.0 as CGFloat, rect.top as CGFloat))?;
+                self.set_point(hidden_rect.origin)?;
+                self.set_size(hidden_rect.size)?;
+            }
         }
 
         Ok(())

@@ -79,6 +79,17 @@ impl WindowManager {
 
                 self.is_paused = !self.is_paused;
             }
+            SocketMessage::FocusWorkspaceNumber(workspace_idx) => {
+                if self.focused_workspace_idx().unwrap_or_default() != workspace_idx {
+                    self.focus_workspace(workspace_idx)?;
+                }
+            }
+            SocketMessage::MoveContainerToWorkspaceNumber(workspace_idx) => {
+                self.move_container_to_workspace(workspace_idx, true, None)?;
+            }
+            SocketMessage::SendContainerToWorkspaceNumber(workspace_idx) => {
+                self.move_container_to_workspace(workspace_idx, false, None)?;
+            }
         }
 
         Ok(())
