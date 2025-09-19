@@ -83,6 +83,30 @@ impl CoreGraphicsApi {
             .map(|display| CoreGraphicsApi::display_bounds(*display))
     }
 
+    pub fn display_with_point(point: CGPoint) -> Option<u32> {
+        let mut displays: Vec<u32> = Vec::with_capacity(1);
+        let mut display_count = 0;
+
+        unsafe {
+            match CoreGraphicsError::from(CGGetDisplaysWithPoint(
+                point,
+                displays.capacity() as u32,
+                displays.as_mut_ptr(),
+                &mut display_count,
+            )) {
+                CoreGraphicsError::Success => {
+                    displays.set_len(display_count as usize);
+                }
+                error => {
+                    tracing::error!("failed to find display for point: {error}");
+                    return None;
+                }
+            }
+        }
+
+        displays.first().copied()
+    }
+
     pub fn window_list_info() -> Option<CFRetained<CFArray>> {
         unsafe {
             CGWindowListCopyWindowInfo(

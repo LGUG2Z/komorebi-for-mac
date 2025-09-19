@@ -21,6 +21,7 @@ use std::num::NonZeroUsize;
 
 #[derive(Debug, Clone)]
 pub struct Workspace {
+    pub name: Option<String>,
     pub containers: Ring<Container>,
     pub monocle_container: Option<Container>,
     pub monocle_container_restore_idx: Option<usize>,
@@ -68,6 +69,7 @@ impl_ring_elements!(Workspace, Window, "floating_window");
 impl Default for Workspace {
     fn default() -> Self {
         Self {
+            name: None,
             containers: Default::default(),
             monocle_container: None,
             monocle_container_restore_idx: None,

@@ -62,6 +62,9 @@ gen_enum_subcommand_args! {
     Stack: OperationDirection,
     CycleStack: CycleDirection,
     PromoteWindow: OperationDirection,
+    CycleMonitor: CycleDirection,
+    CycleWorkspace: CycleDirection,
+    CycleEmptyWorkspace: CycleDirection,
 }
 
 macro_rules! gen_target_subcommand_args {
@@ -78,9 +81,30 @@ macro_rules! gen_target_subcommand_args {
 }
 
 gen_target_subcommand_args! {
-    FocusWorkspace,
+    MoveToMonitor,
     MoveToWorkspace,
-    SendToWorkspace
+    SendToMonitor,
+    SendToWorkspace,
+    FocusMonitor,
+    FocusWorkspace,
+    FocusWorkspaces,
+}
+
+macro_rules! gen_named_target_subcommand_args {
+    // SubCommand Pattern
+    ( $( $name:ident ),+ $(,)? ) => {
+        $(
+            #[derive(clap::Parser)]
+            pub struct $name {
+                /// Target workspace name
+                workspace: String,
+            }
+        )+
+    };
+}
+
+gen_named_target_subcommand_args! {
+    FocusNamedWorkspace,
 }
 
 #[derive(Parser)]
@@ -97,6 +121,14 @@ struct ResizeAxis {
     axis: Axis,
     #[clap(value_enum)]
     sizing: Sizing,
+}
+
+#[derive(Parser)]
+struct FocusMonitorWorkspace {
+    /// Target monitor index (zero-indexed)
+    target_monitor: usize,
+    /// Workspace index on the target monitor (zero-indexed)
+    target_workspace: usize,
 }
 
 #[derive(Parser)]
@@ -152,9 +184,36 @@ enum SubCommand {
     PromoteFocus,
     /// Promote the window in the specified direction
     PromoteWindow(PromoteWindow),
+    /// Focus the specified monitor
+    #[clap(arg_required_else_help = true)]
+    FocusMonitor(FocusMonitor),
+    /// Focus the monitor at the current cursor location
+    FocusMonitorAtCursor,
+    /// Focus the last focused workspace on the focused monitor
+    FocusLastWorkspace,
     /// Focus the specified workspace on the focused monitor
     #[clap(arg_required_else_help = true)]
     FocusWorkspace(FocusWorkspace),
+    /// Focus the specified workspace on all monitors
+    #[clap(arg_required_else_help = true)]
+    FocusWorkspaces(FocusWorkspaces),
+    /// Focus the specified workspace on the target monitor
+    #[clap(arg_required_else_help = true)]
+    FocusMonitorWorkspace(FocusMonitorWorkspace),
+    /// Focus the specified workspace
+    #[clap(arg_required_else_help = true)]
+    FocusNamedWorkspace(FocusNamedWorkspace),
+    /// Close the focused workspace (must be empty and unnamed)
+    CloseWorkspace,
+    /// Focus the monitor in the given cycle direction
+    #[clap(arg_required_else_help = true)]
+    CycleMonitor(CycleMonitor),
+    /// Focus the workspace in the given cycle direction
+    #[clap(arg_required_else_help = true)]
+    CycleWorkspace(CycleWorkspace),
+    /// Focus the next empty workspace in the given cycle direction (if one exists)
+    #[clap(arg_required_else_help = true)]
+    CycleEmptyWorkspace(CycleEmptyWorkspace),
     /// Move the focused window to the specified workspace
     #[clap(arg_required_else_help = true)]
     MoveToWorkspace(MoveToWorkspace),
@@ -275,6 +334,41 @@ fn main() -> eyre::Result<()> {
         }
         SubCommand::ToggleCrossMonitorMoveBehaviour => {
             send_message(&SocketMessage::ToggleCrossMonitorMoveBehaviour)?;
+        }
+        SubCommand::FocusMonitor(arg) => {
+            send_message(&SocketMessage::FocusMonitorNumber(arg.target))?;
+        }
+        SubCommand::FocusMonitorAtCursor => {
+            send_message(&SocketMessage::FocusMonitorAtCursor)?;
+        }
+        SubCommand::FocusLastWorkspace => {
+            send_message(&SocketMessage::FocusLastWorkspace)?;
+        }
+        SubCommand::FocusWorkspaces(arg) => {
+            send_message(&SocketMessage::FocusWorkspaceNumbers(arg.target))?;
+        }
+        SubCommand::FocusMonitorWorkspace(arg) => {
+            send_message(&SocketMessage::FocusMonitorWorkspaceNumber(
+                arg.target_monitor,
+                arg.target_workspace,
+            ))?;
+        }
+        SubCommand::FocusNamedWorkspace(arg) => {
+            send_message(&SocketMessage::FocusNamedWorkspace(arg.workspace))?;
+        }
+        SubCommand::CloseWorkspace => {
+            send_message(&SocketMessage::CloseWorkspace)?;
+        }
+        SubCommand::CycleMonitor(arg) => {
+            send_message(&SocketMessage::CycleFocusMonitor(arg.cycle_direction))?;
+        }
+        SubCommand::CycleWorkspace(arg) => {
+            send_message(&SocketMessage::CycleFocusWorkspace(arg.cycle_direction))?;
+        }
+        SubCommand::CycleEmptyWorkspace(arg) => {
+            send_message(&SocketMessage::CycleFocusEmptyWorkspace(
+                arg.cycle_direction,
+            ))?;
         }
     }
 

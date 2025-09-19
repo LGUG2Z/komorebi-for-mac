@@ -15,6 +15,7 @@ use crate::monitor::Monitor;
 use crate::window::WindowInfo;
 use crate::window_manager::WindowManager;
 use objc2::MainThreadMarker;
+use objc2_app_kit::NSEvent;
 use objc2_app_kit::NSScreen;
 use objc2_application_services::AXUIElement;
 use objc2_application_services::AXValue;
@@ -22,6 +23,7 @@ use objc2_application_services::AXValueType;
 use objc2_core_foundation::CFDictionary;
 use objc2_core_foundation::CFRetained;
 use objc2_core_foundation::CFString;
+use objc2_core_foundation::CGPoint;
 use objc2_core_foundation::CGRect;
 use std::collections::HashMap;
 use std::ffi::c_void;
@@ -200,5 +202,16 @@ impl MacosApi {
 
             AccessibilityApi::copy_attribute_value::<AXUIElement>(&app, kAXFocusedWindowAttribute)
         }
+    }
+
+    pub fn cursor_pos() -> CGPoint {
+        unsafe {
+            let point = NSEvent::mouseLocation();
+            CGPoint::new(point.x, point.y)
+        }
+    }
+
+    pub fn monitor_from_point(point: CGPoint) -> Option<u32> {
+        CoreGraphicsApi::display_with_point(point)
     }
 }

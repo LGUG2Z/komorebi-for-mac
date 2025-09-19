@@ -1303,4 +1303,45 @@ impl WindowManager {
 
         None
     }
+
+    pub fn monitor_idx_from_current_pos(&mut self) -> Option<usize> {
+        let monitor_id = MacosApi::monitor_from_point(MacosApi::cursor_pos())?;
+
+        for (i, monitor) in self.monitors().iter().enumerate() {
+            if monitor.id == monitor_id {
+                return Option::from(i);
+            }
+        }
+
+        // TODO: figure out if we need this on macOS
+        // // our hmonitor might be stale, so if we didn't return above, try querying via the latest
+        // // info taken from win32_display_data and update our hmonitor while we're at it
+        // if let Ok(latest) = MacosApi::monitor(monitor_id) {
+        //     for (i, monitor) in self.monitors_mut().iter_mut().enumerate() {
+        //         if monitor.device_id() == latest.device_id() {
+        //             monitor.set_id(latest.id());
+        //             return Option::from(i);
+        //         }
+        //     }
+        // }
+
+        None
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn monitor_workspace_index_by_name(&mut self, name: &str) -> Option<(usize, usize)> {
+        tracing::info!("looking up workspace by name");
+
+        for (monitor_idx, monitor) in self.monitors().iter().enumerate() {
+            for (workspace_idx, workspace) in monitor.workspaces().iter().enumerate() {
+                if let Some(workspace_name) = &workspace.name
+                    && workspace_name == name
+                {
+                    return Option::from((monitor_idx, workspace_idx));
+                }
+            }
+        }
+
+        None
+    }
 }
