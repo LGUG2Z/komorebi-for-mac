@@ -5,7 +5,10 @@ use crate::accessibility::AccessibilityApi;
 use crate::application::Application;
 use crate::container::Container;
 use crate::core::Placement;
+use crate::core::Sizing;
 use crate::core::WindowManagementBehaviour;
+use crate::core::arrangement::Arrangement;
+use crate::core::arrangement::Axis;
 use crate::core::cycle_direction::CycleDirection;
 use crate::core::default_layout::DefaultLayout;
 use crate::core::layout::Layout;
@@ -919,5 +922,217 @@ impl WindowManager {
 
         let workspace = self.focused_workspace_mut()?;
         workspace.new_container_for_floating_window()
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn resize_window(
+        &mut self,
+        direction: OperationDirection,
+        sizing: Sizing,
+        delta: i32,
+        update: bool,
+    ) -> eyre::Result<()> {
+        let mouse_follows_focus = self.mouse_follows_focus;
+        let mut focused_monitor_work_area = self.focused_monitor_work_area()?;
+        let workspace = self.focused_workspace_mut()?;
+
+        match workspace.layer {
+            WorkspaceLayer::Floating => {
+                let workspace = self.focused_workspace()?;
+                let focused_window_id =
+                    MacosApi::foreground_window_id().ok_or(eyre!("no foreground window"))?;
+
+                let border_offset = 0;
+                let border_width = 0;
+                focused_monitor_work_area.left += border_offset;
+                focused_monitor_work_area.left += border_width;
+                focused_monitor_work_area.top += border_offset;
+                focused_monitor_work_area.top += border_width;
+                focused_monitor_work_area.right -= border_offset * 2;
+                focused_monitor_work_area.right -= border_width * 2;
+                focused_monitor_work_area.bottom -= border_offset * 2;
+                focused_monitor_work_area.bottom -= border_width * 2;
+
+                for window in workspace.floating_windows().iter() {
+                    if window.id == focused_window_id {
+                        let mut rect = Rect::from(MacosApi::window_rect(&window.element)?);
+                        match (direction, sizing) {
+                            (OperationDirection::Left, Sizing::Increase) => {
+                                if rect.left - delta < focused_monitor_work_area.left {
+                                    rect.left = focused_monitor_work_area.left;
+                                } else {
+                                    rect.left -= delta;
+                                }
+                            }
+                            (OperationDirection::Left, Sizing::Decrease) => {
+                                rect.left += delta;
+                            }
+                            (OperationDirection::Right, Sizing::Increase) => {
+                                if rect.left + rect.right + delta * 2
+                                    > focused_monitor_work_area.left
+                                        + focused_monitor_work_area.right
+                                {
+                                    rect.right = focused_monitor_work_area.left
+                                        + focused_monitor_work_area.right
+                                        - rect.left;
+                                } else {
+                                    rect.right += delta * 2;
+                                }
+                            }
+                            (OperationDirection::Right, Sizing::Decrease) => {
+                                rect.right -= delta * 2;
+                            }
+                            (OperationDirection::Up, Sizing::Increase) => {
+                                if rect.top - delta < focused_monitor_work_area.top {
+                                    rect.top = focused_monitor_work_area.top;
+                                } else {
+                                    rect.top -= delta;
+                                }
+                            }
+                            (OperationDirection::Up, Sizing::Decrease) => {
+                                rect.top += delta;
+                            }
+                            (OperationDirection::Down, Sizing::Increase) => {
+                                if rect.top + rect.bottom + delta * 2
+                                    > focused_monitor_work_area.top
+                                        + focused_monitor_work_area.bottom
+                                {
+                                    rect.bottom = focused_monitor_work_area.top
+                                        + focused_monitor_work_area.bottom
+                                        - rect.top;
+                                } else {
+                                    rect.bottom += delta * 2;
+                                }
+                            }
+                            (OperationDirection::Down, Sizing::Decrease) => {
+                                rect.bottom -= delta * 2;
+                            }
+                        }
+
+                        window.set_position(&rect)?;
+
+                        if mouse_follows_focus {
+                            MacosApi::center_cursor_in_rect(&rect)?;
+                        }
+
+                        break;
+                    }
+                }
+            }
+            WorkspaceLayer::Tiling => {
+                match workspace.layout {
+                    Layout::Default(layout) => {
+                        tracing::info!("resizing window");
+                        let len = NonZeroUsize::new(workspace.containers().len())
+                            .ok_or_else(|| eyre!("there must be at least one container"))?;
+                        let focused_idx = workspace.focused_container_idx();
+                        let focused_idx_resize = workspace
+                            .resize_dimensions
+                            .get(focused_idx)
+                            .ok_or_else(|| {
+                                eyre!("there is no resize adjustment for this container")
+                            })?;
+
+                        if direction
+                            .destination(
+                                workspace.layout.as_boxed_direction().as_ref(),
+                                workspace.layout_flip,
+                                focused_idx,
+                                len,
+                            )
+                            .is_some()
+                        {
+                            let unaltered = layout.calculate(
+                                &focused_monitor_work_area,
+                                len,
+                                workspace.container_padding,
+                                workspace.layout_flip,
+                                &[],
+                                workspace.focused_container_idx(),
+                                workspace.layout_options,
+                                &workspace.latest_layout,
+                            );
+
+                            let mut direction = direction;
+
+                            // We only ever want to operate on the unflipped Rect positions when resizing, then we
+                            // can flip them however they need to be flipped once the resizing has been done
+                            if let Some(flip) = workspace.layout_flip {
+                                match flip {
+                                    Axis::Horizontal => {
+                                        if matches!(direction, OperationDirection::Left)
+                                            || matches!(direction, OperationDirection::Right)
+                                        {
+                                            direction = direction.opposite();
+                                        }
+                                    }
+                                    Axis::Vertical => {
+                                        if matches!(direction, OperationDirection::Up)
+                                            || matches!(direction, OperationDirection::Down)
+                                        {
+                                            direction = direction.opposite();
+                                        }
+                                    }
+                                    Axis::HorizontalAndVertical => direction = direction.opposite(),
+                                }
+                            }
+
+                            let resize = layout.resize(
+                                unaltered
+                                    .get(focused_idx)
+                                    .ok_or_else(|| eyre!("there is no last layout"))?,
+                                focused_idx_resize,
+                                direction,
+                                sizing,
+                                delta,
+                            );
+
+                            workspace.resize_dimensions[focused_idx] = resize;
+
+                            return if update {
+                                self.update_focused_workspace(false, false)
+                            } else {
+                                Ok(())
+                            };
+                        }
+
+                        tracing::warn!("cannot resize container in this direction");
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn retile_all(&mut self, preserve_resize_dimensions: bool) -> eyre::Result<()> {
+        let offset = self.work_area_offset;
+
+        for monitor in self.monitors_mut() {
+            let offset = if monitor.work_area_offset.is_some() {
+                monitor.work_area_offset
+            } else {
+                offset
+            };
+
+            let focused_workspace_idx = monitor.focused_workspace_idx();
+            monitor.update_workspace_globals(focused_workspace_idx, offset);
+
+            let workspace = monitor
+                .focused_workspace_mut()
+                .ok_or_else(|| eyre!("there is no workspace"))?;
+
+            // Reset any resize adjustments if we want to force a retile
+            if !preserve_resize_dimensions {
+                for resize in &mut workspace.resize_dimensions {
+                    *resize = None;
+                }
+            }
+
+            workspace.update()?;
+        }
+
+        Ok(())
     }
 }

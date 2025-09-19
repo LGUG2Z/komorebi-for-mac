@@ -1,5 +1,7 @@
 pub use komorebi::DATA_DIR;
+pub use komorebi::core::Sizing;
 pub use komorebi::core::SocketMessage;
+pub use komorebi::core::arrangement::Axis;
 pub use komorebi::core::cycle_direction::CycleDirection;
 pub use komorebi::core::default_layout::DefaultLayout;
 pub use komorebi::core::operation_direction::OperationDirection;

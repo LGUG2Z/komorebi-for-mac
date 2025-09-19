@@ -1,10 +1,12 @@
-use std::num::NonZeroUsize;
-
 use crate::core::default_layout::DefaultLayout;
 use crate::core::default_layout::LayoutOptions;
 use crate::core::rect::Rect;
+use clap::ValueEnum;
 use serde::Deserialize;
 use serde::Serialize;
+use std::num::NonZeroUsize;
+use strum::Display;
+use strum::EnumString;
 
 pub trait Arrangement {
     #[allow(clippy::too_many_arguments)]
@@ -567,7 +569,7 @@ impl Arrangement for DefaultLayout {
     }
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, Display, EnumString, ValueEnum, PartialEq)]
 pub enum Axis {
     Horizontal,
     Vertical,

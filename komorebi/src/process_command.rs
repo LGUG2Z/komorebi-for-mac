@@ -1,4 +1,6 @@
 use crate::core::SocketMessage;
+use crate::core::arrangement::Axis;
+use crate::core::operation_direction::OperationDirection;
 use crate::core::rect::Rect;
 use crate::macos_api::MacosApi;
 use crate::window_manager::WindowManager;
@@ -222,6 +224,71 @@ impl WindowManager {
                     window.focus(mouse_follows_focus)?;
                 }
             }
+            SocketMessage::ResizeWindowEdge(direction, sizing) => {
+                self.resize_window(direction, sizing, self.resize_delta, true)?;
+            }
+            SocketMessage::ResizeWindowAxis(axis, sizing) => {
+                match axis {
+                    Axis::Horizontal => {
+                        self.resize_window(
+                            OperationDirection::Left,
+                            sizing,
+                            self.resize_delta,
+                            false,
+                        )?;
+                        self.resize_window(
+                            OperationDirection::Right,
+                            sizing,
+                            self.resize_delta,
+                            false,
+                        )?;
+                    }
+                    Axis::Vertical => {
+                        self.resize_window(
+                            OperationDirection::Up,
+                            sizing,
+                            self.resize_delta,
+                            false,
+                        )?;
+                        self.resize_window(
+                            OperationDirection::Down,
+                            sizing,
+                            self.resize_delta,
+                            false,
+                        )?;
+                    }
+                    Axis::HorizontalAndVertical => {
+                        self.resize_window(
+                            OperationDirection::Left,
+                            sizing,
+                            self.resize_delta,
+                            false,
+                        )?;
+                        self.resize_window(
+                            OperationDirection::Right,
+                            sizing,
+                            self.resize_delta,
+                            false,
+                        )?;
+                        self.resize_window(
+                            OperationDirection::Up,
+                            sizing,
+                            self.resize_delta,
+                            false,
+                        )?;
+                        self.resize_window(
+                            OperationDirection::Down,
+                            sizing,
+                            self.resize_delta,
+                            false,
+                        )?;
+                    }
+                }
+
+                self.update_focused_workspace(false, false)?;
+            }
+            SocketMessage::Retile => self.retile_all(false)?,
+            SocketMessage::RetileWithResizeDimensions => self.retile_all(true)?,
         }
 
         Ok(())

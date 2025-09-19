@@ -2,10 +2,12 @@
 
 use clap::Parser;
 use color_eyre::eyre;
+use komorebi_client::Axis;
 use komorebi_client::CycleDirection;
 use komorebi_client::DefaultLayout;
 use komorebi_client::OperationDirection;
 use komorebi_client::PathExt;
+use komorebi_client::Sizing;
 use komorebi_client::SocketMessage;
 use komorebi_client::send_message;
 use lazy_static::lazy_static;
@@ -79,6 +81,22 @@ gen_target_subcommand_args! {
 }
 
 #[derive(Parser)]
+struct Resize {
+    #[clap(value_enum)]
+    edge: OperationDirection,
+    #[clap(value_enum)]
+    sizing: Sizing,
+}
+
+#[derive(Parser)]
+struct ResizeAxis {
+    #[clap(value_enum)]
+    axis: Axis,
+    #[clap(value_enum)]
+    sizing: Sizing,
+}
+
+#[derive(Parser)]
 #[clap(author, about, version)]
 struct Opts {
     #[clap(subcommand)]
@@ -101,6 +119,13 @@ enum SubCommand {
     /// Cycle the focused stack in the specified cycle direction
     #[clap(arg_required_else_help = true)]
     CycleStack(CycleStack),
+    /// Resize the focused window in the specified direction
+    #[clap(arg_required_else_help = true)]
+    #[clap(alias = "resize")]
+    ResizeEdge(Resize),
+    /// Resize the focused window or primary column along the specified axis
+    #[clap(arg_required_else_help = true)]
+    ResizeAxis(ResizeAxis),
     /// Toggle the paused state for all window tiling
     TogglePause,
     /// Toggle monocle mode for the focused container
@@ -121,6 +146,8 @@ enum SubCommand {
     /// Send the focused window to the specified workspace
     #[clap(arg_required_else_help = true)]
     SendToWorkspace(SendToWorkspace),
+    /// Force the retiling of all managed windows
+    Retile,
 }
 
 fn main() -> eyre::Result<()> {
@@ -165,6 +192,15 @@ fn main() -> eyre::Result<()> {
         }
         SubCommand::ToggleWorkspaceLayer => {
             send_message(&SocketMessage::ToggleWorkspaceLayer)?;
+        }
+        SubCommand::ResizeEdge(arg) => {
+            send_message(&SocketMessage::ResizeWindowEdge(arg.edge, arg.sizing))?;
+        }
+        SubCommand::ResizeAxis(arg) => {
+            send_message(&SocketMessage::ResizeWindowAxis(arg.axis, arg.sizing))?;
+        }
+        SubCommand::Retile => {
+            send_message(&SocketMessage::Retile)?;
         }
     }
 

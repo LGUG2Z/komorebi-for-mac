@@ -1,3 +1,4 @@
+use crate::core::arrangement::Axis;
 use crate::core::cycle_direction::CycleDirection;
 use crate::core::default_layout::DefaultLayout;
 use crate::core::operation_direction::OperationDirection;
@@ -18,12 +19,11 @@ pub mod operation_direction;
 pub mod pathext;
 pub mod rect;
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, Display, EnumString, ValueEnum)]
 pub enum Sizing {
     Increase,
     Decrease,
 }
-
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct WindowManagementBehaviour {
     /// The current WindowContainerBehaviour to be used
@@ -127,6 +127,10 @@ pub enum SocketMessage {
     FocusWorkspaceNumber(usize),
     MoveContainerToWorkspaceNumber(usize),
     SendContainerToWorkspaceNumber(usize),
+    ResizeWindowEdge(OperationDirection, Sizing),
+    ResizeWindowAxis(Axis, Sizing),
+    Retile,
+    RetileWithResizeDimensions,
 }
 
 impl SocketMessage {
