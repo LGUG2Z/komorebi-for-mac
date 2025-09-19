@@ -5,7 +5,9 @@ use crate::core::arrangement::Axis;
 use crate::core::operation_direction::OperationDirection;
 use crate::core::rect::Rect;
 use crate::macos_api::MacosApi;
+use crate::monitor::Monitor;
 use crate::window_manager::WindowManager;
+use crate::workspace::Workspace;
 use crate::workspace::WorkspaceLayer;
 use color_eyre::eyre;
 use color_eyre::eyre::eyre;
@@ -589,9 +591,223 @@ impl WindowManager {
             SocketMessage::ToggleTiling => {
                 self.toggle_tiling()?;
             }
+            SocketMessage::MoveContainerToLastWorkspace => {
+                // This is to ensure that even on an empty workspace on a secondary monitor, the
+                // secondary monitor where the cursor is focused will be used as the target for
+                // the workspace switch op
+                if let Some(monitor_idx) = self.monitor_idx_from_current_pos()
+                    && monitor_idx != self.focused_monitor_idx()
+                    && let Some(monitor) = self.monitors().get(monitor_idx)
+                    && let Some(workspace) = monitor.focused_workspace()
+                    && workspace.is_empty()
+                {
+                    self.focus_monitor(monitor_idx)?;
+                }
+
+                let idx = self
+                    .focused_monitor()
+                    .ok_or_else(|| eyre!("there is no monitor"))?
+                    .focused_workspace_idx();
+
+                if let Some(monitor) = self.focused_monitor_mut()
+                    && let Some(last_focused_workspace) = monitor.last_focused_workspace
+                {
+                    self.move_container_to_workspace(last_focused_workspace, true, None)?;
+                }
+
+                self.focused_monitor_mut()
+                    .ok_or_else(|| eyre!("there is no monitor"))?
+                    .last_focused_workspace = Option::from(idx);
+            }
+            SocketMessage::SendContainerToLastWorkspace => {
+                // This is to ensure that even on an empty workspace on a secondary monitor, the
+                // secondary monitor where the cursor is focused will be used as the target for
+                // the workspace switch op
+                if let Some(monitor_idx) = self.monitor_idx_from_current_pos()
+                    && monitor_idx != self.focused_monitor_idx()
+                    && let Some(monitor) = self.monitors().get(monitor_idx)
+                    && let Some(workspace) = monitor.focused_workspace()
+                    && workspace.is_empty()
+                {
+                    self.focus_monitor(monitor_idx)?;
+                }
+
+                let idx = self
+                    .focused_monitor()
+                    .ok_or_else(|| eyre!("there is no monitor"))?
+                    .focused_workspace_idx();
+
+                if let Some(monitor) = self.focused_monitor_mut()
+                    && let Some(last_focused_workspace) = monitor.last_focused_workspace
+                {
+                    self.move_container_to_workspace(last_focused_workspace, false, None)?;
+                }
+                self.focused_monitor_mut()
+                    .ok_or_else(|| eyre!("there is no monitor"))?
+                    .last_focused_workspace = Option::from(idx);
+            }
+            SocketMessage::CycleMoveContainerToWorkspace(direction) => {
+                let focused_monitor = self
+                    .focused_monitor()
+                    .ok_or_else(|| eyre!("there is no monitor"))?;
+
+                let focused_workspace_idx = focused_monitor.focused_workspace_idx();
+                let workspaces = focused_monitor.workspaces().len();
+
+                let workspace_idx = direction.next_idx(
+                    focused_workspace_idx,
+                    NonZeroUsize::new(workspaces)
+                        .ok_or_else(|| eyre!("there must be at least one workspace"))?,
+                );
+
+                self.move_container_to_workspace(workspace_idx, true, None)?;
+            }
+            SocketMessage::MoveContainerToMonitorNumber(monitor_idx) => {
+                let direction = self.direction_from_monitor_idx(monitor_idx);
+                self.move_container_to_monitor(monitor_idx, None, true, direction)?;
+            }
+            SocketMessage::SwapWorkspacesToMonitorNumber(monitor_idx) => {
+                self.swap_focused_monitor(monitor_idx)?;
+            }
+            SocketMessage::CycleMoveContainerToMonitor(direction) => {
+                let monitor_idx = direction.next_idx(
+                    self.focused_monitor_idx(),
+                    NonZeroUsize::new(self.monitors().len())
+                        .ok_or_else(|| eyre!("there must be at least one monitor"))?,
+                );
+
+                let direction = self.direction_from_monitor_idx(monitor_idx);
+                self.move_container_to_monitor(monitor_idx, None, true, direction)?;
+            }
+            SocketMessage::CycleSendContainerToWorkspace(direction) => {
+                let focused_monitor = self
+                    .focused_monitor()
+                    .ok_or_else(|| eyre!("there is no monitor"))?;
+
+                let focused_workspace_idx = focused_monitor.focused_workspace_idx();
+                let workspaces = focused_monitor.workspaces().len();
+
+                let workspace_idx = direction.next_idx(
+                    focused_workspace_idx,
+                    NonZeroUsize::new(workspaces)
+                        .ok_or_else(|| eyre!("there must be at least one workspace"))?,
+                );
+
+                self.move_container_to_workspace(workspace_idx, false, None)?;
+            }
+            SocketMessage::SendContainerToMonitorNumber(monitor_idx) => {
+                let direction = self.direction_from_monitor_idx(monitor_idx);
+                self.move_container_to_monitor(monitor_idx, None, false, direction)?;
+            }
+            SocketMessage::CycleSendContainerToMonitor(direction) => {
+                let monitor_idx = direction.next_idx(
+                    self.focused_monitor_idx(),
+                    NonZeroUsize::new(self.monitors().len())
+                        .ok_or_else(|| eyre!("there must be at least one monitor"))?,
+                );
+
+                let direction = self.direction_from_monitor_idx(monitor_idx);
+                self.move_container_to_monitor(monitor_idx, None, false, direction)?;
+            }
+            SocketMessage::SendContainerToMonitorWorkspaceNumber(monitor_idx, workspace_idx) => {
+                let direction = self.direction_from_monitor_idx(monitor_idx);
+                self.move_container_to_monitor(
+                    monitor_idx,
+                    Option::from(workspace_idx),
+                    false,
+                    direction,
+                )?;
+            }
+            SocketMessage::MoveContainerToMonitorWorkspaceNumber(monitor_idx, workspace_idx) => {
+                let direction = self.direction_from_monitor_idx(monitor_idx);
+                self.move_container_to_monitor(
+                    monitor_idx,
+                    Option::from(workspace_idx),
+                    true,
+                    direction,
+                )?;
+            }
+            SocketMessage::SendContainerToNamedWorkspace(ref workspace) => {
+                if let Some((monitor_idx, workspace_idx)) =
+                    self.monitor_workspace_index_by_name(workspace)
+                {
+                    let direction = self.direction_from_monitor_idx(monitor_idx);
+                    self.move_container_to_monitor(
+                        monitor_idx,
+                        Option::from(workspace_idx),
+                        false,
+                        direction,
+                    )?;
+                }
+            }
+            SocketMessage::MoveContainerToNamedWorkspace(ref workspace) => {
+                if let Some((monitor_idx, workspace_idx)) =
+                    self.monitor_workspace_index_by_name(workspace)
+                {
+                    let direction = self.direction_from_monitor_idx(monitor_idx);
+                    self.move_container_to_monitor(
+                        monitor_idx,
+                        Option::from(workspace_idx),
+                        true,
+                        direction,
+                    )?;
+                }
+            }
+
+            SocketMessage::MoveWorkspaceToMonitorNumber(monitor_idx) => {
+                self.move_workspace_to_monitor(monitor_idx)?;
+            }
+            SocketMessage::CycleMoveWorkspaceToMonitor(direction) => {
+                let monitor_idx = direction.next_idx(
+                    self.focused_monitor_idx(),
+                    NonZeroUsize::new(self.monitors().len())
+                        .ok_or_else(|| eyre!("there must be at least one monitor"))?,
+                );
+
+                self.move_workspace_to_monitor(monitor_idx)?;
+            }
         }
 
         Ok(())
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn move_workspace_to_monitor(&mut self, idx: usize) -> eyre::Result<()> {
+        tracing::info!("moving workspace");
+        let mouse_follows_focus = self.mouse_follows_focus;
+        let offset = self.work_area_offset;
+        let workspace = self
+            .remove_focused_workspace()
+            .ok_or_else(|| eyre!("there is no workspace"))?;
+
+        {
+            let target_monitor: &mut Monitor = self
+                .monitors_mut()
+                .get_mut(idx)
+                .ok_or_else(|| eyre!("there is no monitor"))?;
+
+            target_monitor.workspaces_mut().push_back(workspace);
+            target_monitor.update_workspaces_globals(offset);
+            target_monitor.focus_workspace(target_monitor.workspaces().len().saturating_sub(1))?;
+            target_monitor.load_focused_workspace(mouse_follows_focus)?;
+        }
+
+        self.focus_monitor(idx)?;
+        self.update_focused_workspace(mouse_follows_focus, true)
+    }
+
+    pub fn remove_focused_workspace(&mut self) -> Option<Workspace> {
+        let focused_monitor: &mut Monitor = self.focused_monitor_mut()?;
+        let focused_workspace_idx = focused_monitor.focused_workspace_idx();
+        let workspace = focused_monitor.remove_workspace_by_idx(focused_workspace_idx);
+        if let Err(error) = focused_monitor.focus_workspace(focused_workspace_idx.saturating_sub(1))
+        {
+            tracing::error!(
+                "Error focusing previous workspace while removing the focused workspace: {}",
+                error
+            );
+        }
+        workspace
     }
 }
 

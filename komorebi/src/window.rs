@@ -355,6 +355,78 @@ impl Window {
             bottom: target_height,
         })
     }
+
+    pub fn move_to_area(
+        &self,
+        current_area: &Rect,
+        target_area: &Rect,
+    ) -> Result<(), AccessibilityError> {
+        let current_rect = Rect::from(MacosApi::window_rect(&self.element)?);
+        let x_diff = target_area.left - current_area.left;
+        let y_diff = target_area.top - current_area.top;
+        let x_ratio = f32::abs((target_area.right as f32) / (current_area.right as f32));
+        let y_ratio = f32::abs((target_area.bottom as f32) / (current_area.bottom as f32));
+        let window_relative_x = current_rect.left - current_area.left;
+        let window_relative_y = current_rect.top - current_area.top;
+        let corrected_relative_x = (window_relative_x as f32 * x_ratio) as i32;
+        let corrected_relative_y = (window_relative_y as f32 * y_ratio) as i32;
+        let window_x = current_area.left + corrected_relative_x;
+        let window_y = current_area.top + corrected_relative_y;
+        let left = x_diff + window_x;
+        let top = y_diff + window_y;
+
+        let corrected_width = (current_rect.right as f32 * x_ratio) as i32;
+        let corrected_height = (current_rect.bottom as f32 * y_ratio) as i32;
+
+        let new_rect = Rect {
+            left,
+            top,
+            right: corrected_width,
+            bottom: corrected_height,
+        };
+
+        // TODO: figure out what to do about maximized windows on macOS
+        // let is_maximized = &new_rect == target_area;
+        // if is_maximized {
+        //     windows_api::WindowsApi::unmaximize_window(self.hwnd);
+        //     let animation_enabled = ANIMATION_ENABLED_PER_ANIMATION.lock();
+        //     let move_enabled = animation_enabled
+        //         .get(&MovementRenderDispatcher::PREFIX)
+        //         .is_some_and(|v| *v);
+        //     drop(animation_enabled);
+        //
+        //     if move_enabled || ANIMATION_ENABLED_GLOBAL.load(Ordering::SeqCst) {
+        //         let anim_count = ANIMATION_MANAGER
+        //             .lock()
+        //             .count_in_progress(MovementRenderDispatcher::PREFIX);
+        //         self.set_position(&new_rect, true)?;
+        //         let hwnd = self.hwnd;
+        //         // Wait for the animation to finish before maximizing the window again, otherwise
+        //         // we would be maximizing the window on the current monitor anyway
+        //         thread::spawn(move || {
+        //             let mut new_anim_count = ANIMATION_MANAGER
+        //                 .lock()
+        //                 .count_in_progress(MovementRenderDispatcher::PREFIX);
+        //             let mut max_wait = 2000; // Max waiting time. No one will be using an animation longer than 2s, right? RIGHT??? WHY?
+        //             while new_anim_count > anim_count && max_wait > 0 {
+        //                 thread::sleep(Duration::from_millis(10));
+        //                 new_anim_count = ANIMATION_MANAGER
+        //                     .lock()
+        //                     .count_in_progress(MovementRenderDispatcher::PREFIX);
+        //                 max_wait -= 1;
+        //             }
+        //             windows_api::WindowsApi::maximize_window(hwnd);
+        //         });
+        //     } else {
+        //         self.set_position(&new_rect, true)?;
+        //         windows_api::WindowsApi::maximize_window(self.hwnd);
+        //     }
+        // } else {
+        self.set_position(&new_rect)?;
+        // }
+
+        Ok(())
+    }
 }
 
 impl From<&CFDictionary> for WindowInfo {

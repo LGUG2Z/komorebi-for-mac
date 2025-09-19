@@ -108,6 +108,7 @@ pub struct WorkspaceGlobals {
     pub work_area_offset: Option<Rect>,
     pub window_based_work_area_offset: Option<Rect>,
     pub window_based_work_area_offset_limit: isize,
+    pub floating_layer_behaviour: Option<FloatingLayerBehaviour>,
 }
 
 impl Workspace {

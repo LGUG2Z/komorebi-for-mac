@@ -1344,4 +1344,260 @@ impl WindowManager {
 
         None
     }
+
+    /// Calculates the direction of a move across monitors given a specific monitor index
+    pub fn direction_from_monitor_idx(
+        &self,
+        target_monitor_idx: usize,
+    ) -> Option<OperationDirection> {
+        let current_monitor_idx = self.focused_monitor_idx();
+        if current_monitor_idx == target_monitor_idx {
+            return None;
+        }
+
+        let current_monitor_size = self.focused_monitor_size().ok()?;
+        let target_monitor_size = self.monitors().get(target_monitor_idx)?.size;
+
+        if target_monitor_size.left + target_monitor_size.right == current_monitor_size.left {
+            return Some(OperationDirection::Left);
+        }
+        if current_monitor_size.right + current_monitor_size.left == target_monitor_size.left {
+            return Some(OperationDirection::Right);
+        }
+        if target_monitor_size.top + target_monitor_size.bottom == current_monitor_size.top {
+            return Some(OperationDirection::Up);
+        }
+        if current_monitor_size.top + current_monitor_size.bottom == target_monitor_size.top {
+            return Some(OperationDirection::Down);
+        }
+
+        None
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn move_container_to_monitor(
+        &mut self,
+        monitor_idx: usize,
+        workspace_idx: Option<usize>,
+        follow: bool,
+        move_direction: Option<OperationDirection>,
+    ) -> eyre::Result<()> {
+        tracing::info!("moving container");
+
+        let focused_monitor_idx = self.focused_monitor_idx();
+
+        if focused_monitor_idx == monitor_idx
+            && let Some(workspace_idx) = workspace_idx
+        {
+            return self.move_container_to_workspace(workspace_idx, follow, None);
+        }
+
+        let offset = self.work_area_offset;
+        let mouse_follows_focus = self.mouse_follows_focus;
+
+        let monitor = self
+            .focused_monitor_mut()
+            .ok_or_else(|| eyre!("there is no monitor"))?;
+
+        let current_area = monitor.work_area_size;
+
+        let workspace = monitor
+            .focused_workspace_mut()
+            .ok_or_else(|| eyre!("there is no workspace"))?;
+
+        if workspace.maximized_window.is_some() {
+            return Err(eyre!(
+                "cannot move native maximized window to another monitor or workspace"
+            ));
+        }
+
+        let foreground_window_id =
+            MacosApi::foreground_window_id().ok_or(eyre!("no foreground window"))?;
+        let floating_window_index = workspace
+            .floating_windows()
+            .iter()
+            .position(|w| w.id == foreground_window_id);
+
+        let floating_window =
+            floating_window_index.and_then(|idx| workspace.floating_windows_mut().remove(idx));
+        let container = if floating_window_index.is_none() {
+            Some(
+                workspace
+                    .remove_focused_container()
+                    .ok_or_else(|| eyre!("there is no container"))?,
+            )
+        } else {
+            None
+        };
+        monitor.update_focused_workspace(offset)?;
+
+        let target_monitor = self
+            .monitors_mut()
+            .get_mut(monitor_idx)
+            .ok_or_else(|| eyre!("there is no monitor"))?;
+
+        let target_monitor_work_area_size = target_monitor.work_area_size;
+
+        let mut should_load_workspace = false;
+        if let Some(workspace_idx) = workspace_idx
+            && workspace_idx != target_monitor.focused_workspace_idx()
+        {
+            target_monitor.focus_workspace(workspace_idx)?;
+            should_load_workspace = true;
+        }
+        let target_workspace = target_monitor
+            .focused_workspace_mut()
+            .ok_or_else(|| eyre!("there is no focused workspace on target monitor"))?;
+
+        if target_workspace.monocle_container.is_some() {
+            for container in target_workspace.containers_mut() {
+                container.restore()?;
+            }
+
+            for window in target_workspace.floating_windows_mut() {
+                window.restore()?;
+            }
+
+            target_workspace.reintegrate_monocle_container()?;
+        }
+
+        if let Some(window) = floating_window {
+            window.move_to_area(&current_area, &target_monitor_work_area_size)?;
+            target_workspace.floating_windows_mut().push_back(window);
+            target_workspace.layer = WorkspaceLayer::Floating;
+        } else if let Some(container) = container {
+            let _container_window_ids =
+                container.windows().iter().map(|w| w.id).collect::<Vec<_>>();
+
+            target_workspace.layer = WorkspaceLayer::Tiling;
+
+            if let Some(direction) = move_direction {
+                target_monitor.add_container_with_direction(container, workspace_idx, direction)?;
+            } else {
+                target_monitor.add_container(container, workspace_idx)?;
+            }
+
+            if let Some(workspace) = target_monitor.focused_workspace()
+                && !workspace.tile
+            {
+                // TODO: figure out how to construct a Window from just an id here
+                // for window_id in container_window_ids {
+                //     Window::from(window_id)
+                //         .move_to_area(&current_area, &target_monitor.work_area_size)?;
+                // }
+            }
+        } else {
+            return Err(eyre!("failed to find a window to move"));
+        }
+
+        if should_load_workspace {
+            target_monitor.load_focused_workspace(mouse_follows_focus)?;
+        }
+        target_monitor.update_focused_workspace(offset)?;
+
+        // this second one is for DPI changes when the target is another monitor
+        // if we don't do this the layout on the other monitor could look funny
+        // until it is interacted with again
+        target_monitor.update_focused_workspace(offset)?;
+
+        if follow {
+            self.focus_monitor(monitor_idx)?;
+        }
+
+        self.update_focused_workspace(self.mouse_follows_focus, true)?;
+
+        Ok(())
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn swap_focused_monitor(&mut self, idx: usize) -> eyre::Result<()> {
+        tracing::info!("swapping focused monitor");
+
+        let focused_monitor_idx = self.focused_monitor_idx();
+        let mouse_follows_focus = self.mouse_follows_focus;
+
+        self.swap_monitor_workspaces(focused_monitor_idx, idx)?;
+
+        self.update_focused_workspace(mouse_follows_focus, true)
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn swap_monitor_workspaces(
+        &mut self,
+        first_idx: usize,
+        second_idx: usize,
+    ) -> eyre::Result<()> {
+        tracing::info!("swaping monitors");
+        if first_idx == second_idx {
+            return Ok(());
+        }
+        let mouse_follows_focus = self.mouse_follows_focus;
+        let offset = self.work_area_offset;
+        let first_focused_workspace = {
+            let first_monitor = self
+                .monitors()
+                .get(first_idx)
+                .ok_or_else(|| eyre!("There is no monitor"))?;
+            first_monitor.focused_workspace_idx()
+        };
+
+        let second_focused_workspace = {
+            let second_monitor = self
+                .monitors()
+                .get(second_idx)
+                .ok_or_else(|| eyre!("There is no monitor"))?;
+            second_monitor.focused_workspace_idx()
+        };
+
+        // Swap workspaces between the first and second monitors
+
+        let first_workspaces = self
+            .monitors_mut()
+            .get_mut(first_idx)
+            .ok_or_else(|| eyre!("There is no monitor"))?
+            .remove_workspaces();
+
+        let second_workspaces = self
+            .monitors_mut()
+            .get_mut(second_idx)
+            .ok_or_else(|| eyre!("There is no monitor"))?
+            .remove_workspaces();
+
+        self.monitors_mut()
+            .get_mut(first_idx)
+            .ok_or_else(|| eyre!("There is no monitor"))?
+            .workspaces_mut()
+            .extend(second_workspaces);
+
+        self.monitors_mut()
+            .get_mut(second_idx)
+            .ok_or_else(|| eyre!("There is no monitor"))?
+            .workspaces_mut()
+            .extend(first_workspaces);
+
+        // Set the focused workspaces for the first and second monitors
+        if let Some(first_monitor) = self.monitors_mut().get_mut(first_idx) {
+            first_monitor.update_workspaces_globals(offset);
+            first_monitor.focus_workspace(second_focused_workspace)?;
+            first_monitor.load_focused_workspace(mouse_follows_focus)?;
+        }
+
+        if let Some(second_monitor) = self.monitors_mut().get_mut(second_idx) {
+            second_monitor.update_workspaces_globals(offset);
+            second_monitor.focus_workspace(first_focused_workspace)?;
+            second_monitor.load_focused_workspace(mouse_follows_focus)?;
+        }
+
+        self.update_focused_workspace_by_monitor_idx(second_idx)?;
+        self.update_focused_workspace_by_monitor_idx(first_idx)
+    }
+
+    pub fn update_focused_workspace_by_monitor_idx(&mut self, idx: usize) -> eyre::Result<()> {
+        let offset = self.work_area_offset;
+
+        self.monitors_mut()
+            .get_mut(idx)
+            .ok_or_else(|| eyre!("there is no monitor"))?
+            .update_focused_workspace(offset)
+    }
 }

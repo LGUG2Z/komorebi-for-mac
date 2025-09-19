@@ -1,6 +1,7 @@
 use crate::DEFAULT_CONTAINER_PADDING;
 use crate::DEFAULT_WORKSPACE_PADDING;
 use crate::container::Container;
+use crate::core::FloatingLayerBehaviour;
 use crate::core::default_layout::DefaultLayout;
 use crate::core::layout::Layout;
 use crate::core::operation_direction::OperationDirection;
@@ -12,6 +13,7 @@ use crate::workspace::WorkspaceGlobals;
 use crate::workspace::WorkspaceLayer;
 use color_eyre::eyre;
 use color_eyre::eyre::eyre;
+use std::collections::VecDeque;
 use std::sync::atomic::Ordering;
 
 impl_ring_elements!(Monitor, Workspace);
@@ -28,6 +30,7 @@ pub struct Monitor {
     pub container_padding: Option<i32>,
     pub workspace_padding: Option<i32>,
     pub last_focused_workspace: Option<usize>,
+    pub floating_layer_behaviour: Option<FloatingLayerBehaviour>,
 }
 
 impl Monitor {
@@ -52,6 +55,7 @@ impl Monitor {
             container_padding: None,
             workspace_padding: None,
             last_focused_workspace: None,
+            floating_layer_behaviour: None,
         }
     }
 
@@ -84,6 +88,7 @@ impl Monitor {
         let work_area_offset = self.work_area_offset.or(offset);
         let window_based_work_area_offset = self.window_based_work_area_offset;
         let window_based_work_area_offset_limit = self.window_based_work_area_offset_limit;
+        let floating_layer_behaviour = self.floating_layer_behaviour;
 
         if let Some(workspace) = self.workspaces_mut().get_mut(workspace_idx) {
             workspace.globals = WorkspaceGlobals {
@@ -95,6 +100,7 @@ impl Monitor {
                 work_area_offset,
                 window_based_work_area_offset,
                 window_based_work_area_offset_limit,
+                floating_layer_behaviour,
             }
         }
     }
@@ -333,5 +339,71 @@ impl Monitor {
         };
 
         Ok(())
+    }
+
+    pub fn update_workspaces_globals(&mut self, offset: Option<Rect>) {
+        let container_padding = self
+            .container_padding
+            .or(Some(DEFAULT_CONTAINER_PADDING.load(Ordering::SeqCst)));
+        let workspace_padding = self
+            .workspace_padding
+            .or(Some(DEFAULT_WORKSPACE_PADDING.load(Ordering::SeqCst)));
+        let (border_width, border_offset) = (0, 0);
+        let work_area = self.work_area_size;
+        let work_area_offset = self.work_area_offset.or(offset);
+        let window_based_work_area_offset = self.window_based_work_area_offset;
+        let window_based_work_area_offset_limit = self.window_based_work_area_offset_limit;
+        let floating_layer_behaviour = self.floating_layer_behaviour;
+
+        for workspace in self.workspaces_mut() {
+            workspace.globals = WorkspaceGlobals {
+                container_padding,
+                workspace_padding,
+                border_width,
+                border_offset,
+                work_area,
+                work_area_offset,
+                window_based_work_area_offset,
+                window_based_work_area_offset_limit,
+                floating_layer_behaviour,
+            }
+        }
+    }
+
+    pub fn remove_workspace_by_idx(&mut self, idx: usize) -> Option<Workspace> {
+        if idx < self.workspaces().len() {
+            return self.workspaces_mut().remove(idx);
+        }
+
+        if idx == 0 {
+            self.workspaces_mut().push_back(Workspace::default());
+        } else {
+            self.focus_workspace(idx.saturating_sub(1)).ok()?;
+        };
+
+        None
+    }
+
+    pub fn add_container(
+        &mut self,
+        container: Container,
+        workspace_idx: Option<usize>,
+    ) -> eyre::Result<()> {
+        let workspace = if let Some(idx) = workspace_idx {
+            self.workspaces_mut()
+                .get_mut(idx)
+                .ok_or_else(|| eyre!("there is no workspace at index {}", idx))?
+        } else {
+            self.focused_workspace_mut()
+                .ok_or_else(|| eyre!("there is no workspace"))?
+        };
+
+        workspace.add_container_to_back(container);
+
+        Ok(())
+    }
+
+    pub fn remove_workspaces(&mut self) -> VecDeque<Workspace> {
+        self.workspaces_mut().drain(..).collect()
     }
 }
