@@ -1,4 +1,5 @@
 use crate::container::Container;
+use crate::core::WindowContainerBehaviour;
 use crate::core::arrangement::Axis;
 use crate::core::default_layout::DefaultLayout;
 use crate::core::default_layout::LayoutOptions;
@@ -27,8 +28,12 @@ pub struct Workspace {
     pub latest_layout: Vec<Rect>,
     pub layout_flip: Option<Axis>,
     pub layout_options: Option<LayoutOptions>,
+    pub layout_rules: Vec<(usize, Layout)>,
     pub globals: WorkspaceGlobals,
     pub tile: bool,
+    pub apply_window_based_work_area_offset: bool,
+    pub window_container_behaviour: Option<WindowContainerBehaviour>,
+    pub window_container_behaviour_rules: Option<Vec<(usize, WindowContainerBehaviour)>>,
 }
 
 impl Default for Workspace {
@@ -45,8 +50,12 @@ impl Default for Workspace {
             latest_layout: vec![],
             layout_flip: None,
             layout_options: None,
+            layout_rules: vec![],
             globals: Default::default(),
             tile: true,
+            apply_window_based_work_area_offset: true,
+            window_container_behaviour: None,
+            window_container_behaviour_rules: None,
         }
     }
 }
@@ -65,99 +74,6 @@ pub struct WorkspaceGlobals {
 }
 
 impl Workspace {
-    pub fn update(&mut self) -> eyre::Result<()> {
-        // make sure we are never holding on to empty containers
-        self.containers_mut().retain(|c| !c.windows().is_empty());
-
-        let container_padding = self
-            .container_padding
-            .or(self.globals.container_padding)
-            .unwrap_or_default();
-        let workspace_padding = self
-            .workspace_padding
-            .or(self.globals.workspace_padding)
-            .unwrap_or_default();
-        // let border_width = self.globals.border_width;
-        // let border_offset = self.globals.border_offset;
-        let work_area = self.globals.work_area;
-        let work_area_offset = self.work_area_offset.or(self.globals.work_area_offset);
-        // let window_based_work_area_offset = self.globals.window_based_work_area_offset;
-        // let window_based_work_area_offset_limit =
-        //     self.globals.window_based_work_area_offset_limit;
-
-        let mut adjusted_work_area = work_area_offset.map_or_else(
-            || work_area,
-            |offset| {
-                let mut with_offset = work_area;
-                with_offset.left += offset.left;
-                with_offset.top += offset.top;
-                with_offset.right -= offset.right;
-                with_offset.bottom -= offset.bottom;
-
-                with_offset
-            },
-        );
-
-        adjusted_work_area.add_padding(workspace_padding);
-
-        #[allow(clippy::collapsible_if)]
-        if self.tile {
-            if let Some(container) = self.monocle_container.as_mut() {
-                if let Some(window) = container.focused_window_mut() {
-                    adjusted_work_area.add_padding(container_padding);
-                    window.set_position(&adjusted_work_area)?;
-                };
-            } else if !self.containers().is_empty() {
-                let mut layouts = self.layout.as_boxed_arrangement().calculate(
-                    &adjusted_work_area,
-                    NonZeroUsize::new(self.containers().len()).ok_or_else(|| {
-                        eyre!(
-                            "there must be at least one container to calculate a workspace layout"
-                        )
-                    })?,
-                    Some(container_padding),
-                    self.layout_flip,
-                    &self.resize_dimensions,
-                    self.focused_container_idx(),
-                    self.layout_options,
-                    &self.latest_layout,
-                );
-
-                let containers = self.containers_mut();
-
-                for (i, container) in containers.iter_mut().enumerate() {
-                    if let Some(layout) = layouts.get_mut(i) {
-                        layout.add_padding(container_padding);
-                        for window in container.windows() {
-                            if let Err(error) = window.set_position(layout) {
-                                tracing::warn!("failed to set window position: {error}");
-                            }
-                        }
-                    }
-                }
-
-                self.latest_layout = layouts;
-            }
-        }
-
-        // Always make sure that the length of the resize dimensions vec is the same as the
-        // number of layouts / containers. This should never actually truncate as the remove_window
-        // function takes care of cleaning up resize dimensions when destroying empty containers
-        let container_count = self.containers().len();
-
-        // since monocle is a toggle, we never want to truncate the resize dimensions since it will
-        // almost always be toggled off and the container will be reintegrated into layout
-        //
-        // without this check, if there are exactly two containers, when one is toggled to monocle
-        // the resize dimensions will be truncated to len == 1, and when it is reintegrated, if it
-        // had a resize adjustment before, that will have been lost
-        if self.monocle_container.is_none() {
-            self.resize_dimensions.resize(container_count, None);
-        }
-
-        Ok(())
-    }
-
     #[tracing::instrument(skip(self))]
     pub fn focus_container(&mut self, idx: usize) {
         tracing::info!("focusing container");
@@ -559,5 +475,425 @@ impl Workspace {
         self.monocle_container_restore_idx = None;
 
         Ok(())
+    }
+}
+
+impl Workspace {
+    pub fn update(&mut self) -> eyre::Result<()> {
+        // make sure we are never holding on to empty containers
+        self.containers_mut().retain(|c| !c.windows().is_empty());
+
+        let container_padding = self
+            .container_padding
+            .or(self.globals.container_padding)
+            .unwrap_or_default();
+        let workspace_padding = self
+            .workspace_padding
+            .or(self.globals.workspace_padding)
+            .unwrap_or_default();
+        let border_width = self.globals.border_width;
+        let border_offset = self.globals.border_offset;
+        let work_area = self.globals.work_area;
+        let work_area_offset = self.work_area_offset.or(self.globals.work_area_offset);
+        let window_based_work_area_offset = self.globals.window_based_work_area_offset;
+        let window_based_work_area_offset_limit = self.globals.window_based_work_area_offset_limit;
+
+        let mut adjusted_work_area = work_area_offset.map_or_else(
+            || work_area,
+            |offset| {
+                let mut with_offset = work_area;
+                with_offset.left += offset.left;
+                with_offset.top += offset.top;
+                with_offset.right -= offset.right;
+                with_offset.bottom -= offset.bottom;
+
+                with_offset
+            },
+        );
+
+        if (self.containers().len() <= window_based_work_area_offset_limit as usize
+            || self.monocle_container.is_some() && window_based_work_area_offset_limit > 0)
+            && self.apply_window_based_work_area_offset
+        {
+            adjusted_work_area = window_based_work_area_offset.map_or_else(
+                || adjusted_work_area,
+                |offset| {
+                    let mut with_offset = adjusted_work_area;
+                    with_offset.left += offset.left;
+                    with_offset.top += offset.top;
+                    with_offset.right -= offset.right;
+                    with_offset.bottom -= offset.bottom;
+
+                    with_offset
+                },
+            );
+        }
+
+        adjusted_work_area.add_padding(workspace_padding);
+
+        self.enforce_resize_constraints();
+
+        if !self.layout_rules.is_empty() {
+            let mut updated_layout = None;
+
+            for (threshold, layout) in &self.layout_rules {
+                if self.containers().len() >= *threshold {
+                    updated_layout = Option::from(layout.clone());
+                }
+            }
+
+            if let Some(updated_layout) = updated_layout {
+                self.layout = updated_layout;
+            }
+        }
+
+        if let Some(window_container_behaviour_rules) = &self.window_container_behaviour_rules {
+            let mut updated_behaviour = None;
+            for (threshold, behaviour) in window_container_behaviour_rules {
+                if self.containers().len() >= *threshold {
+                    updated_behaviour = Option::from(*behaviour);
+                }
+            }
+
+            self.window_container_behaviour = updated_behaviour;
+        }
+
+        if self.tile {
+            if let Some(container) = self.monocle_container.as_mut() {
+                if let Some(window) = container.focused_window_mut() {
+                    adjusted_work_area.add_padding(container_padding);
+                    adjusted_work_area.add_padding(border_offset);
+                    adjusted_work_area.add_padding(border_width);
+                    window.set_position(&adjusted_work_area)?;
+                };
+            } else if !self.containers().is_empty() {
+                let mut layouts = self.layout.as_boxed_arrangement().calculate(
+                    &adjusted_work_area,
+                    NonZeroUsize::new(self.containers().len()).ok_or_else(|| {
+                        eyre!(
+                            "there must be at least one container to calculate a workspace layout"
+                        )
+                    })?,
+                    Some(container_padding),
+                    self.layout_flip,
+                    &self.resize_dimensions,
+                    self.focused_container_idx(),
+                    self.layout_options,
+                    &self.latest_layout,
+                );
+
+                let containers = self.containers_mut();
+
+                for (i, container) in containers.iter_mut().enumerate() {
+                    if let Some(layout) = layouts.get_mut(i) {
+                        layout.add_padding(border_offset);
+                        layout.add_padding(border_width);
+
+                        for window in container.windows() {
+                            window.set_position(layout)?;
+                        }
+                    }
+                }
+
+                self.latest_layout = layouts;
+            }
+        }
+
+        // Always make sure that the length of the resize dimensions vec is the same as the
+        // number of layouts / containers. This should never actually truncate as the remove_window
+        // function takes care of cleaning up resize dimensions when destroying empty containers
+        let container_count = self.containers().len();
+
+        // since monocle is a toggle, we never want to truncate the resize dimensions since it will
+        // almost always be toggled off and the container will be reintegrated into layout
+        //
+        // without this check, if there are exactly two containers, when one is toggled to monocle
+        // the resize dimensions will be truncated to len == 1, and when it is reintegrated, if it
+        // had a resize adjustment before, that will have been lost
+        if self.monocle_container.is_none() {
+            self.resize_dimensions.resize(container_count, None);
+        }
+
+        Ok(())
+    }
+}
+
+impl Workspace {
+    fn enforce_resize_constraints(&mut self) {
+        match self.layout {
+            Layout::Default(DefaultLayout::BSP) => self.enforce_resize_constraints_for_bsp(),
+            Layout::Default(DefaultLayout::Columns) => self.enforce_resize_for_columns(),
+            Layout::Default(DefaultLayout::Rows) => self.enforce_resize_for_rows(),
+            Layout::Default(DefaultLayout::VerticalStack) => {
+                self.enforce_resize_for_vertical_stack();
+            }
+            Layout::Default(DefaultLayout::RightMainVerticalStack) => {
+                self.enforce_resize_for_right_vertical_stack();
+            }
+            Layout::Default(DefaultLayout::HorizontalStack) => {
+                self.enforce_resize_for_horizontal_stack();
+            }
+            Layout::Default(DefaultLayout::UltrawideVerticalStack) => {
+                self.enforce_resize_for_ultrawide();
+            }
+            Layout::Default(DefaultLayout::Scrolling) => {
+                self.enforce_resize_for_scrolling();
+            }
+            _ => self.enforce_no_resize(),
+        }
+    }
+
+    fn enforce_resize_constraints_for_bsp(&mut self) {
+        for (i, rect) in self.resize_dimensions.iter_mut().enumerate() {
+            if let Some(rect) = rect {
+                // Even containers can't be resized to the bottom
+                if i % 2 == 0 {
+                    rect.bottom = 0;
+                    // Odd containers can't be resized to the right
+                } else {
+                    rect.right = 0;
+                }
+            }
+        }
+
+        // The first container can never be resized to the left or the top
+        if let Some(Some(first)) = self.resize_dimensions.first_mut() {
+            first.top = 0;
+            first.left = 0;
+        }
+
+        // The last container can never be resized to the bottom or the right
+        if let Some(Some(last)) = self.resize_dimensions.last_mut() {
+            last.bottom = 0;
+            last.right = 0;
+        }
+    }
+
+    fn enforce_resize_for_columns(&mut self) {
+        let resize_dimensions = &mut self.resize_dimensions;
+        match resize_dimensions.len() {
+            0 | 1 => self.enforce_no_resize(),
+            _ => {
+                let len = resize_dimensions.len();
+                for (i, rect) in resize_dimensions.iter_mut().enumerate() {
+                    if let Some(rect) = rect {
+                        rect.top = 0;
+                        rect.bottom = 0;
+
+                        if i == 0 {
+                            rect.left = 0;
+                        }
+                        if i == len - 1 {
+                            rect.right = 0;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fn enforce_resize_for_rows(&mut self) {
+        let resize_dimensions = &mut self.resize_dimensions;
+        match resize_dimensions.len() {
+            0 | 1 => self.enforce_no_resize(),
+            _ => {
+                let len = resize_dimensions.len();
+                for (i, rect) in resize_dimensions.iter_mut().enumerate() {
+                    if let Some(rect) = rect {
+                        rect.left = 0;
+                        rect.right = 0;
+
+                        if i == 0 {
+                            rect.top = 0;
+                        }
+                        if i == len - 1 {
+                            rect.bottom = 0;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fn enforce_resize_for_vertical_stack(&mut self) {
+        let resize_dimensions = &mut self.resize_dimensions;
+        match resize_dimensions.len() {
+            // Single window can not be resized at all
+            0 | 1 => self.enforce_no_resize(),
+            _ => {
+                // Zero is actually on the left
+                if let Some(mut left) = resize_dimensions[0] {
+                    left.top = 0;
+                    left.bottom = 0;
+                    left.left = 0;
+                }
+
+                // Handle stack on the right
+                let stack_size = resize_dimensions[1..].len();
+                for (i, rect) in resize_dimensions[1..].iter_mut().enumerate() {
+                    if let Some(rect) = rect {
+                        // No containers can resize to the right
+                        rect.right = 0;
+
+                        // First container in stack cant resize up
+                        if i == 0 {
+                            rect.top = 0;
+                        } else if i == stack_size - 1 {
+                            // Last cant be resized to the bottom
+                            rect.bottom = 0;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fn enforce_resize_for_right_vertical_stack(&mut self) {
+        let resize_dimensions = &mut self.resize_dimensions;
+        match resize_dimensions.len() {
+            // Single window can not be resized at all
+            0 | 1 => self.enforce_no_resize(),
+            _ => {
+                // Zero is actually on the right
+                if let Some(mut left) = resize_dimensions[1] {
+                    left.top = 0;
+                    left.bottom = 0;
+                    left.right = 0;
+                }
+
+                // Handle stack on the right
+                let stack_size = resize_dimensions[1..].len();
+                for (i, rect) in resize_dimensions[1..].iter_mut().enumerate() {
+                    if let Some(rect) = rect {
+                        // No containers can resize to the left
+                        rect.left = 0;
+
+                        // First container in stack cant resize up
+                        if i == 0 {
+                            rect.top = 0;
+                        } else if i == stack_size - 1 {
+                            // Last cant be resized to the bottom
+                            rect.bottom = 0;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fn enforce_resize_for_horizontal_stack(&mut self) {
+        let resize_dimensions = &mut self.resize_dimensions;
+        match resize_dimensions.len() {
+            0 | 1 => self.enforce_no_resize(),
+            _ => {
+                if let Some(mut left) = resize_dimensions[0] {
+                    left.top = 0;
+                    left.left = 0;
+                    left.right = 0;
+                }
+
+                let stack_size = resize_dimensions[1..].len();
+                for (i, rect) in resize_dimensions[1..].iter_mut().enumerate() {
+                    if let Some(rect) = rect {
+                        rect.bottom = 0;
+
+                        if i == 0 {
+                            rect.left = 0;
+                        }
+                        if i == stack_size - 1 {
+                            rect.right = 0;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fn enforce_resize_for_ultrawide(&mut self) {
+        let resize_dimensions = &mut self.resize_dimensions;
+        match resize_dimensions.len() {
+            // Single window can not be resized at all
+            0 | 1 => self.enforce_no_resize(),
+            // Two windows can only be resized in the middle
+            2 => {
+                // Zero is actually on the right
+                if let Some(mut right) = resize_dimensions[0] {
+                    right.top = 0;
+                    right.bottom = 0;
+                    right.right = 0;
+                }
+
+                // One is on the left
+                if let Some(mut left) = resize_dimensions[1] {
+                    left.top = 0;
+                    left.bottom = 0;
+                    left.left = 0;
+                }
+            }
+            // Three or more windows means 0 is in center, 1 is at the left, 2.. are a vertical
+            // stack on the right
+            _ => {
+                // Central can be resized left or right
+                if let Some(mut right) = resize_dimensions[0] {
+                    right.top = 0;
+                    right.bottom = 0;
+                }
+
+                // Left one can only be resized to the right
+                if let Some(mut left) = resize_dimensions[1] {
+                    left.top = 0;
+                    left.bottom = 0;
+                    left.left = 0;
+                }
+
+                // Handle stack on the right
+                let stack_size = resize_dimensions[2..].len();
+                for (i, rect) in resize_dimensions[2..].iter_mut().enumerate() {
+                    if let Some(rect) = rect {
+                        // No containers can resize to the right
+                        rect.right = 0;
+
+                        // First container in stack cant resize up
+                        if i == 0 {
+                            rect.top = 0;
+                        } else if i == stack_size - 1 {
+                            // Last cant be resized to the bottom
+                            rect.bottom = 0;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fn enforce_resize_for_scrolling(&mut self) {
+        let resize_dimensions = &mut self.resize_dimensions;
+        match resize_dimensions.len() {
+            0 | 1 => self.enforce_no_resize(),
+            _ => {
+                let len = resize_dimensions.len();
+
+                for (i, rect) in resize_dimensions.iter_mut().enumerate() {
+                    if let Some(rect) = rect {
+                        rect.top = 0;
+                        rect.bottom = 0;
+
+                        if i == 0 {
+                            rect.left = 0;
+                        } else if i == len - 1 {
+                            rect.right = 0;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    fn enforce_no_resize(&mut self) {
+        for rect in self.resize_dimensions.iter_mut().flatten() {
+            rect.left = 0;
+            rect.right = 0;
+            rect.top = 0;
+            rect.bottom = 0;
+        }
     }
 }

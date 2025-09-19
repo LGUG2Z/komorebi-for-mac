@@ -1,11 +1,13 @@
 use crate::core::cycle_direction::CycleDirection;
 use crate::core::default_layout::DefaultLayout;
 use crate::core::operation_direction::OperationDirection;
+use clap::ValueEnum;
 use color_eyre::eyre;
 use serde::Deserialize;
 use serde::Serialize;
 use std::str::FromStr;
 use strum::Display;
+use strum::EnumString;
 
 pub mod arrangement;
 pub mod cycle_direction;
@@ -20,6 +22,17 @@ pub mod rect;
 pub enum Sizing {
     Increase,
     Decrease,
+}
+
+#[derive(
+    Clone, Copy, Debug, Default, Serialize, Deserialize, Display, EnumString, ValueEnum, PartialEq,
+)]
+pub enum WindowContainerBehaviour {
+    /// Create a new container for each new window
+    #[default]
+    Create,
+    /// Append new windows to the focused window container
+    Append,
 }
 
 #[serde_with::serde_as]
