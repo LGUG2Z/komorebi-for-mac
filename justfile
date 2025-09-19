@@ -1,12 +1,12 @@
 export RUST_BACKTRACE := "full"
 
-clean:
-    cargo clean
-
 fmt:
     cargo +nightly fmt
     cargo +stable clippy
     prettier --write README.md
+
+clean:
+    cargo clean
 
 install target:
     cargo +stable install --path {{ target }} --locked --target-dir ~/.cargo/bin

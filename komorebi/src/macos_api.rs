@@ -1,4 +1,7 @@
 use crate::LibraryError;
+use crate::accessibility::AccessibilityApi;
+use crate::accessibility::attribute_constants::kAXFocusedApplicationAttribute;
+use crate::accessibility::attribute_constants::kAXFocusedWindowAttribute;
 use crate::accessibility::attribute_constants::kAXPositionAttribute;
 use crate::accessibility::attribute_constants::kAXSizeAttribute;
 use crate::accessibility::error::AccessibilityApiError;
@@ -17,6 +20,7 @@ use objc2_application_services::AXUIElement;
 use objc2_application_services::AXValue;
 use objc2_application_services::AXValueType;
 use objc2_core_foundation::CFDictionary;
+use objc2_core_foundation::CFRetained;
 use objc2_core_foundation::CFString;
 use objc2_core_foundation::CGRect;
 use std::collections::HashMap;
@@ -129,9 +133,6 @@ impl MacosApi {
         let mut position_receiver = std::ptr::null();
         let mut size_receiver = std::ptr::null();
 
-        // let mut position_receiver = CGPoint::default();
-        // let mut size_receiver = CGSize::default();
-
         unsafe {
             match AccessibilityApiError::from(element.copy_attribute_value(
                 &CFString::from_static_str(kAXPositionAttribute),
@@ -169,6 +170,35 @@ impl MacosApi {
             );
 
             Ok(rect)
+        }
+    }
+
+    pub fn foreground_window_id() -> Option<u32> {
+        unsafe {
+            let syswide = AXUIElement::new_system_wide();
+            let app = AccessibilityApi::copy_attribute_value::<AXUIElement>(
+                &syswide,
+                kAXFocusedApplicationAttribute,
+            )?;
+
+            let window = AccessibilityApi::copy_attribute_value::<AXUIElement>(
+                &app,
+                kAXFocusedWindowAttribute,
+            )?;
+
+            AccessibilityApi::window_id(&window).ok()
+        }
+    }
+
+    pub fn foreground_window() -> Option<CFRetained<AXUIElement>> {
+        unsafe {
+            let syswide = AXUIElement::new_system_wide();
+            let app = AccessibilityApi::copy_attribute_value::<AXUIElement>(
+                &syswide,
+                kAXFocusedApplicationAttribute,
+            )?;
+
+            AccessibilityApi::copy_attribute_value::<AXUIElement>(&app, kAXFocusedWindowAttribute)
         }
     }
 }

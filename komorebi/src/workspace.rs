@@ -1,4 +1,5 @@
 use crate::container::Container;
+use crate::core::FloatingLayerBehaviour;
 use crate::core::WindowContainerBehaviour;
 use crate::core::arrangement::Axis;
 use crate::core::default_layout::DefaultLayout;
@@ -7,34 +8,62 @@ use crate::core::layout::Layout;
 use crate::core::operation_direction::OperationDirection;
 use crate::core::rect::Rect;
 use crate::lockable_sequence::LockableSequence;
+use crate::macos_api::MacosApi;
 use crate::ring::Ring;
 use crate::window::Window;
 use color_eyre::eyre;
 use color_eyre::eyre::eyre;
+use serde::Deserialize;
+use serde::Serialize;
+use std::fmt::Display;
+use std::fmt::Formatter;
 use std::num::NonZeroUsize;
-
-impl_ring_elements!(Workspace, Container);
 
 #[derive(Debug, Clone)]
 pub struct Workspace {
     pub containers: Ring<Container>,
     pub monocle_container: Option<Container>,
     pub monocle_container_restore_idx: Option<usize>,
-    pub workspace_padding: Option<i32>,
-    pub container_padding: Option<i32>,
-    pub resize_dimensions: Vec<Option<Rect>>,
+    pub maximized_window: Option<Window>,
+    pub maximized_window_restore_idx: Option<usize>,
+    pub floating_windows: Ring<Window>,
     pub layout: Layout,
-    pub work_area_offset: Option<Rect>,
-    pub latest_layout: Vec<Rect>,
-    pub layout_flip: Option<Axis>,
     pub layout_options: Option<LayoutOptions>,
     pub layout_rules: Vec<(usize, Layout)>,
-    pub globals: WorkspaceGlobals,
+    pub layout_flip: Option<Axis>,
+    pub workspace_padding: Option<i32>,
+    pub container_padding: Option<i32>,
+    pub latest_layout: Vec<Rect>,
+    pub resize_dimensions: Vec<Option<Rect>>,
     pub tile: bool,
+    pub work_area_offset: Option<Rect>,
     pub apply_window_based_work_area_offset: bool,
     pub window_container_behaviour: Option<WindowContainerBehaviour>,
     pub window_container_behaviour_rules: Option<Vec<(usize, WindowContainerBehaviour)>>,
+    pub float_override: Option<bool>,
+    pub globals: WorkspaceGlobals,
+    pub layer: WorkspaceLayer,
+    pub floating_layer_behaviour: Option<FloatingLayerBehaviour>,
 }
+
+#[derive(Debug, Default, Copy, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum WorkspaceLayer {
+    #[default]
+    Tiling,
+    Floating,
+}
+
+impl Display for WorkspaceLayer {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            WorkspaceLayer::Tiling => write!(f, "Tiling"),
+            WorkspaceLayer::Floating => write!(f, "Floating"),
+        }
+    }
+}
+
+impl_ring_elements!(Workspace, Container);
+impl_ring_elements!(Workspace, Window, "floating_window");
 
 impl Default for Workspace {
     fn default() -> Self {
@@ -42,6 +71,8 @@ impl Default for Workspace {
             containers: Default::default(),
             monocle_container: None,
             monocle_container_restore_idx: None,
+            maximized_window: None,
+            maximized_window_restore_idx: None,
             workspace_padding: None,
             container_padding: None,
             resize_dimensions: vec![],
@@ -52,10 +83,14 @@ impl Default for Workspace {
             layout_options: None,
             layout_rules: vec![],
             globals: Default::default(),
+            layer: Default::default(),
             tile: true,
             apply_window_based_work_area_offset: true,
             window_container_behaviour: None,
             window_container_behaviour_rules: None,
+            floating_windows: Default::default(),
+            float_override: None,
+            floating_layer_behaviour: None,
         }
     }
 }
@@ -348,11 +383,30 @@ impl Workspace {
     }
 
     pub fn hide(&mut self, omit: Option<u32>) -> eyre::Result<()> {
+        for window in self.floating_windows_mut().iter_mut().rev() {
+            let mut should_hide = omit.is_none();
+
+            if !should_hide
+                && let Some(omit) = omit
+                && omit != window.id
+            {
+                should_hide = true
+            }
+
+            if should_hide {
+                window.hide()?;
+            }
+        }
+
         for container in self.containers_mut() {
             container.hide(omit)?;
         }
 
-        if let Some(container) = self.monocle_container.as_mut() {
+        // if let Some(window) = self.maximized_window() {
+        //     window.hide();
+        // }
+
+        if let Some(container) = &mut self.monocle_container {
             container.hide(omit)?;
         }
 
@@ -360,8 +414,9 @@ impl Workspace {
     }
 
     pub fn restore(&mut self, mouse_follows_focus: bool) -> eyre::Result<()> {
-        if let Some(container) = self.monocle_container.as_mut() {
+        if let Some(container) = &mut self.monocle_container {
             container.restore()?;
+
             if let Some(window) = container.focused_window() {
                 window.focus(mouse_follows_focus)?;
             }
@@ -386,8 +441,28 @@ impl Workspace {
             container.focus_window(container.focused_window_idx());
         }
 
+        for window in self.floating_windows_mut() {
+            window.restore()?;
+        }
+        // Do this here to make sure that an error doesn't stop the restoration of other windows
+        // Maximised windows and floating windows should always be drawn at the top of the Z order
+        // when switching to a workspace
         if let Some(window) = to_focus {
-            window.focus(mouse_follows_focus)?;
+            if
+            /* self.maximized_window().is_none() && */
+            matches!(self.layer, WorkspaceLayer::Tiling) {
+                window.focus(mouse_follows_focus)?;
+            // } else if let Some(maximized_window) = self.maximized_window() {
+            //     maximized_window.restore();
+            //     maximized_window.focus(mouse_follows_focus)?;
+            } else if let Some(floating_window) = self.focused_floating_window() {
+                floating_window.focus(mouse_follows_focus)?;
+            }
+        // } else if let Some(maximized_window) = self.maximized_window() {
+        //     maximized_window.restore();
+        //     maximized_window.focus(mouse_follows_focus)?;
+        } else if let Some(floating_window) = self.focused_floating_window() {
+            floating_window.focus(mouse_follows_focus)?;
         }
 
         Ok(())
@@ -475,6 +550,97 @@ impl Workspace {
         self.monocle_container_restore_idx = None;
 
         Ok(())
+    }
+
+    pub fn new_floating_window(&mut self) -> eyre::Result<()> {
+        let window = if let Some(monocle_container) = &mut self.monocle_container {
+            let window = monocle_container
+                .remove_focused_window()
+                .ok_or_else(|| eyre!("there is no window"))?;
+
+            if monocle_container.windows().is_empty() {
+                self.monocle_container = None;
+                self.monocle_container_restore_idx = None;
+            } else {
+                monocle_container.load_focused_window()?;
+            }
+
+            window
+        } else {
+            let focused_idx = self.focused_container_idx();
+
+            let container = self
+                .focused_container_mut()
+                .ok_or_else(|| eyre!("there is no container"))?;
+
+            let window = container
+                .remove_focused_window()
+                .ok_or_else(|| eyre!("there is no window"))?;
+
+            if container.windows().is_empty() {
+                self.remove_container_by_idx(focused_idx);
+
+                if focused_idx == self.containers().len() {
+                    self.focus_container(focused_idx.saturating_sub(1));
+                }
+            } else {
+                container.load_focused_window()?;
+            }
+
+            window
+        };
+
+        self.floating_windows_mut().push_back(window);
+
+        Ok(())
+    }
+
+    pub fn new_container_for_floating_window(&mut self) -> eyre::Result<()> {
+        let focused_idx = self.focused_container_idx();
+        let window = self
+            .remove_focused_floating_window()
+            .ok_or_else(|| eyre!("there is no floating window"))?;
+
+        let mut container = Container::default();
+        container.add_window(&window)?;
+
+        self.insert_container_at_idx(focused_idx, container);
+
+        Ok(())
+    }
+
+    pub fn remove_focused_floating_window(&mut self) -> Option<Window> {
+        let window_id = MacosApi::foreground_window_id()?;
+
+        let mut idx = None;
+        for (i, window) in self.floating_windows().iter().enumerate() {
+            if window_id == window.id {
+                idx = Option::from(i);
+            }
+        }
+
+        match idx {
+            None => None,
+            Some(idx) => {
+                if self.floating_windows().get(idx).is_some() {
+                    self.focus_previous_floating_window();
+                    self.floating_windows_mut().remove(idx)
+                } else {
+                    None
+                }
+            }
+        }
+    }
+
+    pub fn focus_previous_floating_window(&mut self) {
+        let focused_idx = self.focused_floating_window_idx();
+        self.focus_floating_window(focused_idx.saturating_sub(1));
+    }
+
+    pub fn focus_floating_window(&mut self, idx: usize) {
+        tracing::info!("focusing floating window");
+
+        self.floating_windows.focus(idx);
     }
 }
 

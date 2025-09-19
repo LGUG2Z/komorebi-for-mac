@@ -5,9 +5,11 @@ use crate::core::default_layout::DefaultLayout;
 use crate::core::layout::Layout;
 use crate::core::operation_direction::OperationDirection;
 use crate::core::rect::Rect;
+use crate::macos_api::MacosApi;
 use crate::ring::Ring;
 use crate::workspace::Workspace;
 use crate::workspace::WorkspaceGlobals;
+use crate::workspace::WorkspaceLayer;
 use color_eyre::eyre;
 use color_eyre::eyre::eyre;
 use std::sync::atomic::Ordering;
@@ -129,6 +131,91 @@ impl Monitor {
 
     #[tracing::instrument(skip(self))]
     pub fn move_container_to_workspace(
+        &mut self,
+        target_workspace_idx: usize,
+        follow: bool,
+        direction: Option<OperationDirection>,
+    ) -> eyre::Result<()> {
+        let workspace = self
+            .focused_workspace_mut()
+            .ok_or_else(|| eyre!("there is no workspace"))?;
+
+        // if workspace.maximized_window().is_some() {
+        //     return Err(eyre!("cannot move native maximized window to another monitor or workspace"));
+        // }
+
+        let foreground_hwnd =
+            MacosApi::foreground_window_id().ok_or(eyre!("no foreground window"))?;
+        let floating_window_index = workspace
+            .floating_windows()
+            .iter()
+            .position(|w| w.id == foreground_hwnd);
+
+        if let Some(idx) = floating_window_index {
+            if let Some(window) = workspace.floating_windows_mut().remove(idx) {
+                let workspaces = self.workspaces_mut();
+                #[allow(clippy::option_if_let_else)]
+                let target_workspace = match workspaces.get_mut(target_workspace_idx) {
+                    None => {
+                        workspaces.resize(target_workspace_idx + 1, Workspace::default());
+                        workspaces.get_mut(target_workspace_idx).unwrap()
+                    }
+                    Some(workspace) => workspace,
+                };
+
+                target_workspace.floating_windows_mut().push_back(window);
+                target_workspace.layer = WorkspaceLayer::Floating;
+            }
+        } else {
+            let container = workspace
+                .remove_focused_container()
+                .ok_or_else(|| eyre!("there is no container"))?;
+
+            let workspaces = self.workspaces_mut();
+
+            #[allow(clippy::option_if_let_else)]
+            let target_workspace = match workspaces.get_mut(target_workspace_idx) {
+                None => {
+                    workspaces.resize(target_workspace_idx + 1, Workspace::default());
+                    workspaces.get_mut(target_workspace_idx).unwrap()
+                }
+                Some(workspace) => workspace,
+            };
+
+            if target_workspace.monocle_container.is_some() {
+                for container in target_workspace.containers_mut() {
+                    container.restore()?;
+                }
+
+                for window in target_workspace.floating_windows_mut() {
+                    window.restore()?;
+                }
+
+                target_workspace.reintegrate_monocle_container()?;
+            }
+
+            target_workspace.layer = WorkspaceLayer::Tiling;
+
+            if let Some(direction) = direction {
+                self.add_container_with_direction(
+                    container,
+                    Some(target_workspace_idx),
+                    direction,
+                )?;
+            } else {
+                target_workspace.add_container_to_back(container);
+            }
+        }
+
+        if follow {
+            self.focus_workspace(target_workspace_idx)?;
+        }
+
+        Ok(())
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn move_container_to_workspace1(
         &mut self,
         target_workspace_idx: usize,
         follow: bool,

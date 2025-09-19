@@ -24,6 +24,31 @@ pub enum Sizing {
     Decrease,
 }
 
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq)]
+pub struct WindowManagementBehaviour {
+    /// The current WindowContainerBehaviour to be used
+    pub current_behaviour: WindowContainerBehaviour,
+    /// Override of `current_behaviour` to open new windows as floating windows
+    /// that can be later toggled to tiled, when false it will default to
+    /// `current_behaviour` again.
+    pub float_override: bool,
+    /// Determines if a new window should be spawned floating when on the floating layer and the
+    /// floating layer behaviour is set to float. This value is always calculated when checking for
+    /// the management behaviour on a specific workspace.
+    pub floating_layer_override: bool,
+    /// The floating layer behaviour to be used if the float override is being used
+    pub floating_layer_behaviour: FloatingLayerBehaviour,
+    /// The `Placement` to be used when toggling a window to float
+    pub toggle_float_placement: Placement,
+    /// The `Placement` to be used when spawning a window on the floating layer with the
+    /// `FloatingLayerBehaviour` set to `FloatingLayerBehaviour::Float`
+    pub floating_layer_placement: Placement,
+    /// The `Placement` to be used when spawning a window with float override active
+    pub float_override_placement: Placement,
+    /// The `Placement` to be used when spawning a window that matches a 'floating_applications' rule
+    pub float_rule_placement: Placement,
+}
+
 #[derive(
     Clone, Copy, Debug, Default, Serialize, Deserialize, Display, EnumString, ValueEnum, PartialEq,
 )]
@@ -33,6 +58,55 @@ pub enum WindowContainerBehaviour {
     Create,
     /// Append new windows to the focused window container
     Append,
+}
+
+#[derive(
+    Clone, Copy, Debug, Default, Serialize, Deserialize, Display, EnumString, ValueEnum, PartialEq,
+)]
+pub enum FloatingLayerBehaviour {
+    /// Tile new windows (unless they match a float rule or float override is active)
+    #[default]
+    Tile,
+    /// Float new windows
+    Float,
+}
+
+#[derive(
+    Clone, Copy, Debug, Default, Serialize, Deserialize, Display, EnumString, ValueEnum, PartialEq,
+)]
+pub enum Placement {
+    /// Does not change the size or position of the window
+    #[default]
+    None,
+    /// Center the window without changing the size
+    Center,
+    /// Center the window and resize it according to the `AspectRatio`
+    CenterAndResize,
+}
+
+impl FloatingLayerBehaviour {
+    pub fn should_float(&self) -> bool {
+        match self {
+            FloatingLayerBehaviour::Tile => false,
+            FloatingLayerBehaviour::Float => true,
+        }
+    }
+}
+
+impl Placement {
+    pub fn should_center(&self) -> bool {
+        match self {
+            Placement::None => false,
+            Placement::Center | Placement::CenterAndResize => true,
+        }
+    }
+
+    pub fn should_resize(&self) -> bool {
+        match self {
+            Placement::None | Placement::Center => false,
+            Placement::CenterAndResize => true,
+        }
+    }
 }
 
 #[serde_with::serde_as]
@@ -48,6 +122,8 @@ pub enum SocketMessage {
     ChangeLayout(DefaultLayout),
     TogglePause,
     ToggleMonocle,
+    ToggleFloat,
+    ToggleWorkspaceLayer,
     FocusWorkspaceNumber(usize),
     MoveContainerToWorkspaceNumber(usize),
     SendContainerToWorkspaceNumber(usize),

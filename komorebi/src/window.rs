@@ -1,7 +1,10 @@
 use crate::AccessibilityObserver;
 use crate::AccessibilityUiElement;
+use crate::FLOATING_WINDOW_TOGGLE_ASPECT_RATIO;
 use crate::LibraryError;
+use crate::WINDOW_RESTORE_POSITIONS;
 use crate::accessibility::AccessibilityApi;
+use crate::accessibility::attribute_constants::kAXFocusedAttribute;
 use crate::accessibility::attribute_constants::kAXMainAttribute;
 use crate::accessibility::attribute_constants::kAXMinimizedAttribute;
 use crate::accessibility::attribute_constants::kAXPositionAttribute;
@@ -42,9 +45,14 @@ use objc2_core_graphics::kCGWindowBounds;
 use objc2_core_graphics::kCGWindowName;
 use objc2_core_graphics::kCGWindowOwnerName;
 use objc2_core_graphics::kCGWindowOwnerPID;
+use serde::Deserialize;
+use serde::Serialize;
+use std::collections::hash_map::Entry;
 use std::ffi::c_void;
 use std::ptr::NonNull;
 use std::str::FromStr;
+use strum::Display;
+use strum::EnumString;
 use tracing::instrument;
 
 const NOTIFICATIONS: &[&str] = &[
@@ -143,10 +151,9 @@ impl WindowInfo {
 #[allow(unused)]
 pub struct Window {
     pub id: u32,
-    element: AccessibilityUiElement,
+    pub element: AccessibilityUiElement,
     pub application: Application,
     observer: AccessibilityObserver,
-    pub restore_point: Option<(f32, f32)>,
 }
 
 impl Drop for Window {
@@ -181,7 +188,6 @@ impl Window {
             element: AccessibilityUiElement(element),
             application,
             observer: AccessibilityObserver(observer),
-            restore_point: None,
         })
     }
 
@@ -208,11 +214,14 @@ impl Window {
 
     #[tracing::instrument(skip_all)]
     pub fn hide(&mut self) -> Result<(), AccessibilityError> {
-        // I don't love this, but it's basically what Aerospace does in lieu of an actual "Hide" API
-        if self.restore_point.is_none() {
+        let mut window_restore_positions = WINDOW_RESTORE_POSITIONS.lock();
+        if let Entry::Vacant(entry) = window_restore_positions.entry(self.id) {
             let rect = MacosApi::window_rect(&self.element)?;
             if let Some(monitor_size) = CoreGraphicsApi::display_bounds_for_window_rect(rect) {
-                self.restore_point = Some((rect.origin.x as f32, rect.origin.y as f32));
+                entry.insert(rect);
+                drop(window_restore_positions);
+
+                // I don't love this, but it's basically what Aerospace does in lieu of an actual "Hide" API
                 let hidden_rect = hidden_frame_bottom_left(monitor_size, rect.size);
 
                 tracing::debug!(
@@ -245,20 +254,22 @@ impl Window {
 
     #[tracing::instrument(skip_all)]
     pub fn restore(&mut self) -> Result<(), AccessibilityError> {
-        let mut should_unset_restore_point = false;
-        if let Some((x, y)) = self.restore_point {
+        let mut should_remove_restore_position = false;
+        let mut window_restore_positions = WINDOW_RESTORE_POSITIONS.lock();
+        if let Some(cg_rect) = window_restore_positions.get(&self.id) {
             tracing::debug!(
-                "restoring {:?} to point {x},{y}",
+                "restoring {:?} to {cg_rect:?}",
                 self.title()
                     .unwrap_or_else(|| String::from("<NO TITLE FOUND>"))
             );
 
-            self.set_point(CGPoint::new(x as CGFloat, y as CGFloat))?;
-            should_unset_restore_point = true;
+            self.set_point(cg_rect.origin)?;
+            self.set_size(cg_rect.size)?;
+            should_remove_restore_position = true;
         }
 
-        if should_unset_restore_point {
-            self.restore_point = None;
+        if should_remove_restore_position {
+            window_restore_positions.remove(&self.id);
         }
 
         Ok(())
@@ -296,6 +307,13 @@ impl Window {
         Ok(())
     }
 
+    pub fn raise(&self) -> Result<(), AccessibilityError> {
+        let cf_boolean = CFBoolean::new(true);
+        let value = &**cf_boolean;
+        AccessibilityApi::set_attribute_cf_value(&self.element, kAXMainAttribute, value)?;
+        AccessibilityApi::set_attribute_cf_value(&self.element, kAXFocusedAttribute, value)
+    }
+
     pub fn set_point(&self, point: CGPoint) -> Result<(), AccessibilityError> {
         AccessibilityApi::set_attribute_ax_value(
             &self.element,
@@ -312,6 +330,30 @@ impl Window {
             AXValueType::CGSize,
             size,
         )
+    }
+
+    pub fn center(&mut self, work_area: &Rect, resize: bool) -> Result<(), AccessibilityError> {
+        let (target_width, target_height) = if resize {
+            let (aspect_ratio_width, aspect_ratio_height) = FLOATING_WINDOW_TOGGLE_ASPECT_RATIO
+                .lock()
+                .width_and_height();
+            let target_height = work_area.bottom / 2;
+            let target_width = (target_height * aspect_ratio_width) / aspect_ratio_height;
+            (target_width, target_height)
+        } else {
+            let current_rect = Rect::from(MacosApi::window_rect(&self.element)?);
+            (current_rect.right, current_rect.bottom)
+        };
+
+        let x = work_area.left + ((work_area.right - target_width) / 2);
+        let y = work_area.top + ((work_area.bottom - target_height) / 2);
+
+        self.set_position(&Rect {
+            left: x,
+            top: y,
+            right: target_width,
+            bottom: target_height,
+        })
     }
 }
 
@@ -373,6 +415,45 @@ impl From<&CFDictionary> for WindowBounds {
                     .and_then(|val| val.as_ref().as_f32())
                     .unwrap_or_default(),
             }
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, Display, EnumString, Serialize, Deserialize, PartialEq)]
+#[serde(untagged)]
+pub enum AspectRatio {
+    /// A predefined aspect ratio
+    Predefined(PredefinedAspectRatio),
+    /// A custom W:H aspect ratio
+    Custom(i32, i32),
+}
+
+impl Default for AspectRatio {
+    fn default() -> Self {
+        AspectRatio::Predefined(PredefinedAspectRatio::default())
+    }
+}
+
+#[derive(Copy, Clone, Debug, Default, Display, EnumString, Serialize, Deserialize, PartialEq)]
+pub enum PredefinedAspectRatio {
+    /// 21:9
+    Ultrawide,
+    /// 16:9
+    Widescreen,
+    /// 4:3
+    #[default]
+    Standard,
+}
+
+impl AspectRatio {
+    pub fn width_and_height(self) -> (i32, i32) {
+        match self {
+            AspectRatio::Predefined(predefined) => match predefined {
+                PredefinedAspectRatio::Ultrawide => (21, 9),
+                PredefinedAspectRatio::Widescreen => (16, 9),
+                PredefinedAspectRatio::Standard => (4, 3),
+            },
+            AspectRatio::Custom(w, h) => (w, h),
         }
     }
 }

@@ -1,8 +1,11 @@
 use crate::accessibility::AccessibilityApi;
 use crate::accessibility::notification_constants::AccessibilityNotification;
+use crate::core::default_layout::DefaultLayout;
+use crate::core::layout::Layout;
 use crate::window::Window;
 use crate::window_manager::WindowManager;
 use crate::window_manager_event::WindowManagerEvent;
+use crate::workspace::WorkspaceLayer;
 use color_eyre::eyre;
 use parking_lot::Mutex;
 use std::sync::Arc;
@@ -38,15 +41,66 @@ impl WindowManager {
             return Ok(());
         }
 
-        tracing::info!("processing event: {event}");
+        tracing::info!(
+            "processing event: {event} for process {}",
+            event.process_id()
+        );
 
         match event {
             WindowManagerEvent::FocusChange(notification, process_id, _) => {
                 let application = self.application(process_id)?;
 
                 if let Some(window_id) = application.main_window_id() {
-                    self.focused_workspace_mut()?
-                        .focus_container_by_window(window_id)?;
+                    // todo: figure out if this applies on macOS too
+                    // don't want to trigger the full workspace updates when there are no managed
+                    // containers - this makes floating windows on empty workspaces go into very
+                    // annoying focus change loops which prevents users from interacting with them
+                    if !matches!(
+                        self.focused_workspace()?.layout,
+                        Layout::Default(DefaultLayout::Scrolling)
+                    ) && !self.focused_workspace()?.containers().is_empty()
+                    {
+                        self.update_focused_workspace(self.mouse_follows_focus, false)?;
+                    }
+
+                    let workspace = self.focused_workspace_mut()?;
+                    let floating_window_idx = workspace
+                        .floating_windows()
+                        .iter()
+                        .position(|w| w.id == window_id);
+
+                    match floating_window_idx {
+                        None => {
+                            // if let Some(w) = workspace.maximized_window() {
+                            //     if w.hwnd == window_id {
+                            //         return Ok(());
+                            //     }
+                            // }
+
+                            if let Some(monocle) = &workspace.monocle_container {
+                                if let Some(window) = monocle.focused_window() {
+                                    window.focus(false)?;
+                                }
+                            } else {
+                                workspace.focus_container_by_window(window_id)?;
+                            }
+
+                            workspace.layer = WorkspaceLayer::Tiling;
+
+                            if matches!(
+                                self.focused_workspace()?.layout,
+                                Layout::Default(DefaultLayout::Scrolling)
+                            ) && !self.focused_workspace()?.containers().is_empty()
+                            {
+                                self.update_focused_workspace(self.mouse_follows_focus, false)?;
+                            }
+                        }
+                        Some(idx) => {
+                            if let Some(_window) = workspace.floating_windows().get(idx) {
+                                workspace.layer = WorkspaceLayer::Floating;
+                            }
+                        }
+                    }
                 }
 
                 if matches!(notification, AccessibilityNotification::AXMainWindowChanged) {
@@ -54,6 +108,7 @@ impl WindowManager {
                     self.update_focused_workspace(false, false)?;
                 }
             }
+            // todo: upate this to work with floating applications / rules
             WindowManagerEvent::Show(_, process_id) => {
                 let mut window_id = None;
                 let mut window_element = None;

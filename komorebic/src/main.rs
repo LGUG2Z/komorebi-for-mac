@@ -105,6 +105,10 @@ enum SubCommand {
     TogglePause,
     /// Toggle monocle mode for the focused container
     ToggleMonocle,
+    /// Toggle floating mode for the focused window
+    ToggleFloat,
+    /// Toggle between the Tiling and Floating layers on the focused workspace
+    ToggleWorkspaceLayer,
     /// Set the layout on the focused workspace
     #[clap(arg_required_else_help = true)]
     ChangeLayout(ChangeLayout),
@@ -155,6 +159,12 @@ fn main() -> eyre::Result<()> {
         }
         SubCommand::ToggleMonocle => {
             send_message(&SocketMessage::ToggleMonocle)?;
+        }
+        SubCommand::ToggleFloat => {
+            send_message(&SocketMessage::ToggleFloat)?;
+        }
+        SubCommand::ToggleWorkspaceLayer => {
+            send_message(&SocketMessage::ToggleWorkspaceLayer)?;
         }
     }
 

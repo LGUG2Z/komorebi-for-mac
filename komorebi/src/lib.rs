@@ -2,6 +2,8 @@
 
 use crate::accessibility::error::AccessibilityError;
 use crate::core_graphics::error::CoreGraphicsError;
+use crate::window::AspectRatio;
+use crate::window::PredefinedAspectRatio;
 use core::pathext::PathExt;
 use lazy_static::lazy_static;
 use objc2_application_services::AXObserver;
@@ -14,9 +16,12 @@ use objc2_core_foundation::CFString;
 use objc2_core_foundation::CGPoint;
 use objc2_core_foundation::CGRect;
 use objc2_core_foundation::CGSize;
+use parking_lot::Mutex;
+use std::collections::HashMap;
 use std::ops::Deref;
 use std::path::PathBuf;
 use std::ptr::NonNull;
+use std::sync::Arc;
 use std::sync::atomic::AtomicI32;
 
 #[macro_use]
@@ -55,6 +60,11 @@ lazy_static! {
     pub static ref DATA_DIR: PathBuf = dirs::data_local_dir()
         .expect("there is no local data directory")
         .join("komorebi");
+    static ref FLOATING_WINDOW_TOGGLE_ASPECT_RATIO: Arc<Mutex<AspectRatio>> = Arc::new(Mutex::new(
+        AspectRatio::Predefined(PredefinedAspectRatio::Widescreen)
+    ));
+    static ref WINDOW_RESTORE_POSITIONS: Arc<Mutex<HashMap<u32, CGRect>>> =
+        Arc::new(Mutex::new(HashMap::new()));
 }
 
 pub static DEFAULT_WORKSPACE_PADDING: AtomicI32 = AtomicI32::new(5);
