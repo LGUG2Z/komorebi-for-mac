@@ -1135,4 +1135,38 @@ impl WindowManager {
 
         Ok(())
     }
+
+    #[tracing::instrument(skip(self))]
+    pub fn promote_container_to_front(&mut self) -> eyre::Result<()> {
+        let workspace = self.focused_workspace_mut()?;
+
+        if matches!(workspace.layout, Layout::Default(DefaultLayout::Grid)) {
+            tracing::debug!("ignoring promote command for grid layout");
+            return Ok(());
+        }
+
+        tracing::info!("promoting container");
+
+        workspace.promote_container()?;
+        self.update_focused_workspace(self.mouse_follows_focus, true)
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn promote_focus_to_front(&mut self) -> eyre::Result<()> {
+        let workspace = self.focused_workspace_mut()?;
+
+        if matches!(workspace.layout, Layout::Default(DefaultLayout::Grid)) {
+            tracing::info!("ignoring promote focus command for grid layout");
+            return Ok(());
+        }
+
+        tracing::info!("promoting focus");
+
+        let target_idx = match workspace.layout {
+            Layout::Default(_) => 0,
+        };
+
+        workspace.focus_container(target_idx);
+        self.update_focused_workspace(self.mouse_follows_focus, true)
+    }
 }

@@ -131,6 +131,9 @@ pub enum SocketMessage {
     ResizeWindowAxis(Axis, Sizing),
     Retile,
     RetileWithResizeDimensions,
+    Promote,
+    PromoteFocus,
+    PromoteWindow(OperationDirection),
 }
 
 impl SocketMessage {

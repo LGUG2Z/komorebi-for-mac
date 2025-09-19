@@ -59,6 +59,7 @@ gen_enum_subcommand_args! {
     ChangeLayout: DefaultLayout,
     Stack: OperationDirection,
     CycleStack: CycleDirection,
+    PromoteWindow: OperationDirection,
 }
 
 macro_rules! gen_target_subcommand_args {
@@ -137,6 +138,12 @@ enum SubCommand {
     /// Set the layout on the focused workspace
     #[clap(arg_required_else_help = true)]
     ChangeLayout(ChangeLayout),
+    /// Promote the focused window to the top of the tree
+    Promote,
+    /// Promote the user focus to the top of the tree
+    PromoteFocus,
+    /// Promote the window in the specified direction
+    PromoteWindow(PromoteWindow),
     /// Focus the specified workspace on the focused monitor
     #[clap(arg_required_else_help = true)]
     FocusWorkspace(FocusWorkspace),
@@ -201,6 +208,15 @@ fn main() -> eyre::Result<()> {
         }
         SubCommand::Retile => {
             send_message(&SocketMessage::Retile)?;
+        }
+        SubCommand::Promote => {
+            send_message(&SocketMessage::Promote)?;
+        }
+        SubCommand::PromoteFocus => {
+            send_message(&SocketMessage::PromoteFocus)?;
+        }
+        SubCommand::PromoteWindow(arg) => {
+            send_message(&SocketMessage::PromoteWindow(arg.operation_direction))?;
         }
     }
 

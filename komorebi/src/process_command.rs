@@ -65,6 +65,12 @@ impl WindowManager {
         tracing::info!("processing command: {message}");
 
         match message {
+            SocketMessage::Promote => self.promote_container_to_front()?,
+            SocketMessage::PromoteFocus => self.promote_focus_to_front()?,
+            SocketMessage::PromoteWindow(direction) => {
+                self.focus_container_in_direction(direction)?;
+                self.promote_container_to_front()?
+            }
             SocketMessage::FocusWindow(direction) => {
                 let focused_workspace = self.focused_workspace()?;
                 match focused_workspace.layer {

@@ -476,6 +476,23 @@ impl Workspace {
         container
     }
 
+    pub fn promote_container(&mut self) -> eyre::Result<()> {
+        let resize = self.resize_dimensions.remove(0);
+        let container = self
+            .remove_focused_container()
+            .ok_or_else(|| eyre!("there is no container"))?;
+
+        let primary_idx = match self.layout {
+            Layout::Default(_) => 0,
+        };
+
+        let insertion_idx = self.insert_container_at_idx(primary_idx, container);
+        self.resize_dimensions[insertion_idx] = resize;
+        self.focus_container(primary_idx);
+
+        Ok(())
+    }
+
     pub fn add_container_to_back(&mut self, container: Container) {
         self.containers_mut().push_back(container);
         self.focus_last_container();
