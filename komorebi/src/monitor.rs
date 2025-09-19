@@ -148,6 +148,14 @@ impl Monitor {
             Some(workspace) => workspace,
         };
 
+        if target_workspace.monocle_container.is_some() {
+            for container in target_workspace.containers_mut() {
+                container.restore()?;
+            }
+
+            target_workspace.reintegrate_monocle_container()?;
+        }
+
         if let Some(direction) = direction {
             self.add_container_with_direction(container, Some(target_workspace_idx), direction)?;
         } else {

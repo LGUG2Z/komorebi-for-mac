@@ -34,6 +34,7 @@ pub enum SocketMessage {
     UnstackWindow,
     ChangeLayout(DefaultLayout),
     TogglePause,
+    ToggleMonocle,
     FocusWorkspaceNumber(usize),
     MoveContainerToWorkspaceNumber(usize),
     SendContainerToWorkspaceNumber(usize),

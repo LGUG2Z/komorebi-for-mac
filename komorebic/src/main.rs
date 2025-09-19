@@ -103,6 +103,8 @@ enum SubCommand {
     CycleStack(CycleStack),
     /// Toggle the paused state for all window tiling
     TogglePause,
+    /// Toggle monocle mode for the focused container
+    ToggleMonocle,
     /// Set the layout on the focused workspace
     #[clap(arg_required_else_help = true)]
     ChangeLayout(ChangeLayout),
@@ -150,6 +152,9 @@ fn main() -> eyre::Result<()> {
         }
         SubCommand::SendToWorkspace(arg) => {
             send_message(&SocketMessage::SendContainerToWorkspaceNumber(arg.target))?;
+        }
+        SubCommand::ToggleMonocle => {
+            send_message(&SocketMessage::ToggleMonocle)?;
         }
     }
 

@@ -17,6 +17,8 @@ impl_ring_elements!(Workspace, Container);
 #[derive(Debug, Clone)]
 pub struct Workspace {
     pub containers: Ring<Container>,
+    pub monocle_container: Option<Container>,
+    pub monocle_container_restore_idx: Option<usize>,
     pub workspace_padding: Option<i32>,
     pub container_padding: Option<i32>,
     pub resize_dimensions: Vec<Option<Rect>>,
@@ -33,6 +35,8 @@ impl Default for Workspace {
     fn default() -> Self {
         Self {
             containers: Default::default(),
+            monocle_container: None,
+            monocle_container_restore_idx: None,
             workspace_padding: None,
             container_padding: None,
             resize_dimensions: vec![],
@@ -98,7 +102,12 @@ impl Workspace {
 
         #[allow(clippy::collapsible_if)]
         if self.tile {
-            if !self.containers().is_empty() {
+            if let Some(container) = self.monocle_container.as_mut() {
+                if let Some(window) = container.focused_window_mut() {
+                    adjusted_work_area.add_padding(container_padding);
+                    window.set_position(&adjusted_work_area)?;
+                };
+            } else if !self.containers().is_empty() {
                 let mut layouts = self.layout.as_boxed_arrangement().calculate(
                     &adjusted_work_area,
                     NonZeroUsize::new(self.containers().len()).ok_or_else(|| {
@@ -126,7 +135,24 @@ impl Workspace {
                         }
                     }
                 }
+
+                self.latest_layout = layouts;
             }
+        }
+
+        // Always make sure that the length of the resize dimensions vec is the same as the
+        // number of layouts / containers. This should never actually truncate as the remove_window
+        // function takes care of cleaning up resize dimensions when destroying empty containers
+        let container_count = self.containers().len();
+
+        // since monocle is a toggle, we never want to truncate the resize dimensions since it will
+        // almost always be toggled off and the container will be reintegrated into layout
+        //
+        // without this check, if there are exactly two containers, when one is toggled to monocle
+        // the resize dimensions will be truncated to len == 1, and when it is reintegrated, if it
+        // had a resize adjustment before, that will have been lost
+        if self.monocle_container.is_none() {
+            self.resize_dimensions.resize(container_count, None);
         }
 
         Ok(())
@@ -253,6 +279,28 @@ impl Workspace {
     }
 
     pub fn remove_window(&mut self, window_id: u32) -> eyre::Result<Window> {
+        if let Some(container) = self.monocle_container.as_mut()
+            && let Some(window_idx) = container
+                .windows()
+                .iter()
+                .position(|window| window.id == window_id)
+        {
+            let window = container
+                .remove_window_by_idx(window_idx)
+                .ok_or_else(|| eyre!("there is no window"))?;
+
+            if container.windows().is_empty() {
+                self.monocle_container = None;
+                self.monocle_container_restore_idx = None;
+            }
+
+            for c in self.containers_mut() {
+                c.restore()?;
+            }
+
+            return Ok(window);
+        }
+
         let container_idx = self
             .container_idx_for_window(window_id)
             .ok_or_else(|| eyre!("there is no window"))?;
@@ -307,6 +355,12 @@ impl Workspace {
             if container.contains_window(window_id) {
                 return true;
             }
+        }
+
+        if let Some(container) = &self.monocle_container
+            && container.contains_window(window_id)
+        {
+            return true;
         }
 
         false
@@ -382,10 +436,21 @@ impl Workspace {
             container.hide(omit)?;
         }
 
+        if let Some(container) = self.monocle_container.as_mut() {
+            container.hide(omit)?;
+        }
+
         Ok(())
     }
 
     pub fn restore(&mut self, mouse_follows_focus: bool) -> eyre::Result<()> {
+        if let Some(container) = self.monocle_container.as_mut() {
+            container.restore()?;
+            if let Some(window) = container.focused_window() {
+                window.focus(mouse_follows_focus)?;
+            }
+        }
+
         let idx = self.focused_container_idx();
         let mut to_focus = None;
 
@@ -436,5 +501,63 @@ impl Workspace {
 
     fn focus_first_container(&mut self) {
         self.focus_container(0);
+    }
+
+    pub fn new_monocle_container(&mut self) -> eyre::Result<()> {
+        let focused_idx = self.focused_container_idx();
+
+        // we shouldn't use remove_container_by_idx here because it doesn't make sense for
+        // monocle and maximized toggles which take over the whole screen before being reinserted
+        // at the same index to respect locked container indexes
+        let container = self
+            .containers_mut()
+            .remove(focused_idx)
+            .ok_or_else(|| eyre!("there is no container"))?;
+
+        // We don't remove any resize adjustments for a monocle, because when this container is
+        // inevitably reintegrated, it would be weird if it doesn't go back to the dimensions
+        // it had before
+
+        self.monocle_container = Option::from(container);
+        self.monocle_container_restore_idx = Option::from(focused_idx);
+        self.focus_previous_container();
+
+        self.monocle_container
+            .as_mut()
+            .ok_or_else(|| eyre!("there is no monocle container"))?
+            .load_focused_window()?;
+
+        Ok(())
+    }
+
+    pub fn reintegrate_monocle_container(&mut self) -> eyre::Result<()> {
+        let restore_idx = self
+            .monocle_container_restore_idx
+            .ok_or_else(|| eyre!("there is no monocle restore index"))?;
+
+        let container = self
+            .monocle_container
+            .as_ref()
+            .ok_or_else(|| eyre!("there is no monocle container"))?;
+
+        let container = container.clone();
+        if restore_idx >= self.containers().len() {
+            self.containers_mut()
+                .resize(restore_idx, Container::default());
+        }
+
+        // we shouldn't use insert_container_at_index here because it doesn't make sense for
+        // monocle and maximized toggles which take over the whole screen before being reinserted
+        // at the same index to respect locked container indexes
+        self.containers_mut().insert(restore_idx, container);
+        self.focus_container(restore_idx);
+        self.focused_container_mut()
+            .ok_or_else(|| eyre!("there is no container"))?
+            .load_focused_window()?;
+
+        self.monocle_container = None;
+        self.monocle_container_restore_idx = None;
+
+        Ok(())
     }
 }

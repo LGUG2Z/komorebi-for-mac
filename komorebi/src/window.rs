@@ -274,7 +274,7 @@ impl Window {
         self.set_size(CGSize::new(rect.right as CGFloat, rect.bottom as CGFloat))
     }
 
-    pub fn focus(&self, focus_follows_mouse: bool) -> Result<(), LibraryError> {
+    pub fn focus(&self, mouse_follows_focus: bool) -> Result<(), LibraryError> {
         unsafe {
             NSRunningApplication::runningApplicationWithProcessIdentifier(
                 self.application.process_id,
@@ -289,8 +289,8 @@ impl Window {
             AccessibilityApi::set_attribute_cf_value(&self.element, kAXMainAttribute, value)?;
         }
 
-        if focus_follows_mouse {
-            // MacosApi::center_cursor_in_rect(&MacosApi::window_rect(&self.element))?
+        if mouse_follows_focus {
+            MacosApi::center_cursor_in_rect(&MacosApi::window_rect(&self.element)?.into())?
         }
 
         Ok(())

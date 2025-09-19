@@ -454,4 +454,44 @@ impl WindowManager {
 
         Ok(())
     }
+
+    #[tracing::instrument(skip(self))]
+    pub fn toggle_monocle(&mut self) -> eyre::Result<()> {
+        let workspace = self.focused_workspace()?;
+        match workspace.monocle_container {
+            None => self.monocle_on()?,
+            Some(_) => self.monocle_off()?,
+        }
+
+        self.update_focused_workspace(true, true)?;
+
+        Ok(())
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn monocle_on(&mut self) -> eyre::Result<()> {
+        tracing::info!("enabling monocle");
+
+        let workspace = self.focused_workspace_mut()?;
+        workspace.new_monocle_container()?;
+
+        for container in workspace.containers_mut() {
+            container.hide(None)?;
+        }
+
+        Ok(())
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn monocle_off(&mut self) -> eyre::Result<()> {
+        tracing::info!("disabling monocle");
+
+        let workspace = self.focused_workspace_mut()?;
+
+        for container in workspace.containers_mut() {
+            container.restore()?;
+        }
+
+        workspace.reintegrate_monocle_container()
+    }
 }

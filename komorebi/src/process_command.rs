@@ -90,6 +90,7 @@ impl WindowManager {
             SocketMessage::SendContainerToWorkspaceNumber(workspace_idx) => {
                 self.move_container_to_workspace(workspace_idx, false, None)?;
             }
+            SocketMessage::ToggleMonocle => self.toggle_monocle()?,
         }
 
         Ok(())
