@@ -185,11 +185,27 @@ enum SubCommand {
     /// Stack the focused window in the specified direction
     #[clap(arg_required_else_help = true)]
     Stack(Stack),
+    /// Change focus to the window in the specified cycle direction
+    #[clap(arg_required_else_help = true)]
+    CycleFocus(CycleFocus),
+    /// Move the focused window in the specified cycle direction
+    #[clap(arg_required_else_help = true)]
+    CycleMove(CycleMove),
     /// Unstack the focused window
     Unstack,
     /// Cycle the focused stack in the specified cycle direction
     #[clap(arg_required_else_help = true)]
     CycleStack(CycleStack),
+    /// Cycle the index of the focused window in the focused stack in the specified cycle direction
+    #[clap(arg_required_else_help = true)]
+    CycleStackIndex(CycleStackIndex),
+    /// Focus the specified window index in the focused stack
+    #[clap(arg_required_else_help = true)]
+    FocusStackWindow(FocusStackWindow),
+    /// Stack all windows on the focused workspace
+    StackAll,
+    /// Unstack all windows in the focused container
+    UnstackAll,
     /// Resize the focused window in the specified direction
     #[clap(arg_required_else_help = true)]
     #[clap(alias = "resize")]
@@ -334,6 +350,12 @@ fn main() -> eyre::Result<()> {
         SubCommand::Move(arg) => {
             send_message(&SocketMessage::MoveWindow(arg.operation_direction))?;
         }
+        SubCommand::CycleFocus(arg) => {
+            send_message(&SocketMessage::CycleFocusWindow(arg.cycle_direction))?;
+        }
+        SubCommand::CycleMove(arg) => {
+            send_message(&SocketMessage::CycleMoveWindow(arg.cycle_direction))?;
+        }
         SubCommand::TogglePause => {
             send_message(&SocketMessage::TogglePause)?;
         }
@@ -349,11 +371,23 @@ fn main() -> eyre::Result<()> {
         SubCommand::Stack(arg) => {
             send_message(&SocketMessage::StackWindow(arg.operation_direction))?;
         }
+        SubCommand::StackAll => {
+            send_message(&SocketMessage::StackAll)?;
+        }
         SubCommand::Unstack => {
             send_message(&SocketMessage::UnstackWindow)?;
         }
+        SubCommand::UnstackAll => {
+            send_message(&SocketMessage::UnstackAll)?;
+        }
+        SubCommand::FocusStackWindow(arg) => {
+            send_message(&SocketMessage::FocusStackWindow(arg.target))?;
+        }
         SubCommand::CycleStack(arg) => {
             send_message(&SocketMessage::CycleStack(arg.cycle_direction))?;
+        }
+        SubCommand::CycleStackIndex(arg) => {
+            send_message(&SocketMessage::CycleStackIndex(arg.cycle_direction))?;
         }
         SubCommand::FocusWorkspace(arg) => {
             send_message(&SocketMessage::FocusWorkspaceNumber(arg.target))?;

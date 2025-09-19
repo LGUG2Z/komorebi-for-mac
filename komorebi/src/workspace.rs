@@ -2,6 +2,7 @@ use crate::container::Container;
 use crate::core::FloatingLayerBehaviour;
 use crate::core::WindowContainerBehaviour;
 use crate::core::arrangement::Axis;
+use crate::core::cycle_direction::CycleDirection;
 use crate::core::default_layout::DefaultLayout;
 use crate::core::default_layout::LayoutOptions;
 use crate::core::layout::Layout;
@@ -133,6 +134,13 @@ impl Workspace {
             self.focused_container_idx(),
             len,
         )
+    }
+
+    pub fn new_idx_for_cycle_direction(&self, direction: CycleDirection) -> Option<usize> {
+        Option::from(direction.next_idx(
+            self.focused_container_idx(),
+            NonZeroUsize::new(self.containers().len())?,
+        ))
     }
 
     pub fn container_idx_for_window(&self, window_id: u32) -> Option<usize> {
@@ -302,6 +310,23 @@ impl Workspace {
     pub fn focus_previous_container(&mut self) {
         let focused_idx = self.focused_container_idx();
         self.focus_container(focused_idx.saturating_sub(1));
+    }
+
+    pub fn is_focused_window_monocle_or_maximized(&self) -> eyre::Result<bool> {
+        let window_id = MacosApi::foreground_window_id().ok_or(eyre!("no foreground window"))?;
+        if let Some(window) = &self.maximized_window
+            && window_id == window.id
+        {
+            return Ok(true);
+        }
+
+        if let Some(container) = &self.monocle_container
+            && container.contains_window(window_id)
+        {
+            return Ok(true);
+        }
+
+        Ok(false)
     }
 
     pub fn is_empty(&self) -> bool {

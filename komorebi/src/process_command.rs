@@ -99,11 +99,42 @@ impl WindowManager {
                     }
                 }
             }
+            SocketMessage::CycleFocusWindow(direction) => {
+                let focused_workspace = self.focused_workspace()?;
+                match focused_workspace.layer {
+                    WorkspaceLayer::Tiling => {
+                        self.focus_container_in_cycle_direction(direction)?;
+                    }
+                    WorkspaceLayer::Floating => {
+                        self.focus_floating_window_in_cycle_direction(direction)?;
+                    }
+                }
+            }
+            SocketMessage::CycleMoveWindow(direction) => {
+                self.move_container_in_cycle_direction(direction)?;
+            }
+
             SocketMessage::StackWindow(direction) => self.add_window_to_container(direction)?,
             SocketMessage::UnstackWindow => self.remove_window_from_container()?,
+            SocketMessage::StackAll => self.stack_all()?,
+            SocketMessage::UnstackAll => self.unstack_all(true)?,
             SocketMessage::CycleStack(direction) => {
                 self.cycle_container_window_in_direction(direction)?;
             }
+            SocketMessage::CycleStackIndex(direction) => {
+                self.cycle_container_window_index_in_direction(direction)?;
+            }
+            SocketMessage::FocusStackWindow(idx) => {
+                // In case you are using this command on a bar on a monitor
+                // different from the currently focused one, you'd want that
+                // monitor to be focused so that the FocusStackWindow happens
+                // on the monitor with the bar you just pressed.
+                if let Some(monitor_idx) = self.monitor_idx_from_current_pos() {
+                    self.focus_monitor(monitor_idx)?;
+                }
+                self.focus_container_window(idx)?;
+            }
+
             SocketMessage::FlipLayout(layout_flip) => self.flip_layout(layout_flip)?,
             SocketMessage::ChangeLayout(layout) => self.change_workspace_layout_default(layout)?,
             SocketMessage::CycleLayout(direction) => self.cycle_layout(direction)?,

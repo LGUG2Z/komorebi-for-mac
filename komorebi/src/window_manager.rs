@@ -1600,4 +1600,255 @@ impl WindowManager {
             .ok_or_else(|| eyre!("there is no monitor"))?
             .update_focused_workspace(offset)
     }
+
+    #[tracing::instrument(skip(self))]
+    pub fn focus_container_in_cycle_direction(
+        &mut self,
+        direction: CycleDirection,
+    ) -> eyre::Result<()> {
+        tracing::info!("focusing container");
+        // let mut maximize_next = false;
+        let mut monocle_next = false;
+
+        let mouse_follows_focus = self.mouse_follows_focus;
+
+        if self.focused_workspace_mut()?.maximized_window.is_some() {
+            // TODO: maximized window stuff
+            // maximize_next = true;
+            // self.unmaximize_window()?;
+        }
+
+        if self.focused_workspace_mut()?.monocle_container.is_some() {
+            monocle_next = true;
+            self.monocle_off()?;
+        }
+
+        let workspace = self.focused_workspace_mut()?;
+
+        let new_idx = workspace
+            .new_idx_for_cycle_direction(direction)
+            .ok_or_else(|| eyre!("this is not a valid direction from the current position"))?;
+
+        workspace.focus_container(new_idx);
+
+        // if maximize_next {
+        //     self.toggle_maximize()?;
+        // } else
+        if monocle_next {
+            self.toggle_monocle()?;
+        } else {
+            self.focused_window_mut()?.focus(mouse_follows_focus)?;
+        }
+
+        Ok(())
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn move_container_in_cycle_direction(
+        &mut self,
+        direction: CycleDirection,
+    ) -> eyre::Result<()> {
+        let workspace = self.focused_workspace_mut()?;
+        if workspace.is_focused_window_monocle_or_maximized()? {
+            return Err(eyre!(
+                "ignoring command while active window is in monocle mode or maximized"
+            ));
+        }
+
+        tracing::info!("moving container");
+
+        let current_idx = workspace.focused_container_idx();
+        let new_idx = workspace
+            .new_idx_for_cycle_direction(direction)
+            .ok_or_else(|| eyre!("this is not a valid direction from the current position"))?;
+
+        workspace.swap_containers(current_idx, new_idx);
+        workspace.focus_container(new_idx);
+        self.update_focused_workspace(self.mouse_follows_focus, true)
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn focus_floating_window_in_cycle_direction(
+        &mut self,
+        direction: CycleDirection,
+    ) -> eyre::Result<()> {
+        let mouse_follows_focus = self.mouse_follows_focus;
+        let focused_workspace = self.focused_workspace()?;
+
+        let mut target_idx = None;
+        let len = focused_workspace.floating_windows().len();
+
+        if len > 1 {
+            let focused_window_id =
+                MacosApi::foreground_window_id().ok_or(eyre!("no foreground window"))?;
+            for (idx, window) in focused_workspace.floating_windows().iter().enumerate() {
+                if window.id == focused_window_id {
+                    match direction {
+                        CycleDirection::Previous => {
+                            if idx == 0 {
+                                target_idx = Some(len - 1)
+                            } else {
+                                target_idx = Some(idx - 1)
+                            }
+                        }
+                        CycleDirection::Next => {
+                            if idx == len - 1 {
+                                target_idx = Some(0)
+                            } else {
+                                target_idx = Some(idx - 1)
+                            }
+                        }
+                    }
+                }
+            }
+
+            if target_idx.is_none() {
+                target_idx = Some(0);
+            }
+        }
+
+        if let Some(idx) = target_idx
+            && let Some(window) = focused_workspace.floating_windows().get(idx)
+        {
+            window.focus(mouse_follows_focus)?;
+        }
+
+        Ok(())
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn cycle_container_window_index_in_direction(
+        &mut self,
+        direction: CycleDirection,
+    ) -> eyre::Result<()> {
+        tracing::info!("cycling container window index");
+
+        let mouse_follows_focus = self.mouse_follows_focus;
+
+        let container =
+            if let Some(container) = &mut self.focused_workspace_mut()?.monocle_container {
+                container
+            } else {
+                self.focused_container_mut()?
+            };
+
+        let len = NonZeroUsize::new(container.windows().len())
+            .ok_or_else(|| eyre!("there must be at least one window in a container"))?;
+
+        if len.get() == 1 {
+            return Err(eyre!("there is only one window in this container"));
+        }
+
+        let current_idx = container.focused_window_idx();
+        let next_idx = direction.next_idx(current_idx, len);
+        container.windows_mut().swap(current_idx, next_idx);
+
+        container.focus_window(next_idx);
+        container.load_focused_window()?;
+
+        if let Some(window) = container.focused_window() {
+            window.focus(mouse_follows_focus)?;
+        }
+
+        self.update_focused_workspace(mouse_follows_focus, true)
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn focus_container_window(&mut self, idx: usize) -> eyre::Result<()> {
+        tracing::info!("focusing container window at index {idx}");
+
+        let mouse_follows_focus = self.mouse_follows_focus;
+
+        let container =
+            if let Some(container) = &mut self.focused_workspace_mut()?.monocle_container {
+                container
+            } else {
+                self.focused_container_mut()?
+            };
+
+        let len = NonZeroUsize::new(container.windows().len())
+            .ok_or_else(|| eyre!("there must be at least one window in a container"))?;
+
+        if len.get() == 1 && idx != 0 {
+            return Err(eyre!("there is only one window in this container"));
+        }
+
+        if container.windows().get(idx).is_none() {
+            return Err(eyre!("there is no window in this container at index {idx}"));
+        }
+
+        container.focus_window(idx);
+        container.load_focused_window()?;
+
+        if let Some(window) = container.focused_window() {
+            window.focus(mouse_follows_focus)?;
+        }
+
+        self.update_focused_workspace(mouse_follows_focus, true)
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn stack_all(&mut self) -> eyre::Result<()> {
+        self.unstack_all(false)?;
+
+        tracing::info!("stacking all windows on workspace");
+
+        let workspace = self.focused_workspace_mut()?;
+
+        let mut focused_window_id = None;
+        if let Some(container) = workspace.focused_container()
+            && let Some(window) = container.focused_window()
+        {
+            focused_window_id = Some(window.id);
+        }
+
+        workspace.focus_container(workspace.containers().len().saturating_sub(1));
+        while workspace.focused_container_idx() > 0 {
+            workspace.move_window_to_container(0)?;
+            workspace.focus_container(workspace.containers().len().saturating_sub(1));
+        }
+
+        if let Some(window_id) = focused_window_id {
+            workspace.focus_container_by_window(window_id)?;
+        }
+
+        self.update_focused_workspace(self.mouse_follows_focus, true)
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn unstack_all(&mut self, update_workspace: bool) -> eyre::Result<()> {
+        tracing::info!("unstacking all windows in container");
+
+        let workspace = self.focused_workspace_mut()?;
+
+        let mut focused_window_id = None;
+        if let Some(container) = workspace.focused_container()
+            && let Some(window) = container.focused_window()
+        {
+            focused_window_id = Some(window.id);
+        }
+
+        let initial_focused_container_index = workspace.focused_container_idx();
+        let mut focused_container = workspace.focused_container().cloned();
+
+        while let Some(focused) = &focused_container {
+            if focused.windows().len() > 1 {
+                workspace.new_container_for_focused_window()?;
+                workspace.focus_container(initial_focused_container_index);
+                focused_container = workspace.focused_container().cloned();
+            } else {
+                focused_container = None;
+            }
+        }
+
+        if let Some(window_id) = focused_window_id {
+            workspace.focus_container_by_window(window_id)?;
+        }
+
+        if update_workspace {
+            self.update_focused_workspace(self.mouse_follows_focus, true)?;
+        }
+
+        Ok(())
+    }
 }
