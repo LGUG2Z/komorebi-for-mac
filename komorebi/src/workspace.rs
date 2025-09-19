@@ -222,7 +222,7 @@ impl Workspace {
         &mut self,
         process_id: i32,
         valid_window_ids: &[u32],
-    ) -> eyre::Result<()> {
+    ) -> eyre::Result<usize> {
         let mut invalid_window_ids = vec![];
         for container in self.containers() {
             if let Some(focused_window) = container.focused_window()
@@ -233,11 +233,11 @@ impl Workspace {
             }
         }
 
-        for window_id in invalid_window_ids {
-            self.remove_window(window_id)?;
+        for window_id in &invalid_window_ids {
+            self.remove_window(*window_id)?;
         }
 
-        Ok(())
+        Ok(invalid_window_ids.len())
     }
 
     pub fn remove_window(&mut self, window_id: u32) -> eyre::Result<Window> {
@@ -808,7 +808,9 @@ impl Workspace {
                         layout.add_padding(border_width);
 
                         for window in container.windows() {
-                            window.set_position(layout)?;
+                            if let Err(error) = window.set_position(layout) {
+                                tracing::warn!("failed to set window position: {error}")
+                            }
                         }
                     }
                 }

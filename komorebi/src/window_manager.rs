@@ -656,8 +656,16 @@ impl WindowManager {
             }
         }
 
+        let mut reaped_count = 0;
+
         let focused_workspace = self.focused_workspace_mut()?;
-        focused_workspace.reap_invalid_windows_for_application(process_id, &valid_window_ids)?;
+        reaped_count += focused_workspace
+            .reap_invalid_windows_for_application(process_id, &valid_window_ids)?;
+
+        if reaped_count > 0 {
+            tracing::debug!("reaped {reaped_count} invalid window(s)");
+        }
+
         self.update_focused_workspace(false, false)
     }
 
