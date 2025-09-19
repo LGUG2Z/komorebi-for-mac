@@ -46,6 +46,7 @@ pub struct Application {
     element: AccessibilityUiElement,
     pub process_id: i32,
     pub observer: AccessibilityObserver,
+    pub is_observable: bool,
 }
 
 #[instrument(skip_all)]
@@ -88,7 +89,7 @@ impl Drop for Application {
         // this gets called when an Application clone on a Window is dropped, so we need
         // to make sure it only invalidates the observer if the Application is no longer
         // running
-        if !self.is_valid() {
+        if self.is_observable && !self.is_valid() {
             tracing::info!(
                 "invalidating application observer for process id {}",
                 self.process_id
@@ -108,6 +109,7 @@ impl Application {
                 process_id,
                 Some(application_observer_callback),
             )?),
+            is_observable: true,
         })
     }
 
@@ -117,7 +119,7 @@ impl Application {
     }
 
     #[tracing::instrument(skip_all)]
-    pub fn observe(&self, run_loop: &CFRunLoop) -> Result<(), AccessibilityError> {
+    pub fn observe(&mut self, run_loop: &CFRunLoop) {
         tracing::info!(
             "registering observer for process: {}, name: {}",
             self.process_id,
@@ -125,12 +127,24 @@ impl Application {
                 .unwrap_or_else(|| String::from("<NO NAME FOUND>"))
         );
 
-        AccessibilityApi::add_observer_to_run_loop(
+        match AccessibilityApi::add_observer_to_run_loop(
             &self.observer,
             &self.element,
             NOTIFICATIONS,
             run_loop,
-        )
+        ) {
+            Ok(_) => {
+                self.is_observable = true;
+            }
+            Err(error) => {
+                tracing::warn!(
+                    "failed to register observer for process {} ({}): {error}",
+                    self.process_id,
+                    self.name()
+                        .unwrap_or_else(|| String::from("<NO NAME FOUND>"))
+                );
+            }
+        }
     }
 
     pub fn is_valid(&self) -> bool {

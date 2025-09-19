@@ -108,8 +108,8 @@ impl WindowManager {
         match self.applications.entry(process_id) {
             Entry::Occupied(entry) => Ok(entry.into_mut()),
             Entry::Vacant(vacant) => {
-                let application = Application::new(process_id)?;
-                application.observe(&self.run_loop)?;
+                let mut application = Application::new(process_id)?;
+                application.observe(&self.run_loop);
                 Ok(vacant.insert(application))
             }
         }

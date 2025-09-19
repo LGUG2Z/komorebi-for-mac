@@ -26,6 +26,7 @@ use objc2_core_foundation::CFString;
 use objc2_core_foundation::CGPoint;
 use objc2_core_foundation::CGRect;
 use std::collections::HashMap;
+use std::collections::hash_map::Entry;
 use std::ffi::c_void;
 use std::ptr::NonNull;
 
@@ -82,20 +83,15 @@ impl MacosApi {
                                 .entry(monitor_idx)
                                 .or_insert_with(Vec::new);
 
-                            let application =
-                                wm.applications.entry(info.owner_pid).or_insert_with(|| {
-                                    let application = Application::new(info.owner_pid)
-                                        .unwrap_or_else(|_| {
-                                            panic!(
-                                                "failed to create application from pid {}",
-                                                info.owner_pid
-                                            )
-                                        });
-                                    application
-                                        .observe(&wm.run_loop)
-                                        .expect("application must be observable");
-                                    application
-                                });
+                            let application = match wm.applications.entry(info.owner_pid) {
+                                Entry::Occupied(entry) => entry.into_mut(),
+                                Entry::Vacant(vacant) => {
+                                    let mut application = Application::new(info.owner_pid)?;
+                                    // TODO: this ain't great, fix this OBS workaround
+                                    application.observe(&wm.run_loop);
+                                    vacant.insert(application)
+                                }
+                            };
 
                             if let Some(window) = application.window_by_title(&info.name) {
                                 window.observe(&wm.run_loop)?;
