@@ -4,6 +4,8 @@ use crate::LibraryError;
 use crate::accessibility::AccessibilityApi;
 use crate::application::Application;
 use crate::container::Container;
+use crate::core::CrossBoundaryBehaviour;
+use crate::core::MoveBehaviour;
 use crate::core::Placement;
 use crate::core::Sizing;
 use crate::core::WindowManagementBehaviour;
@@ -14,6 +16,7 @@ use crate::core::default_layout::DefaultLayout;
 use crate::core::layout::Layout;
 use crate::core::operation_direction::OperationDirection;
 use crate::core::rect::Rect;
+use crate::lockable_sequence::Lockable;
 use crate::macos_api::MacosApi;
 use crate::monitor::Monitor;
 use crate::ring::Ring;
@@ -42,6 +45,8 @@ pub struct WindowManager {
     pub is_paused: bool,
     pub resize_delta: i32,
     pub window_management_behaviour: WindowManagementBehaviour,
+    pub cross_monitor_move_behaviour: MoveBehaviour,
+    pub cross_boundary_behaviour: CrossBoundaryBehaviour,
     pub mouse_follows_focus: bool,
     pub work_area_offset: Option<Rect>,
     pub incoming_events: Receiver<WindowManagerEvent>,
@@ -71,7 +76,7 @@ impl WindowManager {
 
         let listener = UnixListener::bind(&socket)?;
 
-        // todo: undo this when we get config
+        // TODO: undo this when we get config
         let mut behaviour = WindowManagementBehaviour::default();
         behaviour.toggle_float_placement = Placement::CenterAndResize;
 
@@ -83,6 +88,8 @@ impl WindowManager {
             is_paused: false,
             resize_delta: 50,
             window_management_behaviour: behaviour,
+            cross_monitor_move_behaviour: Default::default(),
+            cross_boundary_behaviour: Default::default(),
             mouse_follows_focus: true,
             work_area_offset: None,
             incoming_events: incoming,
@@ -244,125 +251,126 @@ impl WindowManager {
             return Ok(());
         }
 
-        // let mut cross_monitor_monocle_or_max = false;
+        let mut cross_monitor_monocle_or_max = false;
 
-        // let workspace_idx = self.focused_workspace_idx()?;
+        let workspace_idx = self.focused_workspace_idx()?;
 
         // this is for when we are scrolling across workspaces like PaperWM
-        // if matches!(
-        //     self.cross_boundary_behaviour,
-        //     CrossBoundaryBehaviour::Workspace
-        // ) && matches!(
-        //     direction,
-        //     OperationDirection::Left | OperationDirection::Right
-        // ) {
-        //     let workspace_count = if let Some(monitor) = self.focused_monitor() {
-        //         monitor.workspaces().len()
-        //     } else {
-        //         1
-        //     };
-        //
-        //     let next_idx = match direction {
-        //         OperationDirection::Left => match workspace_idx {
-        //             0 => workspace_count - 1,
-        //             n => n - 1,
-        //         },
-        //         OperationDirection::Right => match workspace_idx {
-        //             n if n == workspace_count - 1 => 0,
-        //             n => n + 1,
-        //         },
-        //         _ => workspace_idx,
-        //     };
-        //
-        //     self.focus_workspace(next_idx)?;
-        //
-        //     if let Ok(focused_workspace) = self.focused_workspace_mut() {
-        //         if focused_workspace.monocle_container.is_none() {
-        //             match direction {
-        //                 OperationDirection::Left => match focused_workspace.layout {
-        //                     Layout::Default(layout) => {
-        //                         let target_index =
-        //                             layout.rightmost_index(focused_workspace.containers().len());
-        //                         focused_workspace.focus_container(target_index);
-        //                     }
-        //                 },
-        //                 OperationDirection::Right => match focused_workspace.layout {
-        //                     Layout::Default(layout) => {
-        //                         let target_index =
-        //                             layout.leftmost_index(focused_workspace.containers().len());
-        //                         focused_workspace.focus_container(target_index);
-        //                     }
-        //                 },
-        //                 _ => {}
-        //             };
-        //         }
-        //     }
-        //
-        //     return Ok(());
-        // }
+        if matches!(
+            self.cross_boundary_behaviour,
+            CrossBoundaryBehaviour::Workspace
+        ) && matches!(
+            direction,
+            OperationDirection::Left | OperationDirection::Right
+        ) {
+            let workspace_count = if let Some(monitor) = self.focused_monitor() {
+                monitor.workspaces().len()
+            } else {
+                1
+            };
+
+            let next_idx = match direction {
+                OperationDirection::Left => match workspace_idx {
+                    0 => workspace_count - 1,
+                    n => n - 1,
+                },
+                OperationDirection::Right => match workspace_idx {
+                    n if n == workspace_count - 1 => 0,
+                    n => n + 1,
+                },
+                _ => workspace_idx,
+            };
+
+            self.focus_workspace(next_idx)?;
+
+            if let Ok(focused_workspace) = self.focused_workspace_mut()
+                && focused_workspace.monocle_container.is_none()
+            {
+                match direction {
+                    OperationDirection::Left => match focused_workspace.layout {
+                        Layout::Default(layout) => {
+                            let target_index =
+                                layout.rightmost_index(focused_workspace.containers().len());
+                            focused_workspace.focus_container(target_index);
+                        }
+                    },
+                    OperationDirection::Right => match focused_workspace.layout {
+                        Layout::Default(layout) => {
+                            let target_index =
+                                layout.leftmost_index(focused_workspace.containers().len());
+                            focused_workspace.focus_container(target_index);
+                        }
+                    },
+                    _ => {}
+                };
+            }
+
+            return Ok(());
+        }
 
         // if there is no floating_window in that direction for this workspace
-        // let monitor_idx = self
-        //     .monitor_idx_in_direction(direction)
-        //     .ok_or_else(|| eyre!("there is no container or monitor in this direction"))?;
-        //
-        // self.focus_monitor(monitor_idx)?;
-        // let mouse_follows_focus = self.mouse_follows_focus;
-        //
-        // if let Ok(focused_workspace) = self.focused_workspace_mut() {
-        //     // if let Some(window) = focused_workspace.maximized_window() {
-        //     //     window.focus(mouse_follows_focus)?;
-        //     //     cross_monitor_monocle_or_max = true;
-        //     // } else
-        //     if let Some(monocle) = focused_workspace.monocle_container {
-        //         if let Some(window) = monocle.focused_window() {
-        //             window.focus(mouse_follows_focus)?;
-        //             cross_monitor_monocle_or_max = true;
-        //         }
-        //     } else if focused_workspace.layer == WorkspaceLayer::Tiling {
-        //         match direction {
-        //             OperationDirection::Left => match focused_workspace.layout {
-        //                 Layout::Default(layout) => {
-        //                     let target_index =
-        //                         layout.rightmost_index(focused_workspace.containers().len());
-        //                     focused_workspace.focus_container(target_index);
-        //                 }
-        //             },
-        //             OperationDirection::Right => match focused_workspace.layout {
-        //                 Layout::Default(layout) => {
-        //                     let target_index =
-        //                         layout.leftmost_index(focused_workspace.containers().len());
-        //                     focused_workspace.focus_container(target_index);
-        //                 }
-        //             },
-        //             _ => {}
-        //         };
-        //     }
-        // }
-        //
-        // if !cross_monitor_monocle_or_max {
-        //     let ws = self.focused_workspace_mut()?;
-        //     if ws.is_empty() {
-        //         // This is to remove focus from the previous monitor
-        //         let desktop_window = Window::from(MacosApi::desktop_window()?);
-        //
-        //         match MacosApi::raise_and_focus_window(desktop_window.id) {
-        //             Ok(()) => {}
-        //             Err(error) => {
-        //                 tracing::warn!("{} {}:{}", error, file!(), line!());
-        //             }
-        //         }
-        //     } else if ws.layer == WorkspaceLayer::Floating && !ws.floating_windows().is_empty() {
-        //         if let Some(window) = ws.focused_floating_window() {
-        //             window.focus(self.mouse_follows_focus)?;
-        //         }
-        //     } else {
-        //         ws.layer = WorkspaceLayer::Tiling;
-        //         if let Ok(focused_window) = self.focused_window() {
-        //             focused_window.focus(self.mouse_follows_focus)?;
-        //         }
-        //     }
-        // }
+        let monitor_idx = self
+            .monitor_idx_in_direction(direction)
+            .ok_or_else(|| eyre!("there is no container or monitor in this direction"))?;
+
+        self.focus_monitor(monitor_idx)?;
+        let mouse_follows_focus = self.mouse_follows_focus;
+
+        if let Ok(focused_workspace) = self.focused_workspace_mut() {
+            // if let Some(window) = focused_workspace.maximized_window() {
+            //     window.focus(mouse_follows_focus)?;
+            //     cross_monitor_monocle_or_max = true;
+            // } else
+            if let Some(monocle) = &focused_workspace.monocle_container {
+                if let Some(window) = monocle.focused_window() {
+                    window.focus(mouse_follows_focus)?;
+                    cross_monitor_monocle_or_max = true;
+                }
+            } else if focused_workspace.layer == WorkspaceLayer::Tiling {
+                match direction {
+                    OperationDirection::Left => match focused_workspace.layout {
+                        Layout::Default(layout) => {
+                            let target_index =
+                                layout.rightmost_index(focused_workspace.containers().len());
+                            focused_workspace.focus_container(target_index);
+                        }
+                    },
+                    OperationDirection::Right => match focused_workspace.layout {
+                        Layout::Default(layout) => {
+                            let target_index =
+                                layout.leftmost_index(focused_workspace.containers().len());
+                            focused_workspace.focus_container(target_index);
+                        }
+                    },
+                    _ => {}
+                };
+            }
+        }
+
+        if !cross_monitor_monocle_or_max {
+            let ws = self.focused_workspace_mut()?;
+            if ws.is_empty() {
+                // TODO: figure out if we need to do this on macos
+                // This is to remove focus from the previous monitor
+                // let desktop_window = Window::from(MacosApi::desktop_window()?);
+                //
+                // match MacosApi::raise_and_focus_window(desktop_window.id) {
+                //     Ok(()) => {}
+                //     Err(error) => {
+                //         tracing::warn!("{} {}:{}", error, file!(), line!());
+                //     }
+                // }
+            } else if ws.layer == WorkspaceLayer::Floating && !ws.floating_windows().is_empty() {
+                if let Some(window) = ws.focused_floating_window() {
+                    window.focus(mouse_follows_focus)?;
+                }
+            } else {
+                ws.layer = WorkspaceLayer::Tiling;
+                if let Ok(focused_window) = self.focused_window() {
+                    focused_window.focus(mouse_follows_focus)?;
+                }
+            }
+        }
 
         Ok(())
     }
@@ -1232,5 +1240,67 @@ impl WindowManager {
         }
 
         self.update_focused_workspace(self.mouse_follows_focus, false)
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn toggle_lock(&mut self) -> eyre::Result<()> {
+        let workspace = self.focused_workspace_mut()?;
+        if let Some(container) = workspace.focused_container_mut() {
+            // Toggle the locked flag
+            container.set_locked(!container.locked());
+        }
+        Ok(())
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn toggle_tiling(&mut self) -> eyre::Result<()> {
+        let workspace = self.focused_workspace_mut()?;
+        workspace.tile = !workspace.tile;
+        self.update_focused_workspace(false, false)
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn focus_monitor(&mut self, idx: usize) -> eyre::Result<()> {
+        tracing::info!("focusing monitor");
+
+        if self.monitors().get(idx).is_some() {
+            self.monitors.focus(idx);
+        } else {
+            return Err(eyre!("this is not a valid monitor index"));
+        }
+
+        Ok(())
+    }
+
+    // TODO: see if this logic is the same in macos when I have more than one monitor
+    pub fn monitor_idx_in_direction(&self, direction: OperationDirection) -> Option<usize> {
+        let current_monitor_size = self.focused_monitor_size().ok()?;
+
+        for (idx, monitor) in self.monitors.elements().iter().enumerate() {
+            match direction {
+                OperationDirection::Left => {
+                    if monitor.size.left + monitor.size.right == current_monitor_size.left {
+                        return Option::from(idx);
+                    }
+                }
+                OperationDirection::Right => {
+                    if current_monitor_size.right + current_monitor_size.left == monitor.size.left {
+                        return Option::from(idx);
+                    }
+                }
+                OperationDirection::Up => {
+                    if monitor.size.top + monitor.size.bottom == current_monitor_size.top {
+                        return Option::from(idx);
+                    }
+                }
+                OperationDirection::Down => {
+                    if current_monitor_size.top + current_monitor_size.bottom == monitor.size.top {
+                        return Option::from(idx);
+                    }
+                }
+            }
+        }
+
+        None
     }
 }

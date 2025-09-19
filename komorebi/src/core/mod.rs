@@ -109,6 +109,30 @@ impl Placement {
     }
 }
 
+#[derive(
+    Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize, Display, EnumString, ValueEnum,
+)]
+pub enum MoveBehaviour {
+    /// Swap the window container with the window container at the edge of the adjacent monitor
+    #[default]
+    Swap,
+    /// Insert the window container into the focused workspace on the adjacent monitor
+    Insert,
+    /// Do nothing if trying to move a window container in the direction of an adjacent monitor
+    NoOp,
+}
+
+#[derive(
+    Clone, Copy, Debug, Default, Serialize, Deserialize, Display, EnumString, ValueEnum, PartialEq,
+)]
+pub enum CrossBoundaryBehaviour {
+    /// Attempt to perform actions across a workspace boundary
+    Workspace,
+    /// Attempt to perform actions across a monitor boundary
+    #[default]
+    Monitor,
+}
+
 #[serde_with::serde_as]
 #[derive(Clone, Debug, Serialize, Deserialize, Display)]
 #[serde(tag = "type", content = "content")]
@@ -122,10 +146,20 @@ pub enum SocketMessage {
     ChangeLayout(DefaultLayout),
     CycleLayout(CycleDirection),
     FlipLayout(Axis),
-    TogglePause,
-    ToggleMonocle,
+    ToggleWorkspaceWindowContainerBehaviour,
+    ToggleWorkspaceFloatOverride,
+    ToggleLock,
     ToggleFloat,
+    ToggleMonocle,
+    ToggleWindowContainerBehaviour,
+    ToggleFloatOverride,
+    ToggleCrossMonitorMoveBehaviour,
+    ToggleTiling,
+    ToggleWindowBasedWorkAreaOffset,
+    TogglePause,
     ToggleWorkspaceLayer,
+    // TODO: look into maximized windows
+    // ToggleMaximize,
     FocusWorkspaceNumber(usize),
     MoveContainerToWorkspaceNumber(usize),
     SendContainerToWorkspaceNumber(usize),

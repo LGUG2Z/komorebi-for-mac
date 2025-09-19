@@ -51,7 +51,7 @@ impl WindowManager {
                 let application = self.application(process_id)?;
 
                 if let Some(window_id) = application.main_window_id() {
-                    // todo: figure out if this applies on macOS too
+                    // TODO: figure out if this applies on macOS too
                     // don't want to trigger the full workspace updates when there are no managed
                     // containers - this makes floating windows on empty workspaces go into very
                     // annoying focus change loops which prevents users from interacting with them
@@ -108,7 +108,7 @@ impl WindowManager {
                     self.update_focused_workspace(false, false)?;
                 }
             }
-            // todo: upate this to work with floating applications / rules
+            // TODO: upate this to work with floating applications / rules
             WindowManagerEvent::Show(_, process_id) => {
                 let mut window_id = None;
                 let mut window_element = None;

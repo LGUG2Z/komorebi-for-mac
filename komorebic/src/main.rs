@@ -163,6 +163,26 @@ enum SubCommand {
     SendToWorkspace(SendToWorkspace),
     /// Force the retiling of all managed windows
     Retile,
+    /// Toggle application of the window-based work area offset for the focused workspace
+    ToggleWindowBasedWorkAreaOffset,
+    /// Toggle the behaviour for new windows (stacking or dynamic tiling)
+    ToggleWindowContainerBehaviour,
+    /// Enable or disable float override, which makes it so every new window opens in floating mode
+    ToggleFloatOverride,
+    /// Toggle the behaviour for new windows (stacking or dynamic tiling) for currently focused
+    /// workspace. If there was no behaviour set for the workspace previously it takes the opposite
+    /// of the global value.
+    ToggleWorkspaceWindowContainerBehaviour,
+    /// Enable or disable float override, which makes it so every new window opens in floating
+    /// mode, for the currently focused workspace. If there was no override value set for the
+    /// workspace previously it takes the opposite of the global value.
+    ToggleWorkspaceFloatOverride,
+    /// Toggle window tiling on the focused workspace
+    ToggleTiling,
+    /// Toggle a lock for the focused container, ensuring it will not be displaced by any new windows
+    ToggleLock,
+    /// Toggle the behaviour when moving windows across monitor boundaries
+    ToggleCrossMonitorMoveBehaviour,
 }
 
 fn main() -> eyre::Result<()> {
@@ -231,6 +251,30 @@ fn main() -> eyre::Result<()> {
         }
         SubCommand::PromoteWindow(arg) => {
             send_message(&SocketMessage::PromoteWindow(arg.operation_direction))?;
+        }
+        SubCommand::ToggleWindowBasedWorkAreaOffset => {
+            send_message(&SocketMessage::ToggleWindowBasedWorkAreaOffset)?;
+        }
+        SubCommand::ToggleWindowContainerBehaviour => {
+            send_message(&SocketMessage::ToggleWindowContainerBehaviour)?;
+        }
+        SubCommand::ToggleFloatOverride => {
+            send_message(&SocketMessage::ToggleFloatOverride)?;
+        }
+        SubCommand::ToggleWorkspaceWindowContainerBehaviour => {
+            send_message(&SocketMessage::ToggleWorkspaceWindowContainerBehaviour)?;
+        }
+        SubCommand::ToggleWorkspaceFloatOverride => {
+            send_message(&SocketMessage::ToggleWorkspaceFloatOverride)?;
+        }
+        SubCommand::ToggleTiling => {
+            send_message(&SocketMessage::ToggleTiling)?;
+        }
+        SubCommand::ToggleLock => {
+            send_message(&SocketMessage::ToggleLock)?;
+        }
+        SubCommand::ToggleCrossMonitorMoveBehaviour => {
+            send_message(&SocketMessage::ToggleCrossMonitorMoveBehaviour)?;
         }
     }
 

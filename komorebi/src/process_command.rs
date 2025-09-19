@@ -1,4 +1,6 @@
+use crate::core::MoveBehaviour;
 use crate::core::SocketMessage;
+use crate::core::WindowContainerBehaviour;
 use crate::core::arrangement::Axis;
 use crate::core::operation_direction::OperationDirection;
 use crate::core::rect::Rect;
@@ -167,7 +169,7 @@ impl WindowManager {
 
                         for container in workspace.containers() {
                             if let Some(_window) = container.focused_window() {
-                                // todo: figure out z order
+                                // TODO: figure out z order
                                 // window.lower()?;
                             }
                         }
@@ -175,7 +177,7 @@ impl WindowManager {
                         if let Some(monocle) = &workspace.monocle_container
                             && let Some(_window) = monocle.focused_window()
                         {
-                            // todo: figure out z order
+                            // TODO: figure out z order
                             // window.lower()?;
                         }
                     }
@@ -220,7 +222,7 @@ impl WindowManager {
                             });
 
                             for window in window_idx_pairs {
-                                // todo: figure out z order
+                                // TODO: figure out z order
                                 window.hide()?;
                                 // window.lower()?;
                             }
@@ -297,6 +299,73 @@ impl WindowManager {
             }
             SocketMessage::Retile => self.retile_all(false)?,
             SocketMessage::RetileWithResizeDimensions => self.retile_all(true)?,
+            SocketMessage::ToggleWorkspaceWindowContainerBehaviour => {
+                let current_global_behaviour = self.window_management_behaviour.current_behaviour;
+                if let Some(behaviour) =
+                    &mut self.focused_workspace_mut()?.window_container_behaviour
+                {
+                    match behaviour {
+                        WindowContainerBehaviour::Create => {
+                            *behaviour = WindowContainerBehaviour::Append
+                        }
+                        WindowContainerBehaviour::Append => {
+                            *behaviour = WindowContainerBehaviour::Create
+                        }
+                    }
+                } else {
+                    self.focused_workspace_mut()?.window_container_behaviour =
+                        Some(match current_global_behaviour {
+                            WindowContainerBehaviour::Create => WindowContainerBehaviour::Append,
+                            WindowContainerBehaviour::Append => WindowContainerBehaviour::Create,
+                        });
+                };
+            }
+            SocketMessage::ToggleWorkspaceFloatOverride => {
+                let current_global_override = self.window_management_behaviour.float_override;
+                if let Some(float_override) = &mut self.focused_workspace_mut()?.float_override {
+                    *float_override = !*float_override;
+                } else {
+                    self.focused_workspace_mut()?.float_override = Some(!current_global_override);
+                };
+            }
+            SocketMessage::ToggleLock => self.toggle_lock()?,
+            SocketMessage::ToggleWindowContainerBehaviour => {
+                match self.window_management_behaviour.current_behaviour {
+                    WindowContainerBehaviour::Create => {
+                        self.window_management_behaviour.current_behaviour =
+                            WindowContainerBehaviour::Append;
+                    }
+                    WindowContainerBehaviour::Append => {
+                        self.window_management_behaviour.current_behaviour =
+                            WindowContainerBehaviour::Create;
+                    }
+                }
+            }
+            SocketMessage::ToggleFloatOverride => {
+                self.window_management_behaviour.float_override =
+                    !self.window_management_behaviour.float_override;
+            }
+            SocketMessage::ToggleWindowBasedWorkAreaOffset => {
+                let workspace = self.focused_workspace_mut()?;
+                workspace.apply_window_based_work_area_offset =
+                    !workspace.apply_window_based_work_area_offset;
+
+                self.retile_all(true)?;
+            }
+            SocketMessage::ToggleCrossMonitorMoveBehaviour => {
+                match self.cross_monitor_move_behaviour {
+                    MoveBehaviour::Swap => {
+                        self.cross_monitor_move_behaviour = MoveBehaviour::Insert;
+                    }
+                    MoveBehaviour::Insert => {
+                        self.cross_monitor_move_behaviour = MoveBehaviour::Swap;
+                    }
+                    _ => {}
+                }
+            }
+            SocketMessage::ToggleTiling => {
+                self.toggle_tiling()?;
+            }
         }
 
         Ok(())

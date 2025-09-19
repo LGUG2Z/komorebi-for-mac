@@ -301,6 +301,13 @@ impl Workspace {
         self.focus_container(focused_idx.saturating_sub(1));
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.containers().is_empty()
+            && self.maximized_window.is_none()
+            && self.monocle_container.is_none()
+            && self.floating_windows().is_empty()
+    }
+
     pub fn contains_window(&self, window_id: u32) -> bool {
         for container in self.containers() {
             if container.contains_window(window_id) {
