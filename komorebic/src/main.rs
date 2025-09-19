@@ -56,7 +56,9 @@ macro_rules! gen_enum_subcommand_args {
 gen_enum_subcommand_args! {
     Focus: OperationDirection,
     Move: OperationDirection,
+    FlipLayout: Axis,
     ChangeLayout: DefaultLayout,
+    CycleLayout: CycleDirection,
     Stack: OperationDirection,
     CycleStack: CycleDirection,
     PromoteWindow: OperationDirection,
@@ -138,6 +140,12 @@ enum SubCommand {
     /// Set the layout on the focused workspace
     #[clap(arg_required_else_help = true)]
     ChangeLayout(ChangeLayout),
+    /// Cycle between available layouts
+    #[clap(arg_required_else_help = true)]
+    CycleLayout(CycleLayout),
+    /// Flip the layout on the focused workspace
+    #[clap(arg_required_else_help = true)]
+    FlipLayout(FlipLayout),
     /// Promote the focused window to the top of the tree
     Promote,
     /// Promote the user focus to the top of the tree
@@ -172,6 +180,12 @@ fn main() -> eyre::Result<()> {
         }
         SubCommand::ChangeLayout(arg) => {
             send_message(&SocketMessage::ChangeLayout(arg.default_layout))?;
+        }
+        SubCommand::CycleLayout(arg) => {
+            send_message(&SocketMessage::CycleLayout(arg.cycle_direction))?;
+        }
+        SubCommand::FlipLayout(arg) => {
+            send_message(&SocketMessage::FlipLayout(arg.axis))?;
         }
         SubCommand::Stack(arg) => {
             send_message(&SocketMessage::StackWindow(arg.operation_direction))?;

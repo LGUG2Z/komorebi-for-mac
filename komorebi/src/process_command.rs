@@ -98,7 +98,9 @@ impl WindowManager {
             SocketMessage::CycleStack(direction) => {
                 self.cycle_container_window_in_direction(direction)?;
             }
+            SocketMessage::FlipLayout(layout_flip) => self.flip_layout(layout_flip)?,
             SocketMessage::ChangeLayout(layout) => self.change_workspace_layout_default(layout)?,
+            SocketMessage::CycleLayout(direction) => self.cycle_layout(direction)?,
             SocketMessage::TogglePause => {
                 if self.is_paused {
                     tracing::info!("resuming");

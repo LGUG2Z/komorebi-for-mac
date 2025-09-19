@@ -1169,4 +1169,68 @@ impl WindowManager {
         workspace.focus_container(target_idx);
         self.update_focused_workspace(self.mouse_follows_focus, true)
     }
+
+    #[tracing::instrument(skip(self))]
+    pub fn flip_layout(&mut self, layout_flip: Axis) -> eyre::Result<()> {
+        let workspace = self.focused_workspace_mut()?;
+
+        tracing::info!("flipping layout");
+
+        #[allow(clippy::match_same_arms)]
+        match workspace.layout_flip {
+            None => {
+                workspace.layout_flip = Option::from(layout_flip);
+            }
+            Some(current_layout_flip) => {
+                match current_layout_flip {
+                    Axis::Horizontal => match layout_flip {
+                        Axis::Horizontal => workspace.layout_flip = None,
+                        Axis::Vertical => {
+                            workspace.layout_flip = Option::from(Axis::HorizontalAndVertical)
+                        }
+                        Axis::HorizontalAndVertical => {
+                            workspace.layout_flip = Option::from(Axis::HorizontalAndVertical)
+                        }
+                    },
+                    Axis::Vertical => match layout_flip {
+                        Axis::Horizontal => {
+                            workspace.layout_flip = Option::from(Axis::HorizontalAndVertical)
+                        }
+                        Axis::Vertical => workspace.layout_flip = None,
+                        Axis::HorizontalAndVertical => {
+                            workspace.layout_flip = Option::from(Axis::HorizontalAndVertical)
+                        }
+                    },
+                    Axis::HorizontalAndVertical => match layout_flip {
+                        Axis::Horizontal => workspace.layout_flip = Option::from(Axis::Vertical),
+                        Axis::Vertical => workspace.layout_flip = Option::from(Axis::Horizontal),
+                        Axis::HorizontalAndVertical => workspace.layout_flip = None,
+                    },
+                };
+            }
+        }
+
+        self.update_focused_workspace(false, false)
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn cycle_layout(&mut self, direction: CycleDirection) -> eyre::Result<()> {
+        tracing::info!("cycling layout");
+
+        let workspace = self.focused_workspace_mut()?;
+
+        match workspace.layout {
+            Layout::Default(current) => {
+                let new_layout = match direction {
+                    CycleDirection::Previous => current.cycle_previous(),
+                    CycleDirection::Next => current.cycle_next(),
+                };
+
+                tracing::info!("next layout: {new_layout}");
+                workspace.layout = Layout::Default(new_layout);
+            }
+        }
+
+        self.update_focused_workspace(self.mouse_follows_focus, false)
+    }
 }

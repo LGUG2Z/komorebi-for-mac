@@ -4,8 +4,12 @@ use crate::core::rect::Rect;
 use clap::ValueEnum;
 use serde::Deserialize;
 use serde::Serialize;
+use strum::Display;
+use strum::EnumString;
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, Eq, PartialEq, ValueEnum)]
+#[derive(
+    Clone, Copy, Debug, Serialize, Deserialize, Eq, PartialEq, Display, EnumString, ValueEnum,
+)]
 pub enum DefaultLayout {
     BSP,
     Columns,

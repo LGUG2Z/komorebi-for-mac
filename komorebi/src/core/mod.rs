@@ -120,6 +120,8 @@ pub enum SocketMessage {
     CycleStack(CycleDirection),
     UnstackWindow,
     ChangeLayout(DefaultLayout),
+    CycleLayout(CycleDirection),
+    FlipLayout(Axis),
     TogglePause,
     ToggleMonocle,
     ToggleFloat,
