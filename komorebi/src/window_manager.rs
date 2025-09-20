@@ -25,7 +25,7 @@ use crate::window_manager_event::WindowManagerEvent;
 use crate::workspace::Workspace;
 use crate::workspace::WorkspaceLayer;
 use color_eyre::eyre;
-use color_eyre::eyre::eyre;
+use color_eyre::eyre::OptionExt;
 use crossbeam_channel::Receiver;
 use objc2_core_foundation::CFRetained;
 use objc2_core_foundation::CFRunLoop;
@@ -128,10 +128,10 @@ impl WindowManager {
 
         if len > 1 {
             let focused_window_id =
-                MacosApi::foreground_window_id().ok_or(eyre!("no foreground window"))?;
+                MacosApi::foreground_window_id().ok_or_eyre("no foreground window")?;
             let focused_rect = Rect::from(MacosApi::window_rect(
                 MacosApi::foreground_window()
-                    .ok_or(eyre!("no foreground window"))?
+                    .ok_or_eyre("no foreground window")?
                     .as_ref(),
             )?);
 
@@ -311,7 +311,7 @@ impl WindowManager {
         // if there is no floating_window in that direction for this workspace
         let monitor_idx = self
             .monitor_idx_in_direction(direction)
-            .ok_or_else(|| eyre!("there is no container or monitor in this direction"))?;
+            .ok_or_eyre("there is no container or monitor in this direction")?;
 
         self.focus_monitor(monitor_idx)?;
         let mouse_follows_focus = self.mouse_follows_focus;
@@ -422,7 +422,7 @@ impl WindowManager {
         let delta = self.resize_delta;
 
         let focused_window_id =
-            MacosApi::foreground_window_id().ok_or(eyre!("no foreground window"))?;
+            MacosApi::foreground_window_id().ok_or_eyre("no foreground window")?;
         for window in focused_workspace.floating_windows().iter() {
             if window.id == focused_window_id {
                 let mut rect = Rect::from(MacosApi::window_rect(&window.element)?);
@@ -516,7 +516,7 @@ impl WindowManager {
         let mouse_follows_focus = self.mouse_follows_focus;
 
         self.focused_monitor_mut()
-            .ok_or_else(|| eyre!("there is no monitor"))?
+            .ok_or_eyre("there is no monitor")?
             .update_focused_workspace(offset)?;
 
         if follow_focus
@@ -550,38 +550,38 @@ impl WindowManager {
     pub fn focused_workspace_idx(&self) -> eyre::Result<usize> {
         Ok(self
             .focused_monitor()
-            .ok_or_else(|| eyre!("there is no monitor"))?
+            .ok_or_eyre("there is no monitor")?
             .focused_workspace_idx())
     }
 
     pub fn focused_workspace(&self) -> eyre::Result<&Workspace> {
         self.focused_monitor()
-            .ok_or_else(|| eyre!("there is no monitor"))?
+            .ok_or_eyre("there is no monitor")?
             .focused_workspace()
-            .ok_or_else(|| eyre!("there is no workspace"))
+            .ok_or_eyre("there is no workspace")
     }
 
     pub fn focused_workspace_mut(&mut self) -> eyre::Result<&mut Workspace> {
         self.focused_monitor_mut()
-            .ok_or_else(|| eyre!("there is no monitor"))?
+            .ok_or_eyre("there is no monitor")?
             .focused_workspace_mut()
-            .ok_or_else(|| eyre!("there is no workspace"))
+            .ok_or_eyre("there is no workspace")
     }
 
     pub fn focused_workspace_idx_for_monitor_idx(&self, idx: usize) -> eyre::Result<usize> {
         Ok(self
             .monitors()
             .get(idx)
-            .ok_or_else(|| eyre!("there is no monitor at this index"))?
+            .ok_or_eyre("there is no monitor at this index")?
             .focused_workspace_idx())
     }
 
     pub fn focused_workspace_for_monitor_idx(&self, idx: usize) -> eyre::Result<&Workspace> {
         self.monitors()
             .get(idx)
-            .ok_or_else(|| eyre!("there is no monitor at this index"))?
+            .ok_or_eyre("there is no monitor at this index")?
             .focused_workspace()
-            .ok_or_else(|| eyre!("there is no workspace"))
+            .ok_or_eyre("there is no workspace")
     }
 
     pub fn focused_workspace_for_monitor_idx_mut(
@@ -590,15 +590,15 @@ impl WindowManager {
     ) -> eyre::Result<&mut Workspace> {
         self.monitors_mut()
             .get_mut(idx)
-            .ok_or_else(|| eyre!("there is no monitor at this index"))?
+            .ok_or_eyre("there is no monitor at this index")?
             .focused_workspace_mut()
-            .ok_or_else(|| eyre!("there is no workspace"))
+            .ok_or_eyre("there is no workspace")
     }
 
     pub fn focused_container(&self) -> eyre::Result<&Container> {
         self.focused_workspace()?
             .focused_container()
-            .ok_or_else(|| eyre!("there is no container"))
+            .ok_or_eyre("there is no container")
     }
 
     pub fn focused_container_idx(&self) -> eyre::Result<usize> {
@@ -608,32 +608,32 @@ impl WindowManager {
     pub fn focused_container_mut(&mut self) -> eyre::Result<&mut Container> {
         self.focused_workspace_mut()?
             .focused_container_mut()
-            .ok_or_else(|| eyre!("there is no container"))
+            .ok_or_eyre("there is no container")
     }
 
     pub fn focused_window(&self) -> eyre::Result<&Window> {
         self.focused_container()?
             .focused_window()
-            .ok_or_else(|| eyre!("there is no window"))
+            .ok_or_eyre("there is no window")
     }
 
     fn focused_window_mut(&mut self) -> eyre::Result<&mut Window> {
         self.focused_container_mut()?
             .focused_window_mut()
-            .ok_or_else(|| eyre!("there is no window"))
+            .ok_or_eyre("there is no window")
     }
 
     pub fn focused_monitor_size(&self) -> eyre::Result<Rect> {
         Ok(self
             .focused_monitor()
-            .ok_or_else(|| eyre!("there is no monitor"))?
+            .ok_or_eyre("there is no monitor")?
             .size)
     }
 
     pub fn focused_monitor_work_area(&self) -> eyre::Result<Rect> {
         Ok(self
             .focused_monitor()
-            .ok_or_else(|| eyre!("there is no monitor"))?
+            .ok_or_eyre("there is no monitor")?
             .work_area_size)
     }
 
@@ -676,7 +676,7 @@ impl WindowManager {
 
         let workspace = self.focused_workspace_mut()?;
         let len = NonZeroUsize::new(workspace.containers_mut().len())
-            .ok_or_else(|| eyre!("there must be at least one container"))?;
+            .ok_or_eyre("there must be at least one container")?;
         let current_container_idx = workspace.focused_container_idx();
 
         let is_valid = direction
@@ -691,7 +691,7 @@ impl WindowManager {
         if is_valid {
             let new_idx = workspace
                 .new_idx_for_direction(direction)
-                .ok_or_else(|| eyre!("this is not a valid direction from the current position"))?;
+                .ok_or_eyre("this is not a valid direction from the current position")?;
 
             let mut changed_focus = false;
 
@@ -744,7 +744,7 @@ impl WindowManager {
         tracing::info!("removing window");
 
         if self.focused_container()?.windows().len() == 1 {
-            Err(eyre!("a container must have at least one window"))?;
+            eyre::bail!("a container must have at least one window");
         }
 
         let workspace = self.focused_workspace_mut()?;
@@ -783,10 +783,10 @@ impl WindowManager {
         let container = self.focused_container_mut()?;
 
         let len = NonZeroUsize::new(container.windows().len())
-            .ok_or_else(|| eyre!("there must be at least one window in a container"))?;
+            .ok_or_eyre("there must be at least one window in a container")?;
 
         if len.get() == 1 {
-            return Err(eyre!("there is only one window in this container"));
+            eyre::bail!("there is only one window in this container");
         }
 
         let current_idx = container.focused_window_idx();
@@ -808,7 +808,7 @@ impl WindowManager {
         let mouse_follows_focus = self.mouse_follows_focus;
         let monitor = self
             .focused_monitor_mut()
-            .ok_or_else(|| eyre!("there is no workspace"))?;
+            .ok_or_eyre("there is no workspace")?;
 
         monitor.focus_workspace(idx)?;
         monitor.load_focused_workspace(mouse_follows_focus)?;
@@ -828,7 +828,7 @@ impl WindowManager {
         let mouse_follows_focus = self.mouse_follows_focus;
         let monitor = self
             .focused_monitor_mut()
-            .ok_or_else(|| eyre!("there is no monitor"))?;
+            .ok_or_eyre("there is no monitor")?;
 
         monitor.move_container_to_workspace(idx, follow, direction)?;
         monitor.load_focused_workspace(mouse_follows_focus)?;
@@ -880,7 +880,7 @@ impl WindowManager {
 
     #[tracing::instrument(skip(self))]
     pub fn toggle_float(&mut self, force_float: bool) -> eyre::Result<()> {
-        let window_id = MacosApi::foreground_window_id().ok_or(eyre!("no foreground window"))?;
+        let window_id = MacosApi::foreground_window_id().ok_or_eyre("no foreground window")?;
 
         let workspace = self.focused_workspace_mut()?;
         if workspace.monocle_container.is_some() {
@@ -922,7 +922,7 @@ impl WindowManager {
         let window = workspace
             .floating_windows_mut()
             .back_mut()
-            .ok_or_else(|| eyre!("there is no floating window"))?;
+            .ok_or_eyre("there is no floating window")?;
 
         if toggle_float_placement.should_center() {
             window.center(&work_area, toggle_float_placement.should_resize())?;
@@ -956,7 +956,7 @@ impl WindowManager {
             WorkspaceLayer::Floating => {
                 let workspace = self.focused_workspace()?;
                 let focused_window_id =
-                    MacosApi::foreground_window_id().ok_or(eyre!("no foreground window"))?;
+                    MacosApi::foreground_window_id().ok_or_eyre("no foreground window")?;
 
                 let border_offset = 0;
                 let border_width = 0;
@@ -1040,14 +1040,12 @@ impl WindowManager {
                     Layout::Default(layout) => {
                         tracing::info!("resizing window");
                         let len = NonZeroUsize::new(workspace.containers().len())
-                            .ok_or_else(|| eyre!("there must be at least one container"))?;
+                            .ok_or_eyre("there must be at least one container")?;
                         let focused_idx = workspace.focused_container_idx();
                         let focused_idx_resize = workspace
                             .resize_dimensions
                             .get(focused_idx)
-                            .ok_or_else(|| {
-                                eyre!("there is no resize adjustment for this container")
-                            })?;
+                            .ok_or_eyre("there is no resize adjustment for this container")?;
 
                         if direction
                             .destination(
@@ -1096,7 +1094,7 @@ impl WindowManager {
                             let resize = layout.resize(
                                 unaltered
                                     .get(focused_idx)
-                                    .ok_or_else(|| eyre!("there is no last layout"))?,
+                                    .ok_or_eyre("there is no last layout")?,
                                 focused_idx_resize,
                                 direction,
                                 sizing,
@@ -1137,7 +1135,7 @@ impl WindowManager {
 
             let workspace = monitor
                 .focused_workspace_mut()
-                .ok_or_else(|| eyre!("there is no workspace"))?;
+                .ok_or_eyre("there is no workspace")?;
 
             // Reset any resize adjustments if we want to force a retile
             if !preserve_resize_dimensions {
@@ -1274,7 +1272,7 @@ impl WindowManager {
         if self.monitors().get(idx).is_some() {
             self.monitors.focus(idx);
         } else {
-            return Err(eyre!("this is not a valid monitor index"));
+            eyre::bail!("this is not a valid monitor index");
         }
 
         Ok(())
@@ -1405,22 +1403,20 @@ impl WindowManager {
 
         let monitor = self
             .focused_monitor_mut()
-            .ok_or_else(|| eyre!("there is no monitor"))?;
+            .ok_or_eyre("there is no monitor")?;
 
         let current_area = monitor.work_area_size;
 
         let workspace = monitor
             .focused_workspace_mut()
-            .ok_or_else(|| eyre!("there is no workspace"))?;
+            .ok_or_eyre("there is no workspace")?;
 
         if workspace.maximized_window.is_some() {
-            return Err(eyre!(
-                "cannot move native maximized window to another monitor or workspace"
-            ));
+            eyre::bail!("cannot move native maximized window to another monitor or workspace");
         }
 
         let foreground_window_id =
-            MacosApi::foreground_window_id().ok_or(eyre!("no foreground window"))?;
+            MacosApi::foreground_window_id().ok_or_eyre("no foreground window")?;
         let floating_window_index = workspace
             .floating_windows()
             .iter()
@@ -1432,7 +1428,7 @@ impl WindowManager {
             Some(
                 workspace
                     .remove_focused_container()
-                    .ok_or_else(|| eyre!("there is no container"))?,
+                    .ok_or_eyre("there is no container")?,
             )
         } else {
             None
@@ -1442,7 +1438,7 @@ impl WindowManager {
         let target_monitor = self
             .monitors_mut()
             .get_mut(monitor_idx)
-            .ok_or_else(|| eyre!("there is no monitor"))?;
+            .ok_or_eyre("there is no monitor")?;
 
         let target_monitor_work_area_size = target_monitor.work_area_size;
 
@@ -1455,7 +1451,7 @@ impl WindowManager {
         }
         let target_workspace = target_monitor
             .focused_workspace_mut()
-            .ok_or_else(|| eyre!("there is no focused workspace on target monitor"))?;
+            .ok_or_eyre("there is no focused workspace on target monitor")?;
 
         if target_workspace.monocle_container.is_some() {
             for container in target_workspace.containers_mut() {
@@ -1495,7 +1491,7 @@ impl WindowManager {
                 // }
             }
         } else {
-            return Err(eyre!("failed to find a window to move"));
+            eyre::bail!("failed to find a window to move");
         }
 
         if should_load_workspace {
@@ -1545,7 +1541,7 @@ impl WindowManager {
             let first_monitor = self
                 .monitors()
                 .get(first_idx)
-                .ok_or_else(|| eyre!("There is no monitor"))?;
+                .ok_or_eyre("There is no monitor")?;
             first_monitor.focused_workspace_idx()
         };
 
@@ -1553,7 +1549,7 @@ impl WindowManager {
             let second_monitor = self
                 .monitors()
                 .get(second_idx)
-                .ok_or_else(|| eyre!("There is no monitor"))?;
+                .ok_or_eyre("There is no monitor")?;
             second_monitor.focused_workspace_idx()
         };
 
@@ -1562,24 +1558,24 @@ impl WindowManager {
         let first_workspaces = self
             .monitors_mut()
             .get_mut(first_idx)
-            .ok_or_else(|| eyre!("There is no monitor"))?
+            .ok_or_eyre("There is no monitor")?
             .remove_workspaces();
 
         let second_workspaces = self
             .monitors_mut()
             .get_mut(second_idx)
-            .ok_or_else(|| eyre!("There is no monitor"))?
+            .ok_or_eyre("There is no monitor")?
             .remove_workspaces();
 
         self.monitors_mut()
             .get_mut(first_idx)
-            .ok_or_else(|| eyre!("There is no monitor"))?
+            .ok_or_eyre("There is no monitor")?
             .workspaces_mut()
             .extend(second_workspaces);
 
         self.monitors_mut()
             .get_mut(second_idx)
-            .ok_or_else(|| eyre!("There is no monitor"))?
+            .ok_or_eyre("There is no monitor")?
             .workspaces_mut()
             .extend(first_workspaces);
 
@@ -1605,7 +1601,7 @@ impl WindowManager {
 
         self.monitors_mut()
             .get_mut(idx)
-            .ok_or_else(|| eyre!("there is no monitor"))?
+            .ok_or_eyre("there is no monitor")?
             .update_focused_workspace(offset)
     }
 
@@ -1635,7 +1631,7 @@ impl WindowManager {
 
         let new_idx = workspace
             .new_idx_for_cycle_direction(direction)
-            .ok_or_else(|| eyre!("this is not a valid direction from the current position"))?;
+            .ok_or_eyre("this is not a valid direction from the current position")?;
 
         workspace.focus_container(new_idx);
 
@@ -1658,9 +1654,7 @@ impl WindowManager {
     ) -> eyre::Result<()> {
         let workspace = self.focused_workspace_mut()?;
         if workspace.is_focused_window_monocle_or_maximized()? {
-            return Err(eyre!(
-                "ignoring command while active window is in monocle mode or maximized"
-            ));
+            eyre::bail!("ignoring command while active window is in monocle mode or maximized");
         }
 
         tracing::info!("moving container");
@@ -1668,7 +1662,7 @@ impl WindowManager {
         let current_idx = workspace.focused_container_idx();
         let new_idx = workspace
             .new_idx_for_cycle_direction(direction)
-            .ok_or_else(|| eyre!("this is not a valid direction from the current position"))?;
+            .ok_or_eyre("this is not a valid direction from the current position")?;
 
         workspace.swap_containers(current_idx, new_idx);
         workspace.focus_container(new_idx);
@@ -1688,7 +1682,7 @@ impl WindowManager {
 
         if len > 1 {
             let focused_window_id =
-                MacosApi::foreground_window_id().ok_or(eyre!("no foreground window"))?;
+                MacosApi::foreground_window_id().ok_or_eyre("no foreground window")?;
             for (idx, window) in focused_workspace.floating_windows().iter().enumerate() {
                 if window.id == focused_window_id {
                     match direction {
@@ -1741,10 +1735,10 @@ impl WindowManager {
             };
 
         let len = NonZeroUsize::new(container.windows().len())
-            .ok_or_else(|| eyre!("there must be at least one window in a container"))?;
+            .ok_or_eyre("there must be at least one window in a container")?;
 
         if len.get() == 1 {
-            return Err(eyre!("there is only one window in this container"));
+            eyre::bail!("there is only one window in this container");
         }
 
         let current_idx = container.focused_window_idx();
@@ -1775,14 +1769,14 @@ impl WindowManager {
             };
 
         let len = NonZeroUsize::new(container.windows().len())
-            .ok_or_else(|| eyre!("there must be at least one window in a container"))?;
+            .ok_or_eyre("there must be at least one window in a container")?;
 
         if len.get() == 1 && idx != 0 {
-            return Err(eyre!("there is only one window in this container"));
+            eyre::bail!("there is only one window in this container");
         }
 
         if container.windows().get(idx).is_none() {
-            return Err(eyre!("there is no window in this container at index {idx}"));
+            eyre::bail!("there is no window in this container at index {idx}");
         }
 
         container.focus_window(idx);

@@ -12,7 +12,7 @@ use crate::workspace::Workspace;
 use crate::workspace::WorkspaceGlobals;
 use crate::workspace::WorkspaceLayer;
 use color_eyre::eyre;
-use color_eyre::eyre::eyre;
+use color_eyre::eyre::OptionExt;
 use std::collections::VecDeque;
 use std::sync::atomic::Ordering;
 
@@ -69,7 +69,7 @@ impl Monitor {
         let focused_workspace_idx = self.focused_workspace_idx();
         self.update_workspace_globals(focused_workspace_idx, offset);
         self.focused_workspace_mut()
-            .ok_or_else(|| eyre!("there is no workspace"))?
+            .ok_or_eyre("there is no workspace")?
             .update()?;
 
         Ok(())
@@ -144,14 +144,14 @@ impl Monitor {
     ) -> eyre::Result<()> {
         let workspace = self
             .focused_workspace_mut()
-            .ok_or_else(|| eyre!("there is no workspace"))?;
+            .ok_or_eyre("there is no workspace")?;
 
         // if workspace.maximized_window().is_some() {
-        //     return Err(eyre!("cannot move native maximized window to another monitor or workspace"));
+        //     eyre::bail!("cannot move native maximized window to another monitor or workspace");
         // }
 
         let foreground_hwnd =
-            MacosApi::foreground_window_id().ok_or(eyre!("no foreground window"))?;
+            MacosApi::foreground_window_id().ok_or_eyre("no foreground window")?;
         let floating_window_index = workspace
             .floating_windows()
             .iter()
@@ -175,7 +175,7 @@ impl Monitor {
         } else {
             let container = workspace
                 .remove_focused_container()
-                .ok_or_else(|| eyre!("there is no container"))?;
+                .ok_or_eyre("there is no container")?;
 
             let workspaces = self.workspaces_mut();
 
@@ -229,11 +229,11 @@ impl Monitor {
     ) -> eyre::Result<()> {
         let workspace = self
             .focused_workspace_mut()
-            .ok_or_else(|| eyre!("there is no workspace"))?;
+            .ok_or_eyre("there is no workspace")?;
 
         let container = workspace
             .remove_focused_container()
-            .ok_or_else(|| eyre!("there is no container"))?;
+            .ok_or_eyre("there is no container")?;
 
         let workspaces = self.workspaces_mut();
 
@@ -280,10 +280,10 @@ impl Monitor {
         let workspace = if let Some(idx) = workspace_idx {
             self.workspaces_mut()
                 .get_mut(idx)
-                .ok_or_else(|| eyre!("there is no workspace at index {}", idx))?
+                .ok_or_eyre(format!("there is no workspace at index {}", idx))?
         } else {
             self.focused_workspace_mut()
-                .ok_or_else(|| eyre!("there is no workspace"))?
+                .ok_or_eyre("there is no workspace")?
         };
 
         match direction {
@@ -392,10 +392,10 @@ impl Monitor {
         let workspace = if let Some(idx) = workspace_idx {
             self.workspaces_mut()
                 .get_mut(idx)
-                .ok_or_else(|| eyre!("there is no workspace at index {}", idx))?
+                .ok_or_eyre(format!("there is no workspace at index {}", idx))?
         } else {
             self.focused_workspace_mut()
-                .ok_or_else(|| eyre!("there is no workspace"))?
+                .ok_or_eyre("there is no workspace")?
         };
 
         workspace.add_container_to_back(container);

@@ -1,6 +1,7 @@
 export RUST_BACKTRACE := "full"
 
 fmt:
+    test -z "$(rg 'eyre!' --type rust)" || (echo "eyre! macro not allowed"; false)
     cargo +nightly fmt
     cargo +stable clippy
     prettier --write README.md

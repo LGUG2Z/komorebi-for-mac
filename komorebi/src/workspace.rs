@@ -13,7 +13,7 @@ use crate::macos_api::MacosApi;
 use crate::ring::Ring;
 use crate::window::Window;
 use color_eyre::eyre;
-use color_eyre::eyre::eyre;
+use color_eyre::eyre::OptionExt;
 use serde::Deserialize;
 use serde::Serialize;
 use std::fmt::Display;
@@ -157,16 +157,16 @@ impl Workspace {
     pub fn focus_container_by_window(&mut self, window_id: u32) -> eyre::Result<()> {
         let container_idx = self
             .container_idx_for_window(window_id)
-            .ok_or_else(|| eyre!("there is no container/window"))?;
+            .ok_or_eyre("there is no container/window")?;
 
         let container = self
             .containers_mut()
             .get_mut(container_idx)
-            .ok_or_else(|| eyre!("there is no container"))?;
+            .ok_or_eyre("there is no container")?;
 
         let window_idx = container
             .idx_for_window(window_id)
-            .ok_or_else(|| eyre!("there is no window"))?;
+            .ok_or_eyre("there is no window")?;
 
         let mut should_load = false;
 
@@ -249,7 +249,7 @@ impl Workspace {
         {
             let window = container
                 .remove_window_by_idx(window_idx)
-                .ok_or_else(|| eyre!("there is no window"))?;
+                .ok_or_eyre("there is no window")?;
 
             if container.windows().is_empty() {
                 self.monocle_container = None;
@@ -265,22 +265,22 @@ impl Workspace {
 
         let container_idx = self
             .container_idx_for_window(window_id)
-            .ok_or_else(|| eyre!("there is no window"))?;
+            .ok_or_eyre("there is no window")?;
 
         let container = self
             .containers_mut()
             .get_mut(container_idx)
-            .ok_or_else(|| eyre!("there is no container"))?;
+            .ok_or_eyre("there is no container")?;
 
         let window_idx = container
             .windows()
             .iter()
             .position(|window| window.id == window_id)
-            .ok_or_else(|| eyre!("there is no window"))?;
+            .ok_or_eyre("there is no window")?;
 
         let window = container
             .remove_window_by_idx(window_idx)
-            .ok_or_else(|| eyre!("there is no window"))?;
+            .ok_or_eyre("there is no window")?;
 
         if container.windows().is_empty() {
             self.remove_container_by_idx(container_idx);
@@ -313,7 +313,7 @@ impl Workspace {
     }
 
     pub fn is_focused_window_monocle_or_maximized(&self) -> eyre::Result<bool> {
-        let window_id = MacosApi::foreground_window_id().ok_or(eyre!("no foreground window"))?;
+        let window_id = MacosApi::foreground_window_id().ok_or_eyre("no foreground window")?;
         if let Some(window) = &self.maximized_window
             && window_id == window.id
         {
@@ -358,11 +358,11 @@ impl Workspace {
 
         let container = self
             .focused_container_mut()
-            .ok_or_else(|| eyre!("there is no container"))?;
+            .ok_or_eyre("there is no container")?;
 
         let window = container
             .remove_focused_window()
-            .ok_or_else(|| eyre!("there is no window"))?;
+            .ok_or_eyre("there is no window")?;
 
         // This is a little messy
         let adjusted_target_container_index = if container.windows().is_empty() {
@@ -381,13 +381,13 @@ impl Workspace {
         let target_container = self
             .containers_mut()
             .get_mut(adjusted_target_container_index)
-            .ok_or_else(|| eyre!("there is no container"))?;
+            .ok_or_eyre("there is no container")?;
 
         target_container.add_window(&window)?;
 
         self.focus_container(adjusted_target_container_index);
         self.focused_container_mut()
-            .ok_or_else(|| eyre!("there is no container"))?
+            .ok_or_eyre("there is no container")?
             .load_focused_window()?;
 
         Ok(())
@@ -398,11 +398,11 @@ impl Workspace {
 
         let container = self
             .focused_container_mut()
-            .ok_or_else(|| eyre!("there is no container"))?;
+            .ok_or_eyre("there is no container")?;
 
         let window = container
             .remove_focused_window()
-            .ok_or_else(|| eyre!("there is no window"))?;
+            .ok_or_eyre("there is no window")?;
 
         if container.windows().is_empty() {
             self.remove_container_by_idx(focused_container_idx);
@@ -515,7 +515,7 @@ impl Workspace {
         let resize = self.resize_dimensions.remove(0);
         let container = self
             .remove_focused_container()
-            .ok_or_else(|| eyre!("there is no container"))?;
+            .ok_or_eyre("there is no container")?;
 
         let primary_idx = match self.layout {
             Layout::Default(_) => 0,
@@ -555,7 +555,7 @@ impl Workspace {
         let container = self
             .containers_mut()
             .remove(focused_idx)
-            .ok_or_else(|| eyre!("there is no container"))?;
+            .ok_or_eyre("there is no container")?;
 
         // We don't remove any resize adjustments for a monocle, because when this container is
         // inevitably reintegrated, it would be weird if it doesn't go back to the dimensions
@@ -567,7 +567,7 @@ impl Workspace {
 
         self.monocle_container
             .as_mut()
-            .ok_or_else(|| eyre!("there is no monocle container"))?
+            .ok_or_eyre("there is no monocle container")?
             .load_focused_window()?;
 
         Ok(())
@@ -576,12 +576,12 @@ impl Workspace {
     pub fn reintegrate_monocle_container(&mut self) -> eyre::Result<()> {
         let restore_idx = self
             .monocle_container_restore_idx
-            .ok_or_else(|| eyre!("there is no monocle restore index"))?;
+            .ok_or_eyre("there is no monocle restore index")?;
 
         let container = self
             .monocle_container
             .as_ref()
-            .ok_or_else(|| eyre!("there is no monocle container"))?;
+            .ok_or_eyre("there is no monocle container")?;
 
         let container = container.clone();
         if restore_idx >= self.containers().len() {
@@ -595,7 +595,7 @@ impl Workspace {
         self.containers_mut().insert(restore_idx, container);
         self.focus_container(restore_idx);
         self.focused_container_mut()
-            .ok_or_else(|| eyre!("there is no container"))?
+            .ok_or_eyre("there is no container")?
             .load_focused_window()?;
 
         self.monocle_container = None;
@@ -608,7 +608,7 @@ impl Workspace {
         let window = if let Some(monocle_container) = &mut self.monocle_container {
             let window = monocle_container
                 .remove_focused_window()
-                .ok_or_else(|| eyre!("there is no window"))?;
+                .ok_or_eyre("there is no window")?;
 
             if monocle_container.windows().is_empty() {
                 self.monocle_container = None;
@@ -623,11 +623,11 @@ impl Workspace {
 
             let container = self
                 .focused_container_mut()
-                .ok_or_else(|| eyre!("there is no container"))?;
+                .ok_or_eyre("there is no container")?;
 
             let window = container
                 .remove_focused_window()
-                .ok_or_else(|| eyre!("there is no window"))?;
+                .ok_or_eyre("there is no window")?;
 
             if container.windows().is_empty() {
                 self.remove_container_by_idx(focused_idx);
@@ -651,7 +651,7 @@ impl Workspace {
         let focused_idx = self.focused_container_idx();
         let window = self
             .remove_focused_floating_window()
-            .ok_or_else(|| eyre!("there is no floating window"))?;
+            .ok_or_eyre("there is no floating window")?;
 
         let mut container = Container::default();
         container.add_window(&window)?;
@@ -787,11 +787,9 @@ impl Workspace {
             } else if !self.containers().is_empty() {
                 let mut layouts = self.layout.as_boxed_arrangement().calculate(
                     &adjusted_work_area,
-                    NonZeroUsize::new(self.containers().len()).ok_or_else(|| {
-                        eyre!(
-                            "there must be at least one container to calculate a workspace layout"
-                        )
-                    })?,
+                    NonZeroUsize::new(self.containers().len()).ok_or_eyre(
+                        "there must be at least one container to calculate a workspace layout",
+                    )?,
                     Some(container_padding),
                     self.layout_flip,
                     &self.resize_dimensions,

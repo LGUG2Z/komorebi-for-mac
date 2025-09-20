@@ -1,7 +1,7 @@
 #![warn(clippy::all)]
 
 use color_eyre::eyre;
-use color_eyre::eyre::eyre;
+use color_eyre::eyre::OptionExt;
 use komorebi::DATA_DIR;
 use komorebi::ax_event_listener;
 use komorebi::process_command::listen_for_commands;
@@ -102,7 +102,7 @@ fn main() -> eyre::Result<()> {
     let display_size = unsafe { CGDisplayBounds(CGMainDisplayID()) };
     tracing::info!("display size for main display is: {:?}", display_size);
 
-    let run_loop = CFRunLoop::current().ok_or(eyre!("couldn't get CFRunLoop::current"))?;
+    let run_loop = CFRunLoop::current().ok_or_eyre("couldn't get CFRunLoop::current")?;
     let wm = Arc::new(Mutex::new(WindowManager::new(
         &run_loop,
         ax_event_listener::event_rx(),
