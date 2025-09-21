@@ -8,7 +8,9 @@ use crate::accessibility::attribute_constants::kAXFocusedAttribute;
 use crate::accessibility::attribute_constants::kAXMainAttribute;
 use crate::accessibility::attribute_constants::kAXMinimizedAttribute;
 use crate::accessibility::attribute_constants::kAXPositionAttribute;
+use crate::accessibility::attribute_constants::kAXRoleAttribute;
 use crate::accessibility::attribute_constants::kAXSizeAttribute;
+use crate::accessibility::attribute_constants::kAXSubroleAttribute;
 use crate::accessibility::attribute_constants::kAXTitleAttribute;
 use crate::accessibility::error::AccessibilityCustomError;
 use crate::accessibility::error::AccessibilityError;
@@ -29,6 +31,7 @@ use crate::reaper;
 use crate::reaper::ReaperNotification;
 use crate::window_manager_event::SystemNotification;
 use crate::window_manager_event::WindowManagerEvent;
+use objc2::__framework_prelude::Retained;
 use objc2_app_kit::NSApplicationActivationOptions;
 use objc2_app_kit::NSRunningApplication;
 use objc2_application_services::AXObserver;
@@ -52,6 +55,9 @@ use serde::Deserialize;
 use serde::Serialize;
 use std::collections::hash_map::Entry;
 use std::ffi::c_void;
+use std::fmt::Display;
+use std::fmt::Formatter;
+use std::fmt::Write;
 use std::ptr::NonNull;
 use std::str::FromStr;
 use strum::Display;
@@ -178,6 +184,35 @@ impl Drop for Window {
     }
 }
 
+impl Display for Window {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let mut display = format!(
+            "(window_id: {}, process_id: {}",
+            self.id, self.application.process_id
+        );
+
+        if let Some(title) = self.title() {
+            write!(display, ", title: {title}")?;
+        }
+
+        if let Some(exe) = self.exe() {
+            write!(display, ", exe: {exe}")?;
+        }
+
+        if let Some(role) = self.role() {
+            write!(display, ", role: {role}")?;
+        }
+
+        if let Some(subrole) = self.subrole() {
+            write!(display, ", subrole: {subrole}")?;
+        }
+
+        write!(display, ")")?;
+
+        write!(f, "{display}")
+    }
+}
+
 impl Window {
     pub fn new(
         element: CFRetained<AXUIElement>,
@@ -202,12 +237,7 @@ impl Window {
 
     #[tracing::instrument(skip_all)]
     pub fn observe(&self, run_loop: &CFRunLoop) -> Result<(), AccessibilityError> {
-        tracing::info!(
-            "registering observer for process: {}, title: {}",
-            self.application.process_id,
-            self.title()
-                .unwrap_or_else(|| String::from("<NO TITLE FOUND>"))
-        );
+        tracing::info!("registering observer for {self}");
 
         AccessibilityApi::add_observer_to_run_loop(
             &self.observer,
@@ -285,6 +315,42 @@ impl Window {
             .map(|s| s.to_string())
     }
 
+    pub fn exe(&self) -> Option<String> {
+        self.application.name()
+    }
+
+    pub fn bundle_identifier(&self) -> Option<String> {
+        if let Ok(Some(identifier)) = self
+            .running_application()
+            .map(|app| unsafe { app.bundleIdentifier() })
+        {
+            Some(identifier.to_string())
+        } else {
+            None
+        }
+    }
+
+    pub fn role(&self) -> Option<String> {
+        AccessibilityApi::copy_attribute_value::<CFString>(&self.element, kAXRoleAttribute)
+            .map(|s| s.to_string())
+    }
+
+    pub fn subrole(&self) -> Option<String> {
+        AccessibilityApi::copy_attribute_value::<CFString>(&self.element, kAXSubroleAttribute)
+            .map(|s| s.to_string())
+    }
+
+    fn running_application(&self) -> Result<Retained<NSRunningApplication>, AccessibilityError> {
+        unsafe {
+            NSRunningApplication::runningApplicationWithProcessIdentifier(
+                self.application.process_id,
+            )
+            .ok_or(AccessibilityError::Custom(
+                AccessibilityCustomError::NSRunningApplication(self.application.process_id),
+            ))
+        }
+    }
+
     pub fn set_position(&self, rect: &Rect) -> Result<(), AccessibilityError> {
         match self.set_point(CGPoint::new(rect.left as CGFloat, rect.top as CGFloat)) {
             Ok(_) => {}
@@ -305,13 +371,8 @@ impl Window {
 
     pub fn focus(&self, mouse_follows_focus: bool) -> Result<(), LibraryError> {
         unsafe {
-            NSRunningApplication::runningApplicationWithProcessIdentifier(
-                self.application.process_id,
-            )
-            .ok_or(AccessibilityError::Custom(
-                AccessibilityCustomError::NSRunningApplication(self.application.process_id),
-            ))?
-            .activateWithOptions(NSApplicationActivationOptions::empty());
+            self.running_application()?
+                .activateWithOptions(NSApplicationActivationOptions::empty());
 
             let cf_boolean = CFBoolean::new(true);
             let value = &**cf_boolean;
