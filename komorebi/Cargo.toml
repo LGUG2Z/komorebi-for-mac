@@ -13,6 +13,7 @@ lazy_static = { workspace = true }
 objc2 = "0.6"
 objc2-app-kit = "0.3"
 objc2-application-services = "0.3"
+objc2-foundation = "0.3"
 objc2-core-foundation = { version = "0.3", features = ["CFDictionary", "CFString"] }
 objc2-core-graphics = { version = "0.3", features = ["CGWindow", "alloc"] }
 parking_lot = "0.12"

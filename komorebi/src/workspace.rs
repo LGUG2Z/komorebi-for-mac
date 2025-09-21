@@ -227,9 +227,16 @@ impl Workspace {
         for container in self.containers() {
             if let Some(focused_window) = container.focused_window()
                 && focused_window.application.process_id == process_id
-                && !valid_window_ids.contains(&focused_window.id)
             {
-                invalid_window_ids.push(focused_window.id);
+                if !valid_window_ids.contains(&focused_window.id) {
+                    invalid_window_ids.push(focused_window.id);
+                }
+
+                // if accessibility API calls fail on AXError::InvalidUIElement
+                // let's try and nuke these early
+                if !focused_window.is_valid() {
+                    invalid_window_ids.push(focused_window.id);
+                }
             }
         }
 

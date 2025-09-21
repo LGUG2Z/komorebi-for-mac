@@ -1,41 +1,62 @@
 #![allow(non_upper_case_globals)]
 
 use crate::accessibility::notification_constants::AccessibilityNotification;
+use crate::app_kit_notification_constants::AppKitWorkspaceNotification;
 use serde::Deserialize;
 use serde::Serialize;
 use strum::Display;
 
 #[derive(Debug, Copy, Clone, Serialize, Deserialize, Display)]
 #[serde(tag = "type", content = "content")]
+pub enum SystemNotification {
+    Accessibility(AccessibilityNotification),
+    AppKitWorkspace(AppKitWorkspaceNotification),
+}
+
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, Display)]
+#[serde(tag = "type", content = "content")]
 pub enum WindowManagerEvent {
-    FocusChange(AccessibilityNotification, i32, Option<u32>),
-    Show(AccessibilityNotification, i32),
-    Destroy(AccessibilityNotification, i32),
-    Minimize(AccessibilityNotification, i32, u32),
-    Restore(AccessibilityNotification, i32, u32),
+    FocusChange(SystemNotification, i32, Option<u32>),
+    Show(SystemNotification, i32),
+    Destroy(SystemNotification, i32),
+    Minimize(SystemNotification, i32, u32),
+    Restore(SystemNotification, i32, u32),
 }
 
 impl WindowManagerEvent {
-    pub fn from_ax_notification(
-        notification: AccessibilityNotification,
+    pub fn from_system_notification(
+        notification: SystemNotification,
         process_id: i32,
         window_id: Option<u32>,
     ) -> Option<Self> {
         match notification {
-            AccessibilityNotification::AXMainWindowChanged
-            | AccessibilityNotification::AXApplicationActivated => Some(
-                WindowManagerEvent::FocusChange(notification, process_id, window_id),
-            ),
-            AccessibilityNotification::AXWindowCreated
-            | AccessibilityNotification::AXApplicationShown => {
-                Some(WindowManagerEvent::Show(notification, process_id))
+            SystemNotification::Accessibility(AccessibilityNotification::AXMainWindowChanged)
+            | SystemNotification::Accessibility(
+                AccessibilityNotification::AXApplicationActivated,
+            ) => Some(WindowManagerEvent::FocusChange(
+                notification,
+                process_id,
+                window_id,
+            )),
+            SystemNotification::Accessibility(AccessibilityNotification::AXWindowCreated)
+            | SystemNotification::Accessibility(AccessibilityNotification::AXApplicationShown)
+            | SystemNotification::AppKitWorkspace(
+                AppKitWorkspaceNotification::NSWorkspaceDidLaunchApplicationNotification,
+            ) => Some(WindowManagerEvent::Show(notification, process_id)),
+            SystemNotification::Accessibility(AccessibilityNotification::AXUIElementDestroyed)
+            | SystemNotification::AppKitWorkspace(
+                AppKitWorkspaceNotification::NSWorkspaceDidTerminateApplicationNotification,
+            ) => Some(WindowManagerEvent::Destroy(notification, process_id)),
+            // TODO: figure out if we wanna handle the hide/unhide notifications separately
+            // TODO: maybe turn window id into a vec of window IDs for hidden apps
+            SystemNotification::Accessibility(AccessibilityNotification::AXWindowMiniaturized) => {
+                window_id.map(|window_id| {
+                    WindowManagerEvent::Minimize(notification, process_id, window_id)
+                })
             }
-            AccessibilityNotification::AXUIElementDestroyed => {
-                Some(WindowManagerEvent::Destroy(notification, process_id))
-            }
-            AccessibilityNotification::AXWindowMiniaturized => window_id
-                .map(|window_id| WindowManagerEvent::Minimize(notification, process_id, window_id)),
-            AccessibilityNotification::AXWindowDeminiaturized => window_id
+            SystemNotification::Accessibility(
+                AccessibilityNotification::AXWindowDeminiaturized,
+            ) => window_id
                 .map(|window_id| WindowManagerEvent::Restore(notification, process_id, window_id)),
             // kAXWindowMovedNotification => {}
             // kAXWindowResizedNotification => {}

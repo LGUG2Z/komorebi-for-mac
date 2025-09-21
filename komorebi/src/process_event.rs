@@ -4,6 +4,7 @@ use crate::core::default_layout::DefaultLayout;
 use crate::core::layout::Layout;
 use crate::window::Window;
 use crate::window_manager::WindowManager;
+use crate::window_manager_event::SystemNotification;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::workspace::WorkspaceLayer;
 use color_eyre::eyre;
@@ -103,7 +104,12 @@ impl WindowManager {
                     }
                 }
 
-                if matches!(notification, AccessibilityNotification::AXMainWindowChanged) {
+                if matches!(
+                    notification,
+                    SystemNotification::Accessibility(
+                        AccessibilityNotification::AXMainWindowChanged
+                    )
+                ) {
                     self.reap_invalid_windows_for_application(process_id)?;
                     self.update_focused_workspace(false, false)?;
                 }

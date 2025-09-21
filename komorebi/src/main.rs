@@ -4,6 +4,7 @@ use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
 use komorebi::DATA_DIR;
 use komorebi::ax_event_listener;
+use komorebi::notification_center_listener::NotificationCenterListener;
 use komorebi::process_command::listen_for_commands;
 use komorebi::process_event::listen_for_events;
 use komorebi::window_manager::WindowManager;
@@ -98,6 +99,8 @@ fn main() -> eyre::Result<()> {
     if !DATA_DIR.is_dir() {
         std::fs::create_dir_all(&*DATA_DIR)?;
     }
+
+    let _notification_center_listener = NotificationCenterListener::init();
 
     let display_size = unsafe { CGDisplayBounds(CGMainDisplayID()) };
     tracing::info!("display size for main display is: {:?}", display_size);

@@ -25,6 +25,7 @@ use crate::core::rect::Rect;
 use crate::core_graphics::CoreGraphicsApi;
 use crate::hidden_frame_bottom_left;
 use crate::macos_api::MacosApi;
+use crate::window_manager_event::SystemNotification;
 use crate::window_manager_event::WindowManagerEvent;
 use objc2_app_kit::NSApplicationActivationOptions;
 use objc2_app_kit::NSRunningApplication;
@@ -85,8 +86,11 @@ unsafe extern "C-unwind" fn window_observer_callback(
 
             if let Ok(notification) =
                 AccessibilityNotification::from_str(&notification.as_ref().to_string())
-                && let Some(event) =
-                    WindowManagerEvent::from_ax_notification(notification, process_id, window_id)
+                && let Some(event) = WindowManagerEvent::from_system_notification(
+                    SystemNotification::Accessibility(notification),
+                    process_id,
+                    window_id,
+                )
             {
                 if let Err(error) = event_tx().send(event) {
                     tracing::error!("failed to send window manager event: {error}");
@@ -148,7 +152,6 @@ impl WindowInfo {
 }
 
 #[derive(Debug, Clone)]
-#[allow(unused)]
 pub struct Window {
     pub id: u32,
     pub element: AccessibilityUiElement,
@@ -459,7 +462,6 @@ impl From<&CFDictionary> for WindowInfo {
 }
 
 #[derive(Default, Debug, Copy, Clone)]
-#[allow(unused)]
 pub struct WindowBounds {
     pub height: f32,
     pub width: f32,
