@@ -14,6 +14,7 @@ use crate::core_graphics::CoreGraphicsApi;
 use crate::monitor::Monitor;
 use crate::window::WindowInfo;
 use crate::window_manager::WindowManager;
+use color_eyre::eyre;
 use objc2::MainThreadMarker;
 use objc2_app_kit::NSEvent;
 use objc2_app_kit::NSScreen;
@@ -25,10 +26,12 @@ use objc2_core_foundation::CFRetained;
 use objc2_core_foundation::CFString;
 use objc2_core_foundation::CGPoint;
 use objc2_core_foundation::CGRect;
+use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use std::ffi::c_void;
 use std::ptr::NonNull;
+use std::sync::Arc;
 
 pub struct MacosApi;
 
@@ -54,6 +57,45 @@ impl MacosApi {
                     wm.monitors.elements_mut().push_back(monitor);
                 }
             }
+        }
+
+        Ok(())
+    }
+
+    pub fn update_monitor_work_areas(wm: Arc<Mutex<WindowManager>>) -> eyre::Result<()> {
+        let screens = NSScreen::screens(MainThreadMarker::new().unwrap());
+
+        for display_id in CoreGraphicsApi::connected_display_ids()? {
+            let display_bounds = CoreGraphicsApi::display_bounds(display_id);
+
+            let mut wm = wm.lock();
+
+            for screen in &screens {
+                let menu_bar_height = screen.frame().size.height
+                    - screen.visibleFrame().size.height
+                    - screen.visibleFrame().origin.y;
+
+                if screen.frame() == display_bounds {
+                    let size = Rect::from(display_bounds);
+                    let mut work_area_size = Rect::from(display_bounds);
+                    work_area_size.top += menu_bar_height as i32;
+                    work_area_size.bottom = screen.visibleFrame().size.height as i32;
+
+                    for monitor in wm.monitors_mut() {
+                        if monitor.id == display_id {
+                            monitor.size = size;
+                            monitor.work_area_size = work_area_size;
+                        }
+
+                        tracing::info!(
+                            "updated monitor size and work area for monitor {display_id}"
+                        )
+                    }
+                }
+            }
+
+            let focus_follows_mouse = wm.mouse_follows_focus;
+            wm.update_focused_workspace(focus_follows_mouse, true)?;
         }
 
         Ok(())

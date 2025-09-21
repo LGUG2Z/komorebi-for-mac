@@ -22,6 +22,7 @@ use std::ops::Deref;
 use std::path::PathBuf;
 use std::ptr::NonNull;
 use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
 use std::sync::atomic::AtomicI32;
 
 #[macro_use]
@@ -69,6 +70,7 @@ lazy_static! {
     ));
     static ref WINDOW_RESTORE_POSITIONS: Arc<Mutex<HashMap<u32, CGRect>>> =
         Arc::new(Mutex::new(HashMap::new()));
+    pub static ref UPDATE_MONITOR_WORK_AREAS: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
 }
 
 pub static DEFAULT_WORKSPACE_PADDING: AtomicI32 = AtomicI32::new(5);

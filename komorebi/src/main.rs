@@ -3,8 +3,10 @@
 use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
 use komorebi::DATA_DIR;
+use komorebi::UPDATE_MONITOR_WORK_AREAS;
 use komorebi::ax_event_listener;
 use komorebi::display_reconfiguration_listener::DisplayReconfigurationListener;
+use komorebi::macos_api::MacosApi;
 use komorebi::monitor_reconciliator;
 use komorebi::notification_center_listener::NotificationCenterListener;
 use komorebi::process_command::listen_for_commands;
@@ -147,6 +149,15 @@ fn main() -> eyre::Result<()> {
         if quit_thread.load(Ordering::Relaxed) {
             tracing::info!("stopping CFRunLoop");
             break;
+        }
+
+        if UPDATE_MONITOR_WORK_AREAS.load(Ordering::Relaxed) {
+            // this can only be called on the main thread
+            if let Err(error) = MacosApi::update_monitor_work_areas(wm.clone()) {
+                tracing::error!("failed to update montior work areas: {error}");
+            }
+
+            UPDATE_MONITOR_WORK_AREAS.store(false, Ordering::Relaxed);
         }
 
         // this gets our observer notification callbacks firing
