@@ -165,8 +165,8 @@ impl NotificationCenterListener {
                     None,
                 );
             }
-        }
 
-        observer
+            observer
+        }
     }
 }

@@ -25,6 +25,8 @@ use crate::core::rect::Rect;
 use crate::core_graphics::CoreGraphicsApi;
 use crate::hidden_frame_bottom_left;
 use crate::macos_api::MacosApi;
+use crate::reaper;
+use crate::reaper::ReaperNotification;
 use crate::window_manager_event::SystemNotification;
 use crate::window_manager_event::WindowManagerEvent;
 use objc2_app_kit::NSApplicationActivationOptions;
@@ -284,8 +286,21 @@ impl Window {
     }
 
     pub fn set_position(&self, rect: &Rect) -> Result<(), AccessibilityError> {
-        self.set_point(CGPoint::new(rect.left as CGFloat, rect.top as CGFloat))?;
-        self.set_size(CGSize::new(rect.right as CGFloat, rect.bottom as CGFloat))
+        match self.set_point(CGPoint::new(rect.left as CGFloat, rect.top as CGFloat)) {
+            Ok(_) => {}
+            Err(error) => {
+                reaper::send_notification(ReaperNotification::InvalidWindow(self.id));
+                return Err(error);
+            }
+        }
+
+        match self.set_size(CGSize::new(rect.right as CGFloat, rect.bottom as CGFloat)) {
+            Ok(_) => Ok(()),
+            Err(error) => {
+                reaper::send_notification(ReaperNotification::InvalidWindow(self.id));
+                Err(error)
+            }
+        }
     }
 
     pub fn focus(&self, mouse_follows_focus: bool) -> Result<(), LibraryError> {

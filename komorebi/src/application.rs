@@ -131,22 +131,30 @@ impl Application {
                 .unwrap_or_else(|| String::from("<NO NAME FOUND>"))
         );
 
-        match AccessibilityApi::add_observer_to_run_loop(
-            &self.observer,
-            &self.element,
-            NOTIFICATIONS,
-            run_loop,
-        ) {
-            Ok(_) => {
-                self.is_observable = true;
-            }
-            Err(error) => {
-                tracing::warn!(
-                    "failed to register observer for process {} ({}): {error}",
-                    self.process_id,
-                    self.name()
-                        .unwrap_or_else(|| String::from("<NO NAME FOUND>"))
-                );
+        let mut retries = 5;
+
+        while retries > 0 {
+            match AccessibilityApi::add_observer_to_run_loop(
+                &self.observer,
+                &self.element,
+                NOTIFICATIONS,
+                run_loop,
+            ) {
+                Ok(_) => {
+                    self.is_observable = true;
+                    break;
+                }
+                Err(error) => {
+                    // Chromium apps are still gross on macOS too
+                    retries -= 1;
+                    std::thread::sleep(std::time::Duration::from_millis(100));
+                    tracing::warn!(
+                        "failed to register observer for process {} ({}): {error}, {retries} retries left",
+                        self.process_id,
+                        self.name()
+                            .unwrap_or_else(|| String::from("<NO NAME FOUND>"))
+                    );
+                }
             }
         }
     }

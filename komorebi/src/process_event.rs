@@ -1,5 +1,6 @@
 use crate::accessibility::AccessibilityApi;
 use crate::accessibility::notification_constants::AccessibilityNotification;
+use crate::ax_event_listener::event_tx;
 use crate::core::default_layout::DefaultLayout;
 use crate::core::layout::Layout;
 use crate::window::Window;
@@ -83,7 +84,15 @@ impl WindowManager {
                                     window.focus(false)?;
                                 }
                             } else {
-                                workspace.focus_container_by_window(window_id)?;
+                                // if this fails, the app was probably open but windowless when komorebi
+                                // launched, so the window hasn't been registered - we should treat it
+                                // as a "Show" event
+                                if workspace.focus_container_by_window(window_id).is_err() {
+                                    event_tx().send(WindowManagerEvent::Show(
+                                        notification,
+                                        event.process_id(),
+                                    ))?
+                                }
                             }
 
                             workspace.layer = WorkspaceLayer::Tiling;

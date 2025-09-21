@@ -33,6 +33,9 @@ impl WindowManagerEvent {
             SystemNotification::Accessibility(AccessibilityNotification::AXMainWindowChanged)
             | SystemNotification::Accessibility(
                 AccessibilityNotification::AXApplicationActivated,
+            )
+            | SystemNotification::AppKitWorkspace(
+                AppKitWorkspaceNotification::NSWorkspaceDidActivateApplicationNotification,
             ) => Some(WindowManagerEvent::FocusChange(
                 notification,
                 process_id,

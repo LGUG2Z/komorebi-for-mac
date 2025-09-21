@@ -510,8 +510,6 @@ impl WindowManager {
         follow_focus: bool,
         trigger_focus: bool,
     ) -> eyre::Result<()> {
-        tracing::info!("updating");
-
         let offset = self.work_area_offset;
         let mouse_follows_focus = self.mouse_follows_focus;
 
