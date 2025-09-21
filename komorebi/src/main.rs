@@ -4,6 +4,8 @@ use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
 use komorebi::DATA_DIR;
 use komorebi::ax_event_listener;
+use komorebi::display_reconfiguration_listener::DisplayReconfigurationListener;
+use komorebi::monitor_reconciliator;
 use komorebi::notification_center_listener::NotificationCenterListener;
 use komorebi::process_command::listen_for_commands;
 use komorebi::process_event::listen_for_events;
@@ -101,6 +103,7 @@ fn main() -> eyre::Result<()> {
     }
 
     let _notification_center_listener = NotificationCenterListener::init();
+    let _display_reconfiguration_listener = DisplayReconfigurationListener::init();
 
     let display_size = unsafe { CGDisplayBounds(CGMainDisplayID()) };
     tracing::info!("display size for main display is: {:?}", display_size);
@@ -116,6 +119,7 @@ fn main() -> eyre::Result<()> {
 
     listen_for_commands(wm.clone());
     listen_for_events(wm.clone());
+    monitor_reconciliator::listen_for_notifications(wm.clone())?;
 
     let quit_ctrlc = Arc::new(AtomicBool::new(false));
     let quit_thread = quit_ctrlc.clone();
