@@ -179,6 +179,12 @@ struct Opts {
 
 #[derive(Parser)]
 enum SubCommand {
+    /// Show the path to komorebi.json
+    #[clap(alias = "config")]
+    Configuration,
+    /// Show the path to komorebi's data directory in $HOME/Library/Application Support
+    #[clap(alias = "datadir")]
+    DataDirectory,
     /// Show a JSON representation of the current window manager state
     State,
     /// Show a JSON representation of the current global state
@@ -365,6 +371,19 @@ fn main() -> eyre::Result<()> {
     let opts: Opts = Opts::parse();
 
     match opts.subcmd {
+        SubCommand::Configuration => {
+            let static_config = HOME_DIR.join("komorebi.json");
+
+            if static_config.exists() {
+                println!("{}", static_config.display());
+            }
+        }
+        SubCommand::DataDirectory => {
+            let dir = &*DATA_DIR;
+            if dir.exists() {
+                println!("{}", dir.display());
+            }
+        }
         SubCommand::Focus(arg) => {
             send_message(&SocketMessage::FocusWindow(arg.operation_direction))?;
         }
