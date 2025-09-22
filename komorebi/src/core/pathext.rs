@@ -26,7 +26,9 @@ impl<P: AsRef<Path>> PathExt for P {
 
         for c in self.as_ref().components() {
             match c {
+                #[allow(unused_mut)]
                 Component::Normal(mut c) => {
+                    #[cfg(target_os = "windows")]
                     // Special case for ~ and $HOME, replace with $Env:USERPROFILE
                     if c == OsStr::new("~") || c.eq_ignore_ascii_case("$HOME") {
                         c = OsStr::new("$Env:USERPROFILE");

@@ -11,3 +11,4 @@ color-eyre = { workspace = true }
 dirs = { workspace = true }
 lazy_static = { workspace = true }
 pastey = { workspace = true }
+reqwest = { version = "0.12", features = ["blocking"] }

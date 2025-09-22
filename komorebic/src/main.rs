@@ -12,6 +12,8 @@ use komorebi_client::SocketMessage;
 use komorebi_client::send_message;
 use komorebi_client::send_query;
 use lazy_static::lazy_static;
+use std::fs::OpenOptions;
+use std::io::Write;
 use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
@@ -347,6 +349,9 @@ enum SubCommand {
     ToggleLock,
     /// Toggle the behaviour when moving windows across monitor boundaries
     ToggleCrossMonitorMoveBehaviour,
+    /// Fetch the latest version of applications.json from komorebi-application-specific-configuration
+    #[clap(alias = "fetch-asc")]
+    FetchAppSpecificConfiguration,
 }
 
 fn print_query(message: &SocketMessage) {
@@ -572,6 +577,28 @@ fn main() -> eyre::Result<()> {
         }
         SubCommand::MonitorInformation => {
             print_query(&SocketMessage::MonitorInformation);
+        }
+        SubCommand::FetchAppSpecificConfiguration => {
+            let content = reqwest::blocking::get("https://raw.githubusercontent.com/LGUG2Z/komorebi-application-specific-configuration/master/applications.mac.json")?
+                .text()?;
+
+            let output_file = HOME_DIR.join("applications.json");
+
+            let mut file = OpenOptions::new()
+                .write(true)
+                .create(true)
+                .truncate(true)
+                .open(&output_file)?;
+
+            file.write_all(content.as_bytes())?;
+
+            println!(
+                "Latest version of applications.mac.json from https://github.com/LGUG2Z/komorebi-application-specific-configuration downloaded\n"
+            );
+            println!(
+                "You can add this to your komorebi.json static configuration file like this: \n\n\"app_specific_configuration_path\": \"{}\"",
+                output_file.display().to_string().replace("\\", "/")
+            );
         }
     }
 
