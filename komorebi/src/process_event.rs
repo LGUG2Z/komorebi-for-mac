@@ -43,10 +43,33 @@ impl WindowManager {
             return Ok(());
         }
 
+        let mut should_manage = true;
+        {
+            let application = self.application(event.process_id())?;
+            if let Some(window_element) = application.main_window()
+                && let Ok(window) = Window::new(window_element, application.clone())
+            {
+                let print_window = window.clone();
+                should_manage = window.should_manage(Some(event))?;
+
+                if !should_manage {
+                    tracing::debug!(
+                        "ignoring event as window should not be managed: {print_window}"
+                    );
+                }
+            }
+        }
+
+        if !should_manage {
+            return Ok(());
+        }
+
         tracing::info!(
             "processing event: {event} for process {}",
             event.process_id()
         );
+
+        self.enforce_workspace_rules()?;
 
         match event {
             WindowManagerEvent::FocusChange(notification, process_id, _) => {

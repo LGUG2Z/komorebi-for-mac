@@ -11,6 +11,7 @@ use crate::core::rect::Rect;
 use crate::lockable_sequence::LockableSequence;
 use crate::macos_api::MacosApi;
 use crate::ring::Ring;
+use crate::static_config::WorkspaceConfig;
 use crate::window::Window;
 use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
@@ -46,6 +47,7 @@ pub struct Workspace {
     pub globals: WorkspaceGlobals,
     pub layer: WorkspaceLayer,
     pub floating_layer_behaviour: Option<FloatingLayerBehaviour>,
+    pub workspace_config: Option<WorkspaceConfig>,
 }
 
 #[derive(Debug, Default, Copy, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -94,6 +96,7 @@ impl Default for Workspace {
             floating_windows: Default::default(),
             float_override: None,
             floating_layer_behaviour: None,
+            workspace_config: None,
         }
     }
 }
@@ -113,6 +116,67 @@ pub struct WorkspaceGlobals {
 }
 
 impl Workspace {
+    pub fn load_static_config(&mut self, config: &WorkspaceConfig) -> eyre::Result<()> {
+        self.name = Option::from(config.name.clone());
+
+        self.container_padding = config.container_padding;
+
+        self.workspace_padding = config.workspace_padding;
+
+        if let Some(layout) = &config.layout {
+            self.layout = Layout::Default(*layout);
+        }
+
+        self.tile =
+            !(config.custom_layout.is_none() && config.layout.is_none() && config.tile.is_none()
+                || config.tile.is_some_and(|tile| !tile));
+
+        let mut all_layout_rules = vec![];
+        if let Some(layout_rules) = &config.layout_rules {
+            for (count, rule) in layout_rules {
+                all_layout_rules.push((*count, Layout::Default(*rule)));
+            }
+
+            all_layout_rules.sort_by_key(|(i, _)| *i);
+            self.tile = true;
+        }
+
+        self.layout_rules = all_layout_rules.clone();
+
+        self.work_area_offset = config.work_area_offset;
+
+        self.apply_window_based_work_area_offset =
+            config.apply_window_based_work_area_offset.unwrap_or(true);
+
+        self.window_container_behaviour = config.window_container_behaviour;
+
+        if let Some(window_container_behaviour_rules) = &config.window_container_behaviour_rules {
+            if window_container_behaviour_rules.is_empty() {
+                self.window_container_behaviour_rules = None;
+            } else {
+                let mut all_rules = vec![];
+                for (count, behaviour) in window_container_behaviour_rules {
+                    all_rules.push((*count, *behaviour));
+                }
+
+                all_rules.sort_by_key(|(i, _)| *i);
+                self.window_container_behaviour_rules = Some(all_rules);
+            }
+        } else {
+            self.window_container_behaviour_rules = None;
+        }
+
+        self.float_override = config.float_override;
+        self.layout_flip = config.layout_flip;
+        self.floating_layer_behaviour = config.floating_layer_behaviour;
+        // self.wallpaper = config.wallpaper.clone();
+        self.layout_options = config.layout_options;
+
+        self.workspace_config = Some(config.clone());
+
+        Ok(())
+    }
+
     #[tracing::instrument(skip(self))]
     pub fn focus_container(&mut self, idx: usize) {
         tracing::info!("focusing container");
@@ -348,6 +412,40 @@ impl Workspace {
             if container.contains_window(window_id) {
                 return true;
             }
+        }
+
+        if let Some(window) = &self.maximized_window
+            && window_id == window.id
+        {
+            return true;
+        }
+
+        if let Some(container) = &self.monocle_container
+            && container.contains_window(window_id)
+        {
+            return true;
+        }
+
+        for window in self.floating_windows() {
+            if window_id == window.id {
+                return true;
+            }
+        }
+
+        false
+    }
+
+    pub fn contains_managed_window(&self, window_id: u32) -> bool {
+        for container in self.containers() {
+            if container.contains_window(window_id) {
+                return true;
+            }
+        }
+
+        if let Some(window) = &self.maximized_window
+            && window_id == window.id
+        {
+            return true;
         }
 
         if let Some(container) = &self.monocle_container
@@ -700,6 +798,26 @@ impl Workspace {
         tracing::info!("focusing floating window");
 
         self.floating_windows.focus(idx);
+    }
+
+    pub fn visible_windows(&self) -> Vec<Option<&Window>> {
+        let mut vec = vec![];
+
+        vec.push(self.maximized_window.as_ref());
+
+        if let Some(monocle) = &self.monocle_container {
+            vec.push(monocle.focused_window());
+        }
+
+        for container in self.containers() {
+            vec.push(container.focused_window());
+        }
+
+        for window in self.floating_windows() {
+            vec.push(Some(window));
+        }
+
+        vec
     }
 }
 

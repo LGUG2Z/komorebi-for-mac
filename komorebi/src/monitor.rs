@@ -406,4 +406,11 @@ impl Monitor {
     pub fn remove_workspaces(&mut self) -> VecDeque<Workspace> {
         self.workspaces_mut().drain(..).collect()
     }
+
+    pub fn ensure_workspace_count(&mut self, ensure_count: usize) {
+        if self.workspaces().len() < ensure_count {
+            self.workspaces_mut()
+                .resize(ensure_count, Workspace::default());
+        }
+    }
 }

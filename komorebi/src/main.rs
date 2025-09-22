@@ -1,10 +1,13 @@
 #![warn(clippy::all)]
 
+use clap::Parser;
 use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
 use komorebi::DATA_DIR;
+use komorebi::HOME_DIR;
 use komorebi::UPDATE_MONITOR_WORK_AREAS;
 use komorebi::ax_event_listener;
+use komorebi::core::pathext::replace_env_in_path;
 use komorebi::display_reconfiguration_listener::DisplayReconfigurationListener;
 use komorebi::input_event_listener::InputEventListener;
 use komorebi::macos_api::MacosApi;
@@ -13,6 +16,7 @@ use komorebi::notification_center_listener::NotificationCenterListener;
 use komorebi::process_command::listen_for_commands;
 use komorebi::process_event::listen_for_events;
 use komorebi::reaper;
+use komorebi::static_config::StaticConfig;
 use komorebi::window_manager::WindowManager;
 use objc2::rc::autoreleasepool;
 use objc2_application_services::AXIsProcessTrusted;
@@ -23,6 +27,7 @@ use objc2_core_graphics::CGMainDisplayID;
 use objc2_core_graphics::CGPreflightScreenCaptureAccess;
 use objc2_core_graphics::CGRequestScreenCaptureAccess;
 use parking_lot::Mutex;
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
@@ -98,7 +103,23 @@ pub fn setup() -> eyre::Result<()> {
     Ok(())
 }
 
+#[derive(Parser)]
+#[clap(author, about, version)]
+struct Opts {
+    /// Path to a static configuration JSON file
+    #[clap(short, long)]
+    #[clap(value_parser = replace_env_in_path)]
+    config: Option<PathBuf>,
+    // /// Do not attempt to auto-apply a dumped state temp file from a previously running instance of komorebi
+    // #[clap(long)]
+    // clean_state: bool,
+    // /// Level of log output verbosity
+    // #[clap(long, value_enum, default_value_t=LogLevel::Info)]
+    // log_level: LogLevel,
+}
+
 fn main() -> eyre::Result<()> {
+    let opts: Opts = Opts::parse();
     setup()?;
     check_permissions()?;
 
@@ -115,13 +136,44 @@ fn main() -> eyre::Result<()> {
     let run_loop = CFRunLoop::current().ok_or_eyre("couldn't get CFRunLoop::current")?;
     let _input_listener = InputEventListener::init(&run_loop);
 
-    let wm = Arc::new(Mutex::new(WindowManager::new(
-        &run_loop,
-        ax_event_listener::event_rx(),
-        None,
-    )?));
+    let static_config = opts.config.map_or_else(
+        || {
+            let komorebi_json = HOME_DIR.join("komorebi.json");
+            if komorebi_json.is_file() {
+                Option::from(komorebi_json)
+            } else {
+                None
+            }
+        },
+        Option::from,
+    );
+
+    let wm = if let Some(config) = &static_config {
+        tracing::info!(
+            "creating window manager from static configuration file: {}",
+            config.display()
+        );
+
+        Arc::new(Mutex::new(StaticConfig::preload(
+            config,
+            ax_event_listener::event_rx(),
+            None,
+            &run_loop,
+        )?))
+    } else {
+        Arc::new(Mutex::new(WindowManager::new(
+            &run_loop,
+            ax_event_listener::event_rx(),
+            None,
+        )?))
+    };
 
     wm.lock().init()?;
+
+    if let Some(config) = &static_config {
+        StaticConfig::postload(config, &wm)?;
+    }
+
     wm.lock().update_focused_workspace(true, true)?;
 
     listen_for_commands(wm.clone());

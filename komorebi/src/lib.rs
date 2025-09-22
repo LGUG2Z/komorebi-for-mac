@@ -5,6 +5,7 @@ use crate::core::ApplicationIdentifier;
 use crate::core::config_generation::IdWithIdentifier;
 use crate::core::config_generation::MatchingRule;
 use crate::core::config_generation::MatchingStrategy;
+use crate::core::config_generation::WorkspaceMatchingRule;
 use crate::core_graphics::error::CoreGraphicsError;
 use crate::window::AspectRatio;
 use crate::window::PredefinedAspectRatio;
@@ -50,6 +51,7 @@ pub mod notification_center_listener;
 pub mod process_command;
 pub mod process_event;
 pub mod reaper;
+pub mod static_config;
 pub mod window;
 pub mod window_manager;
 pub mod window_manager_event;
@@ -78,6 +80,8 @@ lazy_static! {
     static ref WINDOW_RESTORE_POSITIONS: Arc<Mutex<HashMap<u32, CGRect>>> =
         Arc::new(Mutex::new(HashMap::new()));
     pub static ref UPDATE_MONITOR_WORK_AREAS: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
+    static ref WORKSPACE_MATCHING_RULES: Arc<Mutex<Vec<WorkspaceMatchingRule>>> =
+        Arc::new(Mutex::new(Vec::new()));
     static ref REGEX_IDENTIFIERS: Arc<Mutex<HashMap<String, Regex>>> =
         Arc::new(Mutex::new(HashMap::new()));
     static ref MANAGE_IDENTIFIERS: Arc<Mutex<Vec<MatchingRule>>> = Arc::new(Mutex::new(vec![]));

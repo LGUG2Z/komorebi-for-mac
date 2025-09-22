@@ -69,6 +69,7 @@ impl WindowManager {
         mut _reply: impl std::io::Write,
     ) -> eyre::Result<()> {
         tracing::info!("processing command: {message}");
+        self.handle_unmanaged_window_behaviour()?;
 
         match message {
             SocketMessage::Promote => self.promote_container_to_front()?,
@@ -788,6 +789,9 @@ impl WindowManager {
                 );
 
                 self.move_workspace_to_monitor(monitor_idx)?;
+            }
+            SocketMessage::ReloadStaticConfiguration(ref pathbuf) => {
+                self.reload_static_configuration(pathbuf)?;
             }
         }
 

@@ -2,10 +2,12 @@ use crate::core::arrangement::Axis;
 use crate::core::cycle_direction::CycleDirection;
 use crate::core::default_layout::DefaultLayout;
 use crate::core::operation_direction::OperationDirection;
+use crate::core::pathext::ResolvedPathBuf;
 use clap::ValueEnum;
 use color_eyre::eyre;
 use serde::Deserialize;
 use serde::Serialize;
+use std::path::PathBuf;
 use std::str::FromStr;
 use strum::Display;
 use strum::EnumString;
@@ -21,11 +23,23 @@ pub mod operation_direction;
 pub mod pathext;
 pub mod rect;
 
+#[derive(
+    Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize, Display, EnumString, ValueEnum,
+)]
+pub enum OperationBehaviour {
+    /// Process komorebic commands on temporarily unmanaged/floated windows
+    #[default]
+    Op,
+    /// Ignore komorebic commands on temporarily unmanaged/floated windows
+    NoOp,
+}
+
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, Display, EnumString, ValueEnum)]
 pub enum Sizing {
     Increase,
     Decrease,
 }
+
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct WindowManagementBehaviour {
     /// The current WindowContainerBehaviour to be used
@@ -217,6 +231,7 @@ pub enum SocketMessage {
     Promote,
     PromoteFocus,
     PromoteWindow(OperationDirection),
+    ReloadStaticConfiguration(#[serde_as(as = "ResolvedPathBuf")] PathBuf),
 }
 
 impl SocketMessage {

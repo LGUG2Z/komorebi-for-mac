@@ -4,8 +4,10 @@ use objc2_core_foundation::CGFloat;
 use objc2_core_foundation::CGPoint;
 use objc2_core_foundation::CGRect;
 use objc2_core_foundation::CGSize;
+use serde::Deserialize;
+use serde::Serialize;
 
-#[derive(Debug, Default, Copy, Clone, PartialEq)]
+#[derive(Debug, Default, Copy, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Rect {
     pub left: i32,
     pub top: i32,
