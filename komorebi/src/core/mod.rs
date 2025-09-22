@@ -11,6 +11,8 @@ use strum::Display;
 use strum::EnumString;
 
 pub mod arrangement;
+pub mod asc;
+pub mod config_generation;
 pub mod cycle_direction;
 pub mod default_layout;
 pub mod direction;
@@ -131,6 +133,20 @@ pub enum CrossBoundaryBehaviour {
     /// Attempt to perform actions across a monitor boundary
     #[default]
     Monitor,
+}
+
+#[derive(
+    Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Display, EnumString, ValueEnum,
+)]
+pub enum ApplicationIdentifier {
+    #[serde(alias = "exe")]
+    Exe,
+    #[serde(alias = "class")]
+    Class,
+    #[serde(alias = "title")]
+    Title,
+    #[serde(alias = "path")]
+    Path,
 }
 
 #[serde_with::serde_as]

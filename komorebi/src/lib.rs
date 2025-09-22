@@ -1,6 +1,10 @@
 #![warn(clippy::all)]
 
 use crate::accessibility::error::AccessibilityError;
+use crate::core::ApplicationIdentifier;
+use crate::core::config_generation::IdWithIdentifier;
+use crate::core::config_generation::MatchingRule;
+use crate::core::config_generation::MatchingStrategy;
 use crate::core_graphics::error::CoreGraphicsError;
 use crate::window::AspectRatio;
 use crate::window::PredefinedAspectRatio;
@@ -17,6 +21,7 @@ use objc2_core_foundation::CGPoint;
 use objc2_core_foundation::CGRect;
 use objc2_core_foundation::CGSize;
 use parking_lot::Mutex;
+use regex::Regex;
 use std::collections::HashMap;
 use std::ops::Deref;
 use std::path::PathBuf;
@@ -29,10 +34,10 @@ use std::sync::atomic::AtomicI32;
 pub mod ring;
 
 pub mod accessibility;
-mod app_kit_notification_constants;
+pub mod app_kit_notification_constants;
 pub mod application;
 pub mod ax_event_listener;
-mod container;
+pub mod container;
 pub mod core;
 pub mod core_graphics;
 pub mod display_reconfiguration_listener;
@@ -73,6 +78,36 @@ lazy_static! {
     static ref WINDOW_RESTORE_POSITIONS: Arc<Mutex<HashMap<u32, CGRect>>> =
         Arc::new(Mutex::new(HashMap::new()));
     pub static ref UPDATE_MONITOR_WORK_AREAS: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
+    static ref REGEX_IDENTIFIERS: Arc<Mutex<HashMap<String, Regex>>> =
+        Arc::new(Mutex::new(HashMap::new()));
+    static ref MANAGE_IDENTIFIERS: Arc<Mutex<Vec<MatchingRule>>> = Arc::new(Mutex::new(vec![]));
+    static ref IGNORE_IDENTIFIERS: Arc<Mutex<Vec<MatchingRule>>> = Arc::new(Mutex::new(vec![
+        MatchingRule::Simple(IdWithIdentifier {
+            kind: ApplicationIdentifier::Class,
+            id: String::from("OPContainerClass"),
+            matching_strategy: Option::from(MatchingStrategy::Equals),
+        }),
+        MatchingRule::Simple(IdWithIdentifier {
+            kind: ApplicationIdentifier::Class,
+            id: String::from("IHWindowClass"),
+            matching_strategy: Option::from(MatchingStrategy::Equals),
+        }),
+        MatchingRule::Simple(IdWithIdentifier {
+            kind: ApplicationIdentifier::Exe,
+            id: String::from("komorebi-bar.exe"),
+            matching_strategy: Option::from(MatchingStrategy::Equals),
+        })
+    ]));
+    static ref SESSION_FLOATING_APPLICATIONS: Arc<Mutex<Vec<MatchingRule>>> =
+        Arc::new(Mutex::new(Vec::new()));
+    static ref FLOATING_APPLICATIONS: Arc<Mutex<Vec<MatchingRule>>> =
+        Arc::new(Mutex::new(vec![MatchingRule::Simple(IdWithIdentifier {
+            kind: ApplicationIdentifier::Exe,
+            id: String::from("komorebi-shortcuts.exe"),
+            matching_strategy: Option::from(MatchingStrategy::Equals),
+        })]));
+    static ref PERMAIGNORE_CLASSES: Arc<Mutex<Vec<String>>> =
+        Arc::new(Mutex::new(vec!["Chrome_RenderWidgetHostHWND".to_string(),]));
 }
 
 pub static DEFAULT_WORKSPACE_PADDING: AtomicI32 = AtomicI32::new(5);
