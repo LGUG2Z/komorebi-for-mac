@@ -6,6 +6,7 @@ fmt:
     test -z "$(rg 'println!' --type rust ./komorebi)" || (echo "println! macro not allowed"; false)
     cargo +nightly fmt
     cargo +stable clippy
+    alejandra .
     prettier --write README.md
 
 fix:

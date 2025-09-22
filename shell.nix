@@ -11,5 +11,6 @@ with pkgs;
       jq
       prettier
       cargo-udeps
+      alejandra
     ];
   }

@@ -42,17 +42,7 @@
             // {
               inherit version;
               pname = "komorebi";
-              cargoExtraArgs = "-p komorebi";
-              src = ./.;
-            }
-          );
-
-          komorebic = craneLib.buildPackage (
-            commonArgs
-            // {
-              inherit version;
-              pname = "komorebic";
-              cargoExtraArgs = "-p komorebic";
+              cargoExtraArgs = "-p komorebi -p komorebic";
               src = ./.;
             }
           );
@@ -62,7 +52,7 @@
           };
 
           packages = flake-utils.lib.flattenTree rec {
-            inherit komorebi komorebic;
+            inherit komorebi;
             default = komorebi;
           };
         }
