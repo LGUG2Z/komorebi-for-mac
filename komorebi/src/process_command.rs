@@ -6,6 +6,7 @@ use crate::core::operation_direction::OperationDirection;
 use crate::core::rect::Rect;
 use crate::macos_api::MacosApi;
 use crate::monitor::Monitor;
+use crate::monitor::MonitorInformation;
 use crate::state::GlobalState;
 use crate::state::State;
 use crate::window_manager::WindowManager;
@@ -834,6 +835,17 @@ impl WindowManager {
                     .unwrap_or_else(|error| error.to_string());
 
                 reply.write_all(visible_windows_state.as_bytes())?;
+            }
+            SocketMessage::MonitorInformation => {
+                let mut monitors = vec![];
+                for monitor in self.monitors() {
+                    monitors.push(MonitorInformation::from(monitor));
+                }
+
+                let monitors_state = serde_json::to_string_pretty(&monitors)
+                    .unwrap_or_else(|error| error.to_string());
+
+                reply.write_all(monitors_state.as_bytes())?;
             }
         }
 

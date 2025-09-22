@@ -63,5 +63,5 @@ unknown-registry = "deny"
 unknown-git = "deny"
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]
 allow-git = [
-    #    "https://github.com/LGUG2Z/komorebi-for-mac",
+        "https://github.com/LGUG2Z/quickxml_to_serde",
 ]

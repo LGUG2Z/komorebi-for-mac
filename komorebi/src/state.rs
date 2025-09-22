@@ -94,6 +94,8 @@ impl From<&WindowManager> for State {
             .iter()
             .map(|monitor| Monitor {
                 id: monitor.id,
+                device: monitor.device.clone(),
+                serial_number_id: monitor.serial_number_id.clone(),
                 size: monitor.size,
                 work_area_size: monitor.work_area_size,
                 work_area_offset: monitor.work_area_offset,

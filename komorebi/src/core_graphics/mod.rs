@@ -5,6 +5,7 @@ use objc2_core_foundation::CGFloat;
 use objc2_core_foundation::CGPoint;
 use objc2_core_foundation::CGRect;
 use objc2_core_graphics::CGDisplayBounds;
+use objc2_core_graphics::CGDisplaySerialNumber;
 use objc2_core_graphics::CGGetDisplaysWithPoint;
 use objc2_core_graphics::CGGetOnlineDisplayList;
 use objc2_core_graphics::CGRectIntersectsRect;
@@ -55,6 +56,10 @@ impl CoreGraphicsApi {
 
     pub fn display_bounds(display_id: u32) -> CGRect {
         unsafe { CGDisplayBounds(display_id) }
+    }
+
+    pub fn display_serial_number(display_id: u32) -> u32 {
+        unsafe { CGDisplaySerialNumber(display_id) }
     }
 
     pub fn display_bounds_for_window_rect(window_rect: CGRect) -> Option<CGRect> {

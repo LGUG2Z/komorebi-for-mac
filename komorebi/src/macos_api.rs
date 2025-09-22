@@ -11,6 +11,7 @@ use crate::cf_array_as;
 use crate::container::Container;
 use crate::core::rect::Rect;
 use crate::core_graphics::CoreGraphicsApi;
+use crate::ioreg::IoReg;
 use crate::monitor::Monitor;
 use crate::window::WindowInfo;
 use crate::window_manager::WindowManager;
@@ -36,25 +37,41 @@ use std::sync::Arc;
 pub struct MacosApi;
 
 impl MacosApi {
+    #[tracing::instrument(skip_all)]
     pub fn load_monitor_information(wm: &mut WindowManager) -> Result<(), LibraryError> {
+        let monitor_info = IoReg::query_monitors()?;
+        let mut monitor_info_map = HashMap::new();
+        for m in monitor_info {
+            monitor_info_map.insert(m.serial_number, m);
+        }
+
         let screens = NSScreen::screens(MainThreadMarker::new().unwrap());
 
         for display_id in CoreGraphicsApi::connected_display_ids()? {
             let display_bounds = CoreGraphicsApi::display_bounds(display_id);
+            let serial_number = CoreGraphicsApi::display_serial_number(display_id);
 
-            for screen in &screens {
-                let menu_bar_height = screen.frame().size.height
-                    - screen.visibleFrame().size.height
-                    - screen.visibleFrame().origin.y;
+            if let Some(info) = monitor_info_map.get(&serial_number) {
+                for screen in &screens {
+                    let menu_bar_height = screen.frame().size.height
+                        - screen.visibleFrame().size.height
+                        - screen.visibleFrame().origin.y;
 
-                if screen.frame() == display_bounds {
-                    let size = Rect::from(display_bounds);
-                    let mut work_area_size = Rect::from(display_bounds);
-                    work_area_size.top += menu_bar_height as i32;
-                    work_area_size.bottom = screen.visibleFrame().size.height as i32;
+                    if screen.frame() == display_bounds {
+                        let size = Rect::from(display_bounds);
+                        let mut work_area_size = Rect::from(display_bounds);
+                        work_area_size.top += menu_bar_height as i32;
+                        work_area_size.bottom = screen.visibleFrame().size.height as i32;
 
-                    let monitor = Monitor::new(display_id, size, work_area_size);
-                    wm.monitors.elements_mut().push_back(monitor);
+                        let monitor = Monitor::new(
+                            display_id,
+                            size,
+                            work_area_size,
+                            &info.product_name,
+                            &info.alphanumeric_serial_number,
+                        );
+                        wm.monitors.elements_mut().push_back(monitor);
+                    }
                 }
             }
         }
@@ -101,6 +118,7 @@ impl MacosApi {
         Ok(())
     }
 
+    #[tracing::instrument(skip_all)]
     pub fn load_workspace_information(wm: &mut WindowManager) -> Result<(), LibraryError> {
         let mut monitor_size_map = HashMap::new();
         let mut monitor_workspace_map = HashMap::new();

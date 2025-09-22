@@ -235,6 +235,7 @@ pub enum SocketMessage {
     State,
     GlobalState,
     VisibleWindows,
+    MonitorInformation,
 }
 
 impl SocketMessage {

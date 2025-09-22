@@ -18,11 +18,44 @@ use serde::Serialize;
 use std::collections::VecDeque;
 use std::sync::atomic::Ordering;
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MonitorInfo {
+    pub alphanumeric_serial_number: String,
+    pub manufacturer_id: String,
+    pub product_name: String,
+    pub legacy_manufacturer_id: String,
+    pub product_id: String,
+    pub serial_number: u32,
+    pub week_of_manufacture: String,
+    pub year_of_manufacture: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MonitorInformation {
+    pub id: u32,
+    pub device: String,
+    pub serial_number_id: String,
+    pub size: Rect,
+}
+
+impl From<&Monitor> for MonitorInformation {
+    fn from(value: &Monitor) -> Self {
+        Self {
+            id: value.id,
+            device: value.device.clone(),
+            serial_number_id: value.serial_number_id.clone(),
+            size: value.size,
+        }
+    }
+}
+
 impl_ring_elements!(Monitor, Workspace);
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Monitor {
     pub id: u32,
+    pub device: String,
+    pub serial_number_id: String,
     pub workspaces: Ring<Workspace>,
     pub size: Rect,
     pub work_area_offset: Option<Rect>,
@@ -38,12 +71,20 @@ pub struct Monitor {
 
 impl Monitor {
     #[allow(clippy::field_reassign_with_default)]
-    pub fn new(id: u32, size: Rect, work_area_size: Rect) -> Self {
+    pub fn new(
+        id: u32,
+        size: Rect,
+        work_area_size: Rect,
+        device: &str,
+        serial_number_id: &str,
+    ) -> Self {
         let mut workspaces = Ring::default();
         workspaces.elements_mut().push_back(Workspace::default());
 
         Self {
             id,
+            device: device.to_string(),
+            serial_number_id: serial_number_id.to_string(),
             workspaces,
             size,
             work_area_offset: None,

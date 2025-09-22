@@ -10,6 +10,7 @@ use crate::core::config_generation::WorkspaceMatchingRule;
 use crate::core_graphics::error::CoreGraphicsError;
 use crate::window::AspectRatio;
 use crate::window::PredefinedAspectRatio;
+use color_eyre::eyre;
 use core::pathext::PathExt;
 use lazy_static::lazy_static;
 use objc2_application_services::AXObserver;
@@ -44,6 +45,7 @@ pub mod core;
 pub mod core_graphics;
 pub mod display_reconfiguration_listener;
 pub mod input_event_listener;
+pub mod ioreg;
 pub mod lockable_sequence;
 pub mod macos_api;
 pub mod monitor;
@@ -186,6 +188,8 @@ pub enum LibraryError {
     Accessibility(#[from] AccessibilityError),
     #[error(transparent)]
     CoreGraphics(#[from] CoreGraphicsError),
+    #[error(transparent)]
+    Eyre(#[from] eyre::Error),
 }
 
 pub fn hidden_frame_bottom_left(screen_frame: CGRect, window_size: CGSize) -> CGRect {

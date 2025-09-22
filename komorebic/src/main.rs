@@ -183,6 +183,9 @@ enum SubCommand {
     GlobalState,
     /// Show a JSON representation of visible windows
     VisibleWindows,
+    /// Show information about connected monitors
+    #[clap(alias = "monitor-info")]
+    MonitorInformation,
     /// Change focus to the window in the specified direction
     #[clap(arg_required_else_help = true)]
     Focus(Focus),
@@ -243,7 +246,6 @@ enum SubCommand {
     PromoteFocus,
     /// Promote the window in the specified direction
     PromoteWindow(PromoteWindow),
-
     /// Move the focused window to the specified monitor
     #[clap(arg_required_else_help = true)]
     MoveToMonitor(MoveToMonitor),
@@ -567,6 +569,9 @@ fn main() -> eyre::Result<()> {
         }
         SubCommand::VisibleWindows => {
             print_query(&SocketMessage::VisibleWindows);
+        }
+        SubCommand::MonitorInformation => {
+            print_query(&SocketMessage::MonitorInformation);
         }
     }
 
