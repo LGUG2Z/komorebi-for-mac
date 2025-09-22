@@ -32,6 +32,8 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
 use std::sync::mpsc;
+use sysinfo::Process;
+use sysinfo::ProcessesToUpdate;
 use tracing_subscriber::EnvFilter;
 
 fn check_permissions() -> eyre::Result<()> {
@@ -121,6 +123,19 @@ struct Opts {
 fn main() -> eyre::Result<()> {
     let opts: Opts = Opts::parse();
     setup()?;
+
+    let mut system = sysinfo::System::new();
+    system.refresh_processes(ProcessesToUpdate::All, true);
+
+    let matched_procs: Vec<&Process> = system.processes_by_name("komorebi".as_ref()).collect();
+
+    if matched_procs.len() > 1 {
+        tracing::error!(
+            "komorebi is already running, please exit the existing process before starting a new one"
+        );
+        std::process::exit(1);
+    }
+
     check_permissions()?;
 
     if !DATA_DIR.is_dir() {
