@@ -1,4 +1,5 @@
 use crate::app_kit_notification_constants::AppKitWorkspaceNotification;
+use crate::application::Application;
 use crate::ax_event_listener::event_tx;
 use crate::window_manager_event::SystemNotification;
 use crate::window_manager_event::WindowManagerEvent;
@@ -33,6 +34,7 @@ define_class! {
         fn handle_notification(&self, notif: &NSNotification) {
             unsafe {
                 let mut process_id = None;
+                let mut window_id = None;
                 let mut valid_keys = vec![];
 
                 if let Some(user_info) = notif.userInfo() {
@@ -48,7 +50,9 @@ define_class! {
                         && let Some(application) = application_key.downcast_ref::<NSRunningApplication>()
                     {
                         process_id = Some(application.processIdentifier());
-                        // TODO: maybe get the window IDs here too?
+                        if let Ok(application) = Application::new(application.processIdentifier()) {
+                            window_id = application.main_window_id();
+                        }
                     }
                 }
 
@@ -68,7 +72,7 @@ define_class! {
                             && let Some(event) = WindowManagerEvent::from_system_notification(
                                 SystemNotification::AppKitWorkspace(notification),
                                 process_id,
-                                None,
+                                window_id,
                             )
                             && let Err(error) = event_tx().send(event)
                         {

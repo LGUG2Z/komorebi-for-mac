@@ -849,6 +849,8 @@ impl WindowManager {
             }
         }
 
+        self.update_known_window_ids();
+
         Ok(())
     }
 

@@ -1155,6 +1155,7 @@ impl StaticConfig {
             run_loop: CoreFoundationRunLoop(run_loop.clone()),
             minimized_windows: Default::default(),
             already_moved_window_handles: Default::default(),
+            known_window_ids: Default::default(),
         };
 
         // match value.focus_follows_mouse {

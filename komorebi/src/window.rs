@@ -355,6 +355,46 @@ impl Window {
         Ok(())
     }
 
+    #[tracing::instrument(skip_all)]
+    pub fn hide_adhoc(
+        id: u32,
+        element: &CFRetained<AXUIElement>,
+    ) -> Result<(), AccessibilityError> {
+        let mut window_restore_positions = WINDOW_RESTORE_POSITIONS.lock();
+        if let Entry::Vacant(entry) = window_restore_positions.entry(id) {
+            let rect = MacosApi::window_rect(element)?;
+            if let Some(monitor_size) = CoreGraphicsApi::display_bounds_for_window_rect(rect) {
+                entry.insert(rect);
+                drop(window_restore_positions);
+
+                // I don't love this, but it's basically what Aerospace does in lieu of an actual "Hide" API
+                let hidden_rect = hidden_frame_bottom_left(monitor_size, rect.size);
+
+                tracing::debug!(
+                    "hiding window with id {id} and setting restore point to {},{}",
+                    rect.origin.x,
+                    rect.origin.y,
+                );
+
+                AccessibilityApi::set_attribute_ax_value(
+                    element,
+                    kAXPositionAttribute,
+                    AXValueType::CGPoint,
+                    hidden_rect.origin,
+                )?;
+
+                AccessibilityApi::set_attribute_ax_value(
+                    element,
+                    kAXSizeAttribute,
+                    AXValueType::CGSize,
+                    hidden_rect.size,
+                )?;
+            }
+        }
+
+        Ok(())
+    }
+
     pub fn minimize(&mut self) -> Result<(), AccessibilityError> {
         let cf_boolean = CFBoolean::new(true);
         let value = &**cf_boolean;

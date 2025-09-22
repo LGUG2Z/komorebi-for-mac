@@ -65,6 +65,8 @@ pub struct WindowManager {
     pub incoming_events: Receiver<WindowManagerEvent>,
     pub minimized_windows: HashMap<u32, Window>,
     pub already_moved_window_handles: Arc<Mutex<HashSet<u32>>>,
+    /// Maps each known window id to the (monitor, workspace) index pair managing it
+    pub known_window_ids: HashMap<u32, (usize, usize)>,
 }
 
 impl_ring_elements!(WindowManager, Monitor);
@@ -142,6 +144,7 @@ impl WindowManager {
             incoming_events: incoming,
             minimized_windows: HashMap::new(),
             already_moved_window_handles: Default::default(),
+            known_window_ids: Default::default(),
         })
     }
 
@@ -2034,11 +2037,6 @@ impl WindowManager {
                 .get_mut(op.origin_workspace_idx)
                 .ok_or_eyre("there is no workspace with that index")?;
 
-            // TODO: need to find a way to construct a lightweight window that can be operated on
-            // let mut window = Window::new(origin_workspace
-            //     .window_by_id(op.window_id)
-            //     .ok_or_eyre("there is no window with the requested id")?);
-
             let mut window = origin_workspace.remove_window(op.window_id)?;
 
             // If it is a floating window move it to the target area
@@ -2161,5 +2159,38 @@ impl WindowManager {
         }
 
         Ok(())
+    }
+
+    pub fn update_known_window_ids(&mut self) {
+        tracing::trace!("updating list of known window_ids");
+        let mut known_window_ids = HashMap::new();
+        for (m_idx, monitor) in self.monitors().iter().enumerate() {
+            for (w_idx, workspace) in monitor.workspaces().iter().enumerate() {
+                for container in workspace.containers() {
+                    for window in container.windows() {
+                        known_window_ids.insert(window.id, (m_idx, w_idx));
+                    }
+                }
+
+                for window in workspace.floating_windows() {
+                    known_window_ids.insert(window.id, (m_idx, w_idx));
+                }
+
+                if let Some(window) = &workspace.maximized_window {
+                    known_window_ids.insert(window.id, (m_idx, w_idx));
+                }
+
+                if let Some(container) = &workspace.monocle_container {
+                    for window in container.windows() {
+                        known_window_ids.insert(window.id, (m_idx, w_idx));
+                    }
+                }
+            }
+        }
+
+        if self.known_window_ids != known_window_ids {
+            // Store new window_ids
+            self.known_window_ids = known_window_ids;
+        }
     }
 }

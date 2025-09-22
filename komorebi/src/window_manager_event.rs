@@ -78,4 +78,17 @@ impl WindowManagerEvent {
             | WindowManagerEvent::Restore(_, process_id, _) => *process_id,
         }
     }
+
+    pub fn notification(&self) -> String {
+        match self {
+            WindowManagerEvent::FocusChange(n, _, _)
+            | WindowManagerEvent::Show(n, _)
+            | WindowManagerEvent::Destroy(n, _)
+            | WindowManagerEvent::Minimize(n, _, _)
+            | WindowManagerEvent::Restore(n, _, _) => match n {
+                SystemNotification::Accessibility(a) => a.to_string(),
+                SystemNotification::AppKitWorkspace(a) => a.to_string(),
+            },
+        }
+    }
 }

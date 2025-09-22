@@ -8,6 +8,9 @@ fmt:
     cargo +stable clippy
     prettier --write README.md
 
+fix:
+    cargo clippy --fix --allow-dirty
+
 clean:
     cargo clean
 
