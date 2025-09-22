@@ -1,5 +1,6 @@
 #![warn(clippy::all)]
 
+use crate::accessibility::AccessibilityApi;
 use crate::accessibility::error::AccessibilityError;
 use crate::core::ApplicationIdentifier;
 use crate::core::config_generation::IdWithIdentifier;
@@ -51,6 +52,7 @@ pub mod notification_center_listener;
 pub mod process_command;
 pub mod process_event;
 pub mod reaper;
+pub mod state;
 pub mod static_config;
 pub mod window;
 pub mod window_manager;
@@ -129,7 +131,7 @@ impl Deref for CoreFoundationRunLoop {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct AccessibilityUiElement(pub CFRetained<AXUIElement>);
 unsafe impl Sync for AccessibilityUiElement {}
 unsafe impl Send for AccessibilityUiElement {}
@@ -141,7 +143,13 @@ impl Deref for AccessibilityUiElement {
     }
 }
 
-#[derive(Debug, Clone)]
+impl Default for AccessibilityUiElement {
+    fn default() -> Self {
+        Self(unsafe { AXUIElement::new_system_wide() })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct AccessibilityObserver(pub CFRetained<AXObserver>);
 unsafe impl Sync for AccessibilityObserver {}
 unsafe impl Send for AccessibilityObserver {}
@@ -150,6 +158,12 @@ impl Deref for AccessibilityObserver {
 
     fn deref(&self) -> &Self::Target {
         self.0.as_ref()
+    }
+}
+
+impl Default for AccessibilityObserver {
+    fn default() -> Self {
+        Self(AccessibilityApi::create_observer(1, None).unwrap())
     }
 }
 

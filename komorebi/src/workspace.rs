@@ -13,6 +13,7 @@ use crate::macos_api::MacosApi;
 use crate::ring::Ring;
 use crate::static_config::WorkspaceConfig;
 use crate::window::Window;
+use crate::window::WindowDetails;
 use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
 use serde::Deserialize;
@@ -21,13 +22,15 @@ use std::fmt::Display;
 use std::fmt::Formatter;
 use std::num::NonZeroUsize;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Workspace {
     pub name: Option<String>,
     pub containers: Ring<Container>,
     pub monocle_container: Option<Container>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub monocle_container_restore_idx: Option<usize>,
     pub maximized_window: Option<Window>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub maximized_window_restore_idx: Option<usize>,
     pub floating_windows: Ring<Window>,
     pub layout: Layout,
@@ -44,9 +47,11 @@ pub struct Workspace {
     pub window_container_behaviour: Option<WindowContainerBehaviour>,
     pub window_container_behaviour_rules: Option<Vec<(usize, WindowContainerBehaviour)>>,
     pub float_override: Option<bool>,
+    #[serde(skip)]
     pub globals: WorkspaceGlobals,
     pub layer: WorkspaceLayer,
     pub floating_layer_behaviour: Option<FloatingLayerBehaviour>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub workspace_config: Option<WorkspaceConfig>,
 }
 
@@ -101,7 +106,7 @@ impl Default for Workspace {
     }
 }
 
-#[derive(Debug, Default, Copy, Clone, PartialEq)]
+#[derive(Debug, Default, Copy, Clone, Serialize, Deserialize, PartialEq)]
 /// Settings setup either by the parent monitor or by the `WindowManager`
 pub struct WorkspaceGlobals {
     pub container_padding: Option<i32>,
@@ -815,6 +820,39 @@ impl Workspace {
 
         for window in self.floating_windows() {
             vec.push(Some(window));
+        }
+
+        vec
+    }
+
+    pub fn visible_window_details(&self) -> Vec<WindowDetails> {
+        let mut vec: Vec<WindowDetails> = vec![];
+
+        if let Some(maximized) = &self.maximized_window
+            && let Ok(details) = (maximized).try_into()
+        {
+            vec.push(details);
+        }
+
+        if let Some(monocle) = &self.monocle_container
+            && let Some(focused) = monocle.focused_window()
+            && let Ok(details) = focused.try_into()
+        {
+            vec.push(details);
+        }
+
+        for container in self.containers() {
+            if let Some(focused) = container.focused_window()
+                && let Ok(details) = focused.try_into()
+            {
+                vec.push(details);
+            }
+        }
+
+        for window in self.floating_windows() {
+            if let Ok(details) = window.try_into() {
+                vec.push(details);
+            }
         }
 
         vec

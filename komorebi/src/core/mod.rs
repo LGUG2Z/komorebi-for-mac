@@ -232,6 +232,9 @@ pub enum SocketMessage {
     PromoteFocus,
     PromoteWindow(OperationDirection),
     ReloadStaticConfiguration(#[serde_as(as = "ResolvedPathBuf")] PathBuf),
+    State,
+    GlobalState,
+    VisibleWindows,
 }
 
 impl SocketMessage {

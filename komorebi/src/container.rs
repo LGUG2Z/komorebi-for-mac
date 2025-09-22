@@ -3,13 +3,28 @@ use crate::lockable_sequence::Lockable;
 use crate::ring::Ring;
 use crate::window::Window;
 use color_eyre::eyre;
+use nanoid::nanoid;
+use serde::Deserialize;
+use serde::Serialize;
 
 impl_ring_elements!(Container, Window);
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+
 pub struct Container {
-    pub windows: Ring<Window>,
+    pub id: String,
     pub locked: bool,
+    pub windows: Ring<Window>,
+}
+
+impl Default for Container {
+    fn default() -> Self {
+        Self {
+            id: nanoid!(),
+            locked: false,
+            windows: Default::default(),
+        }
+    }
 }
 
 impl Lockable for Container {

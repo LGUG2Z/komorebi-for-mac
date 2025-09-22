@@ -13,12 +13,14 @@ use crate::workspace::WorkspaceGlobals;
 use crate::workspace::WorkspaceLayer;
 use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
+use serde::Deserialize;
+use serde::Serialize;
 use std::collections::VecDeque;
 use std::sync::atomic::Ordering;
 
 impl_ring_elements!(Monitor, Workspace);
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Monitor {
     pub id: u32,
     pub workspaces: Ring<Workspace>,
@@ -29,6 +31,7 @@ pub struct Monitor {
     pub window_based_work_area_offset_limit: isize,
     pub container_padding: Option<i32>,
     pub workspace_padding: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub last_focused_workspace: Option<usize>,
     pub floating_layer_behaviour: Option<FloatingLayerBehaviour>,
 }

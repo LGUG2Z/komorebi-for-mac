@@ -6,12 +6,15 @@ use crate::core::operation_direction::OperationDirection;
 use crate::core::rect::Rect;
 use crate::macos_api::MacosApi;
 use crate::monitor::Monitor;
+use crate::state::GlobalState;
+use crate::state::State;
 use crate::window_manager::WindowManager;
 use crate::workspace::Workspace;
 use crate::workspace::WorkspaceLayer;
 use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
 use parking_lot::Mutex;
+use std::collections::HashMap;
 use std::io::BufRead;
 use std::io::BufReader;
 use std::num::NonZeroUsize;
@@ -62,11 +65,11 @@ pub fn listen_for_commands(wm: Arc<Mutex<WindowManager>>) {
 }
 
 impl WindowManager {
-    #[tracing::instrument(skip(self, _reply))]
+    #[tracing::instrument(skip(self, reply))]
     pub fn process_command(
         &mut self,
         message: SocketMessage,
-        mut _reply: impl std::io::Write,
+        mut reply: impl std::io::Write,
     ) -> eyre::Result<()> {
         tracing::info!("processing command: {message}");
         self.handle_unmanaged_window_behaviour()?;
@@ -792,6 +795,45 @@ impl WindowManager {
             }
             SocketMessage::ReloadStaticConfiguration(ref pathbuf) => {
                 self.reload_static_configuration(pathbuf)?;
+            }
+            SocketMessage::State => {
+                let state = match serde_json::to_string_pretty(&State::from(&*self)) {
+                    Ok(state) => state,
+                    Err(error) => error.to_string(),
+                };
+
+                tracing::info!("replying to state");
+
+                reply.write_all(state.as_bytes())?;
+
+                tracing::info!("replying to state done");
+            }
+            SocketMessage::GlobalState => {
+                let state = match serde_json::to_string_pretty(&GlobalState::default()) {
+                    Ok(state) => state,
+                    Err(error) => error.to_string(),
+                };
+
+                tracing::info!("replying to global state");
+
+                reply.write_all(state.as_bytes())?;
+
+                tracing::info!("replying to global state done");
+            }
+            SocketMessage::VisibleWindows => {
+                let mut monitor_visible_windows = HashMap::new();
+
+                for monitor in self.monitors() {
+                    if let Some(ws) = monitor.focused_workspace() {
+                        monitor_visible_windows
+                            .insert(monitor.id, ws.visible_window_details().clone());
+                    }
+                }
+
+                let visible_windows_state = serde_json::to_string_pretty(&monitor_visible_windows)
+                    .unwrap_or_else(|error| error.to_string());
+
+                reply.write_all(visible_windows_state.as_bytes())?;
             }
         }
 

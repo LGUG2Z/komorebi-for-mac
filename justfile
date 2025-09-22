@@ -3,7 +3,7 @@ export RUST_BACKTRACE := "full"
 fmt:
     test -z "$(rg 'eyre!' --type rust)" || (echo "eyre! macro not allowed"; false)
     test -z "$(rg 'dbg!' --type rust)" || (echo "dbg! macro not allowed"; false)
-    test -z "$(rg 'println!' --type rust)" || (echo "println! macro not allowed"; false)
+    test -z "$(rg 'println!' --type rust ./komorebi)" || (echo "println! macro not allowed"; false)
     cargo +nightly fmt
     cargo +stable clippy
     prettier --write README.md

@@ -42,7 +42,7 @@ const NOTIFICATIONS: &[&str] = &[
     kAXUIElementDestroyedNotification,
 ];
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone, PartialEq)]
 pub struct Application {
     element: AccessibilityUiElement,
     pub process_id: i32,

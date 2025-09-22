@@ -10,6 +10,7 @@ use komorebi_client::PathExt;
 use komorebi_client::Sizing;
 use komorebi_client::SocketMessage;
 use komorebi_client::send_message;
+use komorebi_client::send_query;
 use lazy_static::lazy_static;
 use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
@@ -176,6 +177,12 @@ struct Opts {
 
 #[derive(Parser)]
 enum SubCommand {
+    /// Show a JSON representation of the current window manager state
+    State,
+    /// Show a JSON representation of the current global state
+    GlobalState,
+    /// Show a JSON representation of visible windows
+    VisibleWindows,
     /// Change focus to the window in the specified direction
     #[clap(arg_required_else_help = true)]
     Focus(Focus),
@@ -338,6 +345,13 @@ enum SubCommand {
     ToggleLock,
     /// Toggle the behaviour when moving windows across monitor boundaries
     ToggleCrossMonitorMoveBehaviour,
+}
+
+fn print_query(message: &SocketMessage) {
+    match send_query(message) {
+        Ok(response) => println!("{response}"),
+        Err(error) => panic!("{}", error),
+    }
 }
 
 fn main() -> eyre::Result<()> {
@@ -544,6 +558,15 @@ fn main() -> eyre::Result<()> {
         }
         SubCommand::SwapWorkspacesWithMonitor(arg) => {
             send_message(&SocketMessage::SwapWorkspacesToMonitorNumber(arg.target))?;
+        }
+        SubCommand::State => {
+            print_query(&SocketMessage::State);
+        }
+        SubCommand::GlobalState => {
+            print_query(&SocketMessage::GlobalState);
+        }
+        SubCommand::VisibleWindows => {
+            print_query(&SocketMessage::VisibleWindows);
         }
     }
 

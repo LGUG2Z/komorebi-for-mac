@@ -41,6 +41,7 @@ use crate::reaper::ReaperNotification;
 use crate::window_manager_event::SystemNotification;
 use crate::window_manager_event::WindowManagerEvent;
 use color_eyre::eyre;
+use color_eyre::eyre::OptionExt;
 use objc2::__framework_prelude::Retained;
 use objc2_app_kit::NSApplicationActivationOptions;
 use objc2_app_kit::NSRunningApplication;
@@ -64,6 +65,8 @@ use objc2_core_graphics::kCGWindowOwnerPID;
 use regex::Regex;
 use serde::Deserialize;
 use serde::Serialize;
+use serde::Serializer;
+use serde::ser::SerializeStruct;
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use std::ffi::c_void;
@@ -172,12 +175,37 @@ impl WindowInfo {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize, PartialEq)]
 pub struct Window {
     pub id: u32,
+    #[serde(skip_deserializing)]
     pub element: AccessibilityUiElement,
+    #[serde(skip_deserializing)]
     pub application: Application,
+    #[serde(skip_deserializing)]
     observer: AccessibilityObserver,
+}
+
+#[allow(clippy::module_name_repetitions)]
+#[derive(Debug, Clone, Serialize)]
+pub struct WindowDetails {
+    pub title: String,
+    pub exe: String,
+    pub role: String,
+    pub subrole: String,
+}
+
+impl TryFrom<&Window> for WindowDetails {
+    type Error = eyre::ErrReport;
+
+    fn try_from(value: &Window) -> std::result::Result<Self, Self::Error> {
+        Ok(Self {
+            title: value.title().ok_or_eyre("can't read title")?,
+            exe: value.exe().ok_or_eyre("can't read exee")?,
+            role: value.role().ok_or_eyre("can't read role")?,
+            subrole: value.subrole().ok_or_eyre("can't read subrole")?,
+        })
+    }
 }
 
 impl Drop for Window {
@@ -194,12 +222,6 @@ impl Drop for Window {
             // make sure the observer gets removed from any run loops
             AccessibilityApi::invalidate_observer(&self.observer);
         }
-    }
-}
-
-impl PartialEq for Window {
-    fn eq(&self, other: &Self) -> bool {
-        self.id == other.id
     }
 }
 
@@ -229,6 +251,45 @@ impl Display for Window {
         write!(display, ")")?;
 
         write!(f, "{display}")
+    }
+}
+
+impl Serialize for Window {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_struct("Window", 5)?;
+        state.serialize_field("window_id", &self.id)?;
+        state.serialize_field(
+            "title",
+            &self
+                .title()
+                .unwrap_or_else(|| String::from("could not get window title")),
+        )?;
+        state.serialize_field(
+            "exe",
+            &self
+                .exe()
+                .unwrap_or_else(|| String::from("could not get window exe")),
+        )?;
+        state.serialize_field(
+            "role",
+            &self
+                .role()
+                .unwrap_or_else(|| String::from("could not get window accessibility role")),
+        )?;
+        state.serialize_field(
+            "subrole",
+            &self
+                .subrole()
+                .unwrap_or_else(|| String::from("could not get window accessibility subrole")),
+        )?;
+        state.serialize_field(
+            "rect",
+            &Rect::from(MacosApi::window_rect(&self.element).unwrap_or_default()),
+        )?;
+        state.end()
     }
 }
 

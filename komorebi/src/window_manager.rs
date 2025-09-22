@@ -94,6 +94,12 @@ impl EnforceWorkspaceRuleOp {
     }
 }
 
+impl AsRef<Self> for WindowManager {
+    fn as_ref(&self) -> &Self {
+        self
+    }
+}
+
 impl WindowManager {
     #[allow(clippy::field_reassign_with_default)]
     pub fn new(
