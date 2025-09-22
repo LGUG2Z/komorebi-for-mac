@@ -1,6 +1,7 @@
 #![warn(clippy::all)]
 
 use clap::Parser;
+use clap::ValueEnum;
 use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
 use komorebi::DATA_DIR;
@@ -27,6 +28,7 @@ use objc2_core_graphics::CGMainDisplayID;
 use objc2_core_graphics::CGPreflightScreenCaptureAccess;
 use objc2_core_graphics::CGRequestScreenCaptureAccess;
 use parking_lot::Mutex;
+use serde::Deserialize;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
@@ -34,7 +36,9 @@ use std::sync::atomic::Ordering;
 use std::sync::mpsc;
 use sysinfo::Process;
 use sysinfo::ProcessesToUpdate;
+use tracing_appender::non_blocking::WorkerGuard;
 use tracing_subscriber::EnvFilter;
+use tracing_subscriber::layer::SubscriberExt;
 
 fn check_permissions() -> eyre::Result<()> {
     unsafe {
@@ -54,7 +58,7 @@ fn check_permissions() -> eyre::Result<()> {
     }
 }
 
-pub fn setup() -> eyre::Result<()> {
+fn setup(log_level: LogLevel) -> eyre::Result<(WorkerGuard, WorkerGuard)> {
     if std::env::var("RUST_LIB_BACKTRACE").is_err() {
         unsafe {
             std::env::set_var("RUST_LIB_BACKTRACE", "1");
@@ -65,13 +69,38 @@ pub fn setup() -> eyre::Result<()> {
 
     if std::env::var("RUST_LOG").is_err() {
         unsafe {
-            std::env::set_var("RUST_LOG", "info");
+            std::env::set_var(
+                "RUST_LOG",
+                match log_level {
+                    LogLevel::Error => "error",
+                    LogLevel::Warn => "warn",
+                    LogLevel::Info => "info",
+                    LogLevel::Debug => "debug",
+                    LogLevel::Trace => "trace",
+                },
+            );
         }
     }
+
+    let appender = tracing_appender::rolling::daily(&*DATA_DIR, "komorebi_plaintext.log");
+    let color_appender = tracing_appender::rolling::daily(&*DATA_DIR, "komorebi.log");
+    let (non_blocking, guard) = tracing_appender::non_blocking(appender);
+    let (color_non_blocking, color_guard) = tracing_appender::non_blocking(color_appender);
+
     tracing::subscriber::set_global_default(
         tracing_subscriber::fmt::Subscriber::builder()
             .with_env_filter(EnvFilter::from_default_env())
-            .finish(),
+            .finish()
+            .with(
+                tracing_subscriber::fmt::Layer::default()
+                    .with_writer(non_blocking)
+                    .with_ansi(false),
+            )
+            .with(
+                tracing_subscriber::fmt::Layer::default()
+                    .with_writer(color_non_blocking)
+                    .with_ansi(true),
+            ),
     )?;
 
     // https://github.com/tokio-rs/tracing/blob/master/examples/examples/panic_hook.rs
@@ -102,7 +131,18 @@ pub fn setup() -> eyre::Result<()> {
         );
     }));
 
-    Ok(())
+    Ok((guard, color_guard))
+}
+
+#[derive(Default, Deserialize, ValueEnum, Clone)]
+#[serde(rename_all = "snake_case")]
+enum LogLevel {
+    Error,
+    Warn,
+    #[default]
+    Info,
+    Debug,
+    Trace,
 }
 
 #[derive(Parser)]
@@ -115,14 +155,14 @@ struct Opts {
     // /// Do not attempt to auto-apply a dumped state temp file from a previously running instance of komorebi
     // #[clap(long)]
     // clean_state: bool,
-    // /// Level of log output verbosity
-    // #[clap(long, value_enum, default_value_t=LogLevel::Info)]
-    // log_level: LogLevel,
+    /// Level of log output verbosity
+    #[clap(long, value_enum, default_value_t=LogLevel::Info)]
+    log_level: LogLevel,
 }
 
 fn main() -> eyre::Result<()> {
     let opts: Opts = Opts::parse();
-    setup()?;
+    let (_guard, _color_guard) = setup(opts.log_level)?;
 
     let mut system = sysinfo::System::new();
     system.refresh_processes(ProcessesToUpdate::All, true);

@@ -1,7 +1,9 @@
 #![warn(clippy::all)]
 
+use chrono::Utc;
 use clap::Parser;
 use color_eyre::eyre;
+use fs_tail::TailedFile;
 use komorebi_client::Axis;
 use komorebi_client::CycleDirection;
 use komorebi_client::DefaultLayout;
@@ -12,7 +14,9 @@ use komorebi_client::SocketMessage;
 use komorebi_client::send_message;
 use komorebi_client::send_query;
 use lazy_static::lazy_static;
+use std::fs::File;
 use std::fs::OpenOptions;
+use std::io::BufRead;
 use std::io::Write;
 use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
@@ -185,6 +189,8 @@ enum SubCommand {
     /// Show the path to komorebi's data directory in $HOME/Library/Application Support
     #[clap(alias = "datadir")]
     DataDirectory,
+    /// Tail komorebi's process logs (cancel with Ctrl-C)
+    Log,
     /// Show a JSON representation of the current window manager state
     State,
     /// Show a JSON representation of the current global state
@@ -382,6 +388,16 @@ fn main() -> eyre::Result<()> {
             let dir = &*DATA_DIR;
             if dir.exists() {
                 println!("{}", dir.display());
+            }
+        }
+        SubCommand::Log => {
+            let timestamp = Utc::now().format("%Y-%m-%d").to_string();
+            let color_log = DATA_DIR.join(format!("komorebi.log.{timestamp}"));
+            let file = TailedFile::new(File::open(color_log)?);
+            let locked = file.lock();
+            #[allow(clippy::significant_drop_in_scrutinee, clippy::lines_filter_map_ok)]
+            for line in locked.lines().flatten() {
+                println!("{line}");
             }
         }
         SubCommand::Focus(arg) => {
