@@ -6,6 +6,7 @@ pub use komorebi::core::cycle_direction::CycleDirection;
 pub use komorebi::core::default_layout::DefaultLayout;
 pub use komorebi::core::operation_direction::OperationDirection;
 pub use komorebi::core::pathext::PathExt;
+pub use komorebi::core::pathext::replace_env_in_path;
 use std::borrow::Borrow;
 use std::io::BufReader;
 use std::io::Read;

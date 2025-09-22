@@ -167,7 +167,9 @@ fn main() -> eyre::Result<()> {
     let mut system = sysinfo::System::new();
     system.refresh_processes(ProcessesToUpdate::All, true);
 
-    let matched_procs: Vec<&Process> = system.processes_by_name("komorebi".as_ref()).collect();
+    let matched_procs: Vec<&Process> = system
+        .processes_by_exact_name("komorebi".as_ref())
+        .collect();
 
     if matched_procs.len() > 1 {
         tracing::error!(

@@ -14,3 +14,4 @@ fs-tail = "0.1"
 lazy_static = { workspace = true }
 pastey = { workspace = true }
 reqwest = { version = "0.12", features = ["blocking"] }
+sysinfo = { workspace = true }

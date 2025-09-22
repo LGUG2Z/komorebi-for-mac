@@ -1061,6 +1061,7 @@ dependencies = [
  "lazy_static",
  "pastey",
  "reqwest",
+ "sysinfo",
 ]
 
 [[package]]

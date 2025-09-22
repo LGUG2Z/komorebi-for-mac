@@ -11,6 +11,7 @@ use komorebi_client::OperationDirection;
 use komorebi_client::PathExt;
 use komorebi_client::Sizing;
 use komorebi_client::SocketMessage;
+use komorebi_client::replace_env_in_path;
 use komorebi_client::send_message;
 use komorebi_client::send_query;
 use lazy_static::lazy_static;
@@ -19,8 +20,13 @@ use std::fs::OpenOptions;
 use std::io::BufRead;
 use std::io::Write;
 use std::path::PathBuf;
+use std::process::Command;
+use std::process::Stdio;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
+use std::time::Duration;
+use sysinfo::ProcessesToUpdate;
+use sysinfo::Signal;
 
 lazy_static! {
     static ref HAS_CUSTOM_CONFIG_HOME: AtomicBool = AtomicBool::new(false);
@@ -175,6 +181,18 @@ pub struct MoveToMonitorWorkspace {
 }
 
 #[derive(Parser)]
+#[allow(clippy::struct_excessive_bools)]
+struct Start {
+    /// Path to a static configuration JSON file
+    #[clap(short, long)]
+    #[clap(value_parser = replace_env_in_path)]
+    config: Option<PathBuf>,
+    // /// Do not attempt to auto-apply a dumped state temp file from a previously running instance of komorebi
+    // #[clap(long)]
+    // clean_state: bool,
+}
+
+#[derive(Parser)]
 #[clap(author, about, version)]
 struct Opts {
     #[clap(subcommand)]
@@ -183,6 +201,10 @@ struct Opts {
 
 #[derive(Parser)]
 enum SubCommand {
+    /// Start komorebi as a background process
+    Start(Start),
+    /// Stop the komorebi process and restore all hidden windows
+    Stop,
     /// Show the path to komorebi.json
     #[clap(alias = "config")]
     Configuration,
@@ -377,6 +399,100 @@ fn main() -> eyre::Result<()> {
     let opts: Opts = Opts::parse();
 
     match opts.subcmd {
+        SubCommand::Start(arg) => {
+            let mut command = &mut Command::new("komorebi");
+
+            if let Some(config) = &arg.config {
+                command =
+                    command.args(["--config", &format!("'--config=\"{}\"'", config.display())])
+            };
+
+            command = command
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .stdin(Stdio::null());
+
+            let mut system = sysinfo::System::new_all();
+            system.refresh_processes(ProcessesToUpdate::All, true);
+
+            let mut attempts = 0;
+            let mut running = system
+                .processes_by_exact_name("komorebi".as_ref())
+                .next()
+                .is_some();
+
+            while !running && attempts <= 2 {
+                command.spawn()?;
+
+                print!("Waiting for komorebi to start...");
+                std::thread::sleep(Duration::from_secs(3));
+
+                system.refresh_processes(ProcessesToUpdate::All, true);
+
+                if system
+                    .processes_by_exact_name("komorebi".as_ref())
+                    .next()
+                    .is_some()
+                {
+                    println!("Started!");
+                    running = true;
+                } else {
+                    println!("komorebi did not start... Trying again");
+                    attempts += 1;
+                }
+            }
+
+            if !running {
+                println!("\nRunning komorebi directly for detailed error output\n");
+                if let Some(config) = &arg.config {
+                    if let Ok(output) = Command::new("komorebi")
+                        .arg(format!("'--config=\"{}\"'", config.display()))
+                        .output()
+                    {
+                        println!("{}", String::from_utf8(output.stderr)?);
+                    }
+                } else if let Ok(output) = Command::new("komorebi").output() {
+                    println!("{}", String::from_utf8(output.stderr)?);
+                }
+
+                return Ok(());
+            }
+
+            println!("\nThank you for using komorebi!\n");
+            println!("# Commercial Use License");
+            println!(
+                "* View licensing options https://lgug2z.com/software/komorebi - A commercial use license is required to use komorebi at work"
+            );
+            println!("\n# Personal Use Sponsorship");
+            println!(
+                "* Become a sponsor https://github.com/sponsors/LGUG2Z - $5/month makes a big difference"
+            );
+            println!("* Leave a tip https://ko-fi.com/lgug2z - An alternative to GitHub Sponsors");
+            println!("\n# Community");
+            println!(
+                "* Join the Discord https://discord.gg/mGkn66PHkx - Chat, ask questions, share your desktops"
+            );
+            println!(
+                "* Subscribe to https://youtube.com/@LGUG2Z - Development videos, feature previews and release overviews"
+            );
+            println!(
+                "* Explore the Awesome Komorebi list https://github.com/LGUG2Z/awesome-komorebi - Projects in the komorebi ecosystem"
+            );
+            println!("\n# Documentation");
+            println!(
+                "* Read the docs https://lgug2z.github.io/komorebi - Quickly search through all komorebic commands"
+            );
+        }
+        SubCommand::Stop => {
+            let mut system = sysinfo::System::new_all();
+            system.refresh_processes(ProcessesToUpdate::All, true);
+
+            let running = system.processes_by_exact_name("komorebi".as_ref()).next();
+
+            if let Some(process) = running {
+                process.kill_with(Signal::Interrupt);
+            }
+        }
         SubCommand::Configuration => {
             let static_config = HOME_DIR.join("komorebi.json");
 
