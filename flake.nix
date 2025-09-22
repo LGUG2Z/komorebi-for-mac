@@ -22,11 +22,13 @@
 
           toolchain = pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
           craneLib = (crane.mkLib pkgs).overrideToolchain toolchain;
+
           src = craneLib.cleanCargoSource ./.;
           version = "0.1.0";
+          pname = "komorebi";
 
           commonArgs = {
-            inherit src;
+            inherit src version pname;
             nativeBuildInputs = with pkgs; [];
             doCheck = false;
             buildInputs = with pkgs; [
@@ -40,10 +42,7 @@
           komorebi = craneLib.buildPackage (
             commonArgs
             // {
-              inherit version;
-              pname = "komorebi";
               cargoExtraArgs = "-p komorebi -p komorebic";
-              src = ./.;
             }
           );
         in {
