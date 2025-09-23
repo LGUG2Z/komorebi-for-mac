@@ -392,6 +392,12 @@ enum SubCommand {
     /// Fetch the latest version of applications.json from komorebi-application-specific-configuration
     #[clap(alias = "fetch-asc")]
     FetchAppSpecificConfiguration,
+    /// Add a rule to float the foreground window for the rest of this session
+    SessionFloatRule,
+    /// Show all session float rules
+    SessionFloatRules,
+    /// Clear all session float rules
+    ClearSessionFloatRules,
 }
 
 fn print_query(message: &SocketMessage) {
@@ -759,6 +765,15 @@ fn main() -> eyre::Result<()> {
                 "You can add this to your komorebi.json static configuration file like this: \n\n\"app_specific_configuration_path\": \"{}\"",
                 output_file.display().to_string().replace("\\", "/")
             );
+        }
+        SubCommand::SessionFloatRule => {
+            send_message(&SocketMessage::SessionFloatRule)?;
+        }
+        SubCommand::SessionFloatRules => {
+            print_query(&SocketMessage::SessionFloatRules);
+        }
+        SubCommand::ClearSessionFloatRules => {
+            send_message(&SocketMessage::ClearSessionFloatRules)?;
         }
     }
 

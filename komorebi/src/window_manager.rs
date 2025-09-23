@@ -11,6 +11,7 @@ use crate::core::MoveBehaviour;
 use crate::core::OperationBehaviour;
 use crate::core::Placement;
 use crate::core::Sizing;
+use crate::core::WindowContainerBehaviour;
 use crate::core::WindowManagementBehaviour;
 use crate::core::arrangement::Arrangement;
 use crate::core::arrangement::Axis;
@@ -2191,6 +2192,80 @@ impl WindowManager {
         if self.known_window_ids != known_window_ids {
             // Store new window_ids
             self.known_window_ids = known_window_ids;
+        }
+    }
+
+    pub fn window_management_behaviour(
+        &self,
+        monitor_idx: usize,
+        workspace_idx: usize,
+    ) -> WindowManagementBehaviour {
+        if let Some(monitor) = self.monitors().get(monitor_idx)
+            && let Some(workspace) = monitor.workspaces().get(workspace_idx)
+        {
+            let current_behaviour = if let Some(behaviour) = workspace.window_container_behaviour {
+                if workspace.containers().is_empty()
+                    && matches!(behaviour, WindowContainerBehaviour::Append)
+                {
+                    // You can't append to an empty workspace
+                    WindowContainerBehaviour::Create
+                } else {
+                    behaviour
+                }
+            } else if workspace.containers().is_empty()
+                && matches!(
+                    self.window_management_behaviour.current_behaviour,
+                    WindowContainerBehaviour::Append
+                )
+            {
+                // You can't append to an empty workspace
+                WindowContainerBehaviour::Create
+            } else {
+                self.window_management_behaviour.current_behaviour
+            };
+
+            let float_override = if let Some(float_override) = workspace.float_override {
+                float_override
+            } else {
+                self.window_management_behaviour.float_override
+            };
+
+            let floating_layer_behaviour =
+                if let Some(behaviour) = workspace.floating_layer_behaviour {
+                    behaviour
+                } else {
+                    monitor
+                        .floating_layer_behaviour
+                        .unwrap_or(self.window_management_behaviour.floating_layer_behaviour)
+                };
+
+            // If the workspace layer is `Floating` and the floating layer behaviour should
+            // float then change floating_layer_override to true so that new windows spawn
+            // as floating
+            let floating_layer_override = matches!(workspace.layer, WorkspaceLayer::Floating)
+                && floating_layer_behaviour.should_float();
+
+            return WindowManagementBehaviour {
+                current_behaviour,
+                float_override,
+                floating_layer_override,
+                floating_layer_behaviour,
+                toggle_float_placement: self.window_management_behaviour.toggle_float_placement,
+                floating_layer_placement: self.window_management_behaviour.floating_layer_placement,
+                float_override_placement: self.window_management_behaviour.float_override_placement,
+                float_rule_placement: self.window_management_behaviour.float_rule_placement,
+            };
+        }
+
+        WindowManagementBehaviour {
+            current_behaviour: WindowContainerBehaviour::Create,
+            float_override: self.window_management_behaviour.float_override,
+            floating_layer_override: self.window_management_behaviour.floating_layer_override,
+            floating_layer_behaviour: self.window_management_behaviour.floating_layer_behaviour,
+            toggle_float_placement: self.window_management_behaviour.toggle_float_placement,
+            floating_layer_placement: self.window_management_behaviour.floating_layer_placement,
+            float_override_placement: self.window_management_behaviour.float_override_placement,
+            float_rule_placement: self.window_management_behaviour.float_rule_placement,
         }
     }
 }

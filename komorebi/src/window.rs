@@ -12,6 +12,7 @@ use crate::accessibility::AccessibilityApi;
 use crate::accessibility::attribute_constants::kAXFocusedAttribute;
 use crate::accessibility::attribute_constants::kAXMainAttribute;
 use crate::accessibility::attribute_constants::kAXMinimizedAttribute;
+use crate::accessibility::attribute_constants::kAXParentAttribute;
 use crate::accessibility::attribute_constants::kAXPositionAttribute;
 use crate::accessibility::attribute_constants::kAXRoleAttribute;
 use crate::accessibility::attribute_constants::kAXSizeAttribute;
@@ -346,46 +347,6 @@ impl Window {
 
                 self.set_point(hidden_rect.origin, true)?;
                 self.set_size(hidden_rect.size, true)?;
-            }
-        }
-
-        Ok(())
-    }
-
-    #[tracing::instrument(skip_all)]
-    pub fn hide_adhoc(
-        id: u32,
-        element: &CFRetained<AXUIElement>,
-    ) -> Result<(), AccessibilityError> {
-        let mut window_restore_positions = WINDOW_RESTORE_POSITIONS.lock();
-        if let Entry::Vacant(entry) = window_restore_positions.entry(id) {
-            let rect = MacosApi::window_rect(element)?;
-            if let Some(monitor_size) = CoreGraphicsApi::display_bounds_for_window_rect(rect) {
-                entry.insert(rect);
-                drop(window_restore_positions);
-
-                // I don't love this, but it's basically what Aerospace does in lieu of an actual "Hide" API
-                let hidden_rect = hidden_frame_bottom_left(monitor_size, rect.size);
-
-                tracing::debug!(
-                    "hiding window with id {id} and setting restore point to {},{}",
-                    rect.origin.x,
-                    rect.origin.y,
-                );
-
-                AccessibilityApi::set_attribute_ax_value(
-                    element,
-                    kAXPositionAttribute,
-                    AXValueType::CGPoint,
-                    hidden_rect.origin,
-                )?;
-
-                AccessibilityApi::set_attribute_ax_value(
-                    element,
-                    kAXSizeAttribute,
-                    AXValueType::CGSize,
-                    hidden_rect.size,
-                )?;
             }
         }
 
@@ -739,6 +700,101 @@ impl Window {
         //     _ => {}
         // }
         Ok(false)
+    }
+}
+
+pub struct AdhocWindow;
+
+impl AdhocWindow {
+    pub fn exe(element: &CFRetained<AXUIElement>) -> Option<String> {
+        let parent =
+            AccessibilityApi::copy_attribute_value::<AXUIElement>(element, kAXParentAttribute)?;
+
+        AccessibilityApi::copy_attribute_value::<CFString>(&parent, kAXTitleAttribute)
+            .map(|s| s.to_string())
+    }
+
+    pub fn role(element: &CFRetained<AXUIElement>) -> Option<String> {
+        AccessibilityApi::copy_attribute_value::<CFString>(element, kAXRoleAttribute)
+            .map(|s| s.to_string())
+    }
+
+    pub fn subrole(element: &CFRetained<AXUIElement>) -> Option<String> {
+        AccessibilityApi::copy_attribute_value::<CFString>(element, kAXSubroleAttribute)
+            .map(|s| s.to_string())
+    }
+
+    pub fn title(element: &CFRetained<AXUIElement>) -> Option<String> {
+        AccessibilityApi::copy_attribute_value::<CFString>(element, kAXTitleAttribute)
+            .map(|s| s.to_string())
+    }
+
+    #[tracing::instrument(skip_all)]
+    pub fn hide(id: u32, element: &CFRetained<AXUIElement>) -> Result<(), AccessibilityError> {
+        let mut window_restore_positions = WINDOW_RESTORE_POSITIONS.lock();
+        if let Entry::Vacant(entry) = window_restore_positions.entry(id) {
+            let rect = MacosApi::window_rect(element)?;
+            if let Some(monitor_size) = CoreGraphicsApi::display_bounds_for_window_rect(rect) {
+                entry.insert(rect);
+                drop(window_restore_positions);
+
+                // I don't love this, but it's basically what Aerospace does in lieu of an actual "Hide" API
+                let hidden_rect = hidden_frame_bottom_left(monitor_size, rect.size);
+
+                tracing::debug!(
+                    "hiding window with id {id} and setting restore point to {},{}",
+                    rect.origin.x,
+                    rect.origin.y,
+                );
+
+                AccessibilityApi::set_attribute_ax_value(
+                    element,
+                    kAXPositionAttribute,
+                    AXValueType::CGPoint,
+                    hidden_rect.origin,
+                )?;
+
+                AccessibilityApi::set_attribute_ax_value(
+                    element,
+                    kAXSizeAttribute,
+                    AXValueType::CGSize,
+                    hidden_rect.size,
+                )?;
+            }
+        }
+
+        Ok(())
+    }
+
+    #[tracing::instrument(skip_all)]
+    pub fn restore(id: u32, element: &CFRetained<AXUIElement>) -> Result<(), AccessibilityError> {
+        let mut should_remove_restore_position = false;
+        let mut window_restore_positions = WINDOW_RESTORE_POSITIONS.lock();
+        if let Some(cg_rect) = window_restore_positions.get(&id) {
+            tracing::debug!("restoring window with id {id} to {cg_rect:?}",);
+
+            AccessibilityApi::set_attribute_ax_value(
+                element,
+                kAXPositionAttribute,
+                AXValueType::CGPoint,
+                cg_rect.origin,
+            )?;
+
+            AccessibilityApi::set_attribute_ax_value(
+                element,
+                kAXSizeAttribute,
+                AXValueType::CGSize,
+                cg_rect.size,
+            )?;
+
+            should_remove_restore_position = true;
+        }
+
+        if should_remove_restore_position {
+            window_restore_positions.remove(&id);
+        }
+
+        Ok(())
     }
 }
 

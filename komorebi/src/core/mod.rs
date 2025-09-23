@@ -249,6 +249,9 @@ pub enum SocketMessage {
     VisibleWindows,
     MonitorInformation,
     Query(StateQuery),
+    SessionFloatRule,
+    SessionFloatRules,
+    ClearSessionFloatRules,
 }
 
 impl SocketMessage {

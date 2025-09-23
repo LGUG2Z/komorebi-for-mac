@@ -1,9 +1,15 @@
+use crate::FLOATING_APPLICATIONS;
+use crate::SESSION_FLOATING_APPLICATIONS;
 use crate::build;
+use crate::core::ApplicationIdentifier;
 use crate::core::MoveBehaviour;
 use crate::core::SocketMessage;
 use crate::core::StateQuery;
 use crate::core::WindowContainerBehaviour;
 use crate::core::arrangement::Axis;
+use crate::core::config_generation::IdWithIdentifier;
+use crate::core::config_generation::MatchingRule;
+use crate::core::config_generation::MatchingStrategy;
 use crate::core::layout::Layout;
 use crate::core::operation_direction::OperationDirection;
 use crate::core::rect::Rect;
@@ -12,6 +18,7 @@ use crate::monitor::Monitor;
 use crate::monitor::MonitorInformation;
 use crate::state::GlobalState;
 use crate::state::State;
+use crate::window::AdhocWindow;
 use crate::window_manager::WindowManager;
 use crate::workspace::Workspace;
 use crate::workspace::WorkspaceLayer;
@@ -900,6 +907,55 @@ impl WindowManager {
                 };
 
                 reply.write_all(response.as_bytes())?;
+            }
+            SocketMessage::SessionFloatRule => {
+                let foreground_window =
+                    MacosApi::foreground_window().ok_or_eyre("there is no foreground window")?;
+                let (exe, title, role) = (
+                    AdhocWindow::exe(&foreground_window),
+                    AdhocWindow::title(&foreground_window),
+                    AdhocWindow::role(&foreground_window),
+                );
+
+                if let (Some(exe), Some(title), Some(role)) = (exe, title, role) {
+                    let rule = MatchingRule::Composite(vec![
+                        IdWithIdentifier {
+                            kind: ApplicationIdentifier::Exe,
+                            id: exe,
+                            matching_strategy: Option::from(MatchingStrategy::Equals),
+                        },
+                        IdWithIdentifier {
+                            kind: ApplicationIdentifier::Title,
+                            id: title,
+                            matching_strategy: Option::from(MatchingStrategy::Equals),
+                        },
+                        IdWithIdentifier {
+                            kind: ApplicationIdentifier::Class,
+                            id: role,
+                            matching_strategy: Option::from(MatchingStrategy::Equals),
+                        },
+                    ]);
+
+                    let mut floating_applications = FLOATING_APPLICATIONS.lock();
+                    floating_applications.push(rule.clone());
+                    let mut session_floating_applications = SESSION_FLOATING_APPLICATIONS.lock();
+                    session_floating_applications.push(rule.clone());
+
+                    self.toggle_float(true)?;
+                }
+            }
+            SocketMessage::SessionFloatRules => {
+                let session_floating_applications = SESSION_FLOATING_APPLICATIONS.lock();
+                let rules = serde_json::to_string_pretty(&*session_floating_applications)
+                    .unwrap_or_else(|error| error.to_string());
+
+                reply.write_all(rules.as_bytes())?;
+            }
+            SocketMessage::ClearSessionFloatRules => {
+                let mut floating_applications = FLOATING_APPLICATIONS.lock();
+                let mut session_floating_applications = SESSION_FLOATING_APPLICATIONS.lock();
+                floating_applications.retain(|r| !session_floating_applications.contains(r));
+                session_floating_applications.clear()
             }
         }
 
