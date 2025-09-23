@@ -11,6 +11,7 @@ use komorebi_client::OperationDirection;
 use komorebi_client::PathExt;
 use komorebi_client::Sizing;
 use komorebi_client::SocketMessage;
+use komorebi_client::StateQuery;
 use komorebi_client::replace_env_in_path;
 use komorebi_client::send_message;
 use komorebi_client::send_query;
@@ -51,6 +52,8 @@ lazy_static! {
         .join("komorebi");
 }
 
+shadow_rs::shadow!(build);
+
 macro_rules! gen_enum_subcommand_args {
     // SubCommand Pattern: Enum Type
     ( $( $name:ident: $element:ty ),+ $(,)? ) => {
@@ -87,7 +90,7 @@ gen_enum_subcommand_args! {
     CycleLayout: CycleDirection,
     // WatchConfiguration: BooleanState,
     // MouseFollowsFocus: BooleanState,
-    // Query: StateQuery,
+    Query: StateQuery,
     // WindowHidingBehaviour: HidingBehaviour,
     // CrossMonitorMoveBehaviour: MoveBehaviour,
     // UnmanagedWindowOperationBehaviour: OperationBehaviour,
@@ -193,7 +196,7 @@ struct Start {
 }
 
 #[derive(Parser)]
-#[clap(author, about, version)]
+#[clap(author, about, version = build::CLAP_LONG_VERSION)]
 struct Opts {
     #[clap(subcommand)]
     subcmd: SubCommand,
@@ -222,6 +225,9 @@ enum SubCommand {
     /// Show information about connected monitors
     #[clap(alias = "monitor-info")]
     MonitorInformation,
+    /// Query the current window manager state
+    #[clap(arg_required_else_help = true)]
+    Query(Query),
     /// Change focus to the window in the specified direction
     #[clap(arg_required_else_help = true)]
     Focus(Focus),
@@ -424,7 +430,7 @@ fn main() -> eyre::Result<()> {
             while !running && attempts <= 2 {
                 command.spawn()?;
 
-                print!("Waiting for komorebi to start...");
+                print!("Waiting for komorebi to start... ");
                 std::thread::sleep(Duration::from_secs(3));
 
                 system.refresh_processes(ProcessesToUpdate::All, true);
@@ -722,6 +728,9 @@ fn main() -> eyre::Result<()> {
         }
         SubCommand::GlobalState => {
             print_query(&SocketMessage::GlobalState);
+        }
+        SubCommand::Query(arg) => {
+            print_query(&SocketMessage::Query(arg.state_query));
         }
         SubCommand::VisibleWindows => {
             print_query(&SocketMessage::VisibleWindows);

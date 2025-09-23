@@ -458,4 +458,20 @@ impl Monitor {
                 .resize(ensure_count, Workspace::default());
         }
     }
+
+    pub fn focused_workspace_name(&self) -> Option<String> {
+        self.focused_workspace()
+            .map(|w| w.name.clone())
+            .unwrap_or(None)
+    }
+
+    pub fn focused_workspace_layout(&self) -> Option<Layout> {
+        self.focused_workspace().and_then(|workspace| {
+            if workspace.tile {
+                Some(workspace.layout.clone())
+            } else {
+                None
+            }
+        })
+    }
 }

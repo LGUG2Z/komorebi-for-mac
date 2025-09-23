@@ -163,6 +163,18 @@ pub enum ApplicationIdentifier {
     Path,
 }
 
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, Display, EnumString, ValueEnum)]
+pub enum StateQuery {
+    FocusedMonitorIndex,
+    FocusedWorkspaceIndex,
+    FocusedContainerIndex,
+    FocusedWindowIndex,
+    FocusedWorkspaceName,
+    FocusedWorkspaceLayout,
+    FocusedContainerKind,
+    Version,
+}
+
 #[serde_with::serde_as]
 #[derive(Clone, Debug, Serialize, Deserialize, Display)]
 #[serde(tag = "type", content = "content")]
@@ -236,6 +248,7 @@ pub enum SocketMessage {
     GlobalState,
     VisibleWindows,
     MonitorInformation,
+    Query(StateQuery),
 }
 
 impl SocketMessage {

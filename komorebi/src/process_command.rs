@@ -1,7 +1,10 @@
+use crate::build;
 use crate::core::MoveBehaviour;
 use crate::core::SocketMessage;
+use crate::core::StateQuery;
 use crate::core::WindowContainerBehaviour;
 use crate::core::arrangement::Axis;
+use crate::core::layout::Layout;
 use crate::core::operation_direction::OperationDirection;
 use crate::core::rect::Rect;
 use crate::macos_api::MacosApi;
@@ -846,6 +849,57 @@ impl WindowManager {
                     .unwrap_or_else(|error| error.to_string());
 
                 reply.write_all(monitors_state.as_bytes())?;
+            }
+            SocketMessage::Query(query) => {
+                let response = match query {
+                    StateQuery::FocusedMonitorIndex => self.focused_monitor_idx().to_string(),
+                    StateQuery::FocusedWorkspaceIndex => self
+                        .focused_monitor()
+                        .ok_or_eyre("there is no monitor")?
+                        .focused_workspace_idx()
+                        .to_string(),
+                    StateQuery::FocusedContainerIndex => self
+                        .focused_workspace()?
+                        .focused_container_idx()
+                        .to_string(),
+                    StateQuery::FocusedWindowIndex => {
+                        self.focused_container()?.focused_window_idx().to_string()
+                    }
+                    StateQuery::FocusedWorkspaceName => {
+                        let focused_monitor =
+                            self.focused_monitor().ok_or_eyre("there is no monitor")?;
+
+                        focused_monitor
+                            .focused_workspace_name()
+                            .unwrap_or_else(|| focused_monitor.focused_workspace_idx().to_string())
+                    }
+                    StateQuery::Version => build::VERSION.to_string(),
+                    StateQuery::FocusedWorkspaceLayout => {
+                        let focused_monitor =
+                            self.focused_monitor().ok_or_eyre("there is no monitor")?;
+
+                        focused_monitor.focused_workspace_layout().map_or_else(
+                            || "None".to_string(),
+                            |layout| match layout {
+                                Layout::Default(default_layout) => default_layout.to_string(),
+                            },
+                        )
+                    }
+                    StateQuery::FocusedContainerKind => {
+                        match self.focused_workspace()?.focused_container() {
+                            None => "None".to_string(),
+                            Some(container) => {
+                                if container.windows().len() > 1 {
+                                    "Stack".to_string()
+                                } else {
+                                    "Single".to_string()
+                                }
+                            }
+                        }
+                    }
+                };
+
+                reply.write_all(response.as_bytes())?;
             }
         }
 
