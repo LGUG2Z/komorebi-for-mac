@@ -18,6 +18,7 @@ use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
 use serde::Deserialize;
 use serde::Serialize;
+use std::collections::HashMap;
 use std::fmt::Display;
 use std::fmt::Formatter;
 use std::num::NonZeroUsize;
@@ -285,6 +286,55 @@ impl Workspace {
         self.focus_container(insertion_idx);
 
         insertion_idx
+    }
+
+    pub fn prune_duplicate_windows(&mut self) -> eyre::Result<()> {
+        let mut tracker = HashMap::new();
+        let mut to_prune_from_containers = vec![];
+        let mut to_prune_from_floating = vec![];
+
+        for container in self.containers() {
+            for window in container.windows() {
+                let entry = tracker.entry(window.id).or_insert(0);
+                *entry += 1;
+            }
+        }
+
+        if let Some(container) = &self.monocle_container {
+            for window in container.windows() {
+                let entry = tracker.entry(window.id).or_insert(0);
+                *entry += 1;
+            }
+        }
+
+        for (window_id, count) in &tracker {
+            if *count > 1 {
+                to_prune_from_containers.push(*window_id);
+            }
+        }
+
+        for id in to_prune_from_containers {
+            self.remove_window(id)?;
+            tracker.remove(&id);
+        }
+
+        for window in self.floating_windows() {
+            let entry = tracker.entry(window.id).or_insert(0);
+            *entry += 1;
+        }
+
+        for (window_id, count) in &tracker {
+            if *count > 1 {
+                to_prune_from_floating.push(*window_id);
+            }
+        }
+
+        for id in to_prune_from_floating {
+            self.remove_window(id)?;
+            tracker.remove(&id);
+        }
+
+        Ok(())
     }
 
     #[tracing::instrument(skip(self))]
@@ -891,6 +941,7 @@ impl Workspace {
 impl Workspace {
     pub fn update(&mut self) -> eyre::Result<()> {
         // make sure we are never holding on to empty containers
+        self.prune_duplicate_windows()?;
         self.containers_mut().retain(|c| !c.windows().is_empty());
 
         let container_padding = self
