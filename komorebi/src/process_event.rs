@@ -4,15 +4,16 @@ use crate::accessibility::AccessibilityApi;
 use crate::accessibility::error::AccessibilityApiError;
 use crate::accessibility::error::AccessibilityError;
 use crate::accessibility::notification_constants::AccessibilityNotification;
-use crate::ax_event_listener::event_tx;
 use crate::core::config_generation::MatchingRule;
 use crate::core::default_layout::DefaultLayout;
 use crate::core::layout::Layout;
 use crate::macos_api::MacosApi;
 use crate::window::Window;
 use crate::window_manager::WindowManager;
+use crate::window_manager_event::ManualNotification;
 use crate::window_manager_event::SystemNotification;
 use crate::window_manager_event::WindowManagerEvent;
+use crate::window_manager_event_listener;
 use crate::workspace::WorkspaceLayer;
 use color_eyre::eyre;
 use parking_lot::Mutex;
@@ -72,11 +73,18 @@ impl WindowManager {
             return Ok(());
         }
 
-        tracing::info!(
-            "processing event: {event} for process {} with notification {}",
-            event.process_id(),
-            event.notification(),
-        );
+        // don't want to spam logs for manually triggered hacks triggered
+        // from the input listener
+        if !matches!(
+            event,
+            WindowManagerEvent::Show(SystemNotification::Manual(_), _)
+        ) {
+            tracing::info!(
+                "processing event: {event} for process {} with notification {}",
+                event.process_id(),
+                event.notification(),
+            );
+        }
 
         self.enforce_workspace_rules()?;
 
@@ -113,10 +121,19 @@ impl WindowManager {
                                         )) => {
                                             // this means we have closed the 1st tab, so we need this window object to be reaped
                                             // and for the new 1st tab to be the key element of the window struct
-                                            event_tx().send(WindowManagerEvent::Show(
-                                                notification,
-                                                event.process_id(),
-                                            ))?;
+                                            if let Some(event) =
+                                                WindowManagerEvent::from_system_notification(
+                                                    SystemNotification::Manual(
+                                                        ManualNotification::ShowOnFocusChangeFirstTabDestroyed,
+                                                    ),
+                                                    event.process_id(),
+                                                    Some(window_id),
+                                                )
+                                            {
+                                                window_manager_event_listener::send_notification(
+                                                    event,
+                                                );
+                                            }
 
                                             first_tab_destroyed = true;
 
@@ -215,10 +232,19 @@ impl WindowManager {
                                         // if this fails, the app was probably open but windowless when komorebi
                                         // launched, so the window hasn't been registered - we should treat it
                                         // as a "Show" event
-                                        event_tx().send(WindowManagerEvent::Show(
-                                            notification,
-                                            event.process_id(),
-                                        ))?
+                                        if let Some(event) =
+                                            WindowManagerEvent::from_system_notification(
+                                                SystemNotification::Manual(
+                                                    ManualNotification::ShowOnFocusChangeWindowlessAppRestored,
+                                                ),
+                                                event.process_id(),
+                                                Some(window_id),
+                                            )
+                                        {
+                                            window_manager_event_listener::send_notification(
+                                                event,
+                                            );
+                                        }
                                     }
                                 }
 
@@ -297,8 +323,16 @@ impl WindowManager {
                     drop(tabbed_applications);
 
                     if workspace.contains_window(window_id) {
+                        if !matches!(
+                            event,
+                            WindowManagerEvent::Show(SystemNotification::Manual(_), _)
+                        ) {
+                            // don't want to spam logs for manually triggered hacks triggered
+                            // from the input listener
+                            tracing::debug!("ignoring show event for window already on workspace");
+                        }
+
                         // ignore bogus show events
-                        tracing::debug!("ignoring show event for window already on workspace");
                         create = false;
                     }
 

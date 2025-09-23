@@ -11,6 +11,14 @@ use strum::Display;
 pub enum SystemNotification {
     Accessibility(AccessibilityNotification),
     AppKitWorkspace(AppKitWorkspaceNotification),
+    Manual(ManualNotification),
+}
+
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, Display)]
+pub enum ManualNotification {
+    ShowOnInputEvent,
+    ShowOnFocusChangeFirstTabDestroyed,
+    ShowOnFocusChangeWindowlessAppRestored,
 }
 
 #[derive(Debug, Copy, Clone, Serialize, Deserialize, Display)]
@@ -45,7 +53,14 @@ impl WindowManagerEvent {
             | SystemNotification::Accessibility(AccessibilityNotification::AXApplicationShown)
             | SystemNotification::AppKitWorkspace(
                 AppKitWorkspaceNotification::NSWorkspaceDidLaunchApplicationNotification,
-            ) => Some(WindowManagerEvent::Show(notification, process_id)),
+            )
+            | SystemNotification::Manual(
+                ManualNotification::ShowOnFocusChangeWindowlessAppRestored,
+            )
+            | SystemNotification::Manual(ManualNotification::ShowOnFocusChangeFirstTabDestroyed)
+            | SystemNotification::Manual(ManualNotification::ShowOnInputEvent) => {
+                Some(WindowManagerEvent::Show(notification, process_id))
+            }
             SystemNotification::Accessibility(AccessibilityNotification::AXUIElementDestroyed)
             | SystemNotification::AppKitWorkspace(
                 AppKitWorkspaceNotification::NSWorkspaceDidTerminateApplicationNotification,
@@ -88,6 +103,7 @@ impl WindowManagerEvent {
             | WindowManagerEvent::Restore(n, _, _) => match n {
                 SystemNotification::Accessibility(a) => a.to_string(),
                 SystemNotification::AppKitWorkspace(a) => a.to_string(),
+                SystemNotification::Manual(m) => m.to_string(),
             },
         }
     }

@@ -39,7 +39,6 @@ pub mod ring;
 pub mod accessibility;
 pub mod app_kit_notification_constants;
 pub mod application;
-pub mod ax_event_listener;
 pub mod container;
 pub mod core;
 pub mod core_graphics;
@@ -59,6 +58,7 @@ pub mod static_config;
 pub mod window;
 pub mod window_manager;
 pub mod window_manager_event;
+pub mod window_manager_event_listener;
 pub mod workspace;
 
 lazy_static! {
@@ -89,23 +89,12 @@ lazy_static! {
     static ref REGEX_IDENTIFIERS: Arc<Mutex<HashMap<String, Regex>>> =
         Arc::new(Mutex::new(HashMap::new()));
     static ref MANAGE_IDENTIFIERS: Arc<Mutex<Vec<MatchingRule>>> = Arc::new(Mutex::new(vec![]));
-    static ref IGNORE_IDENTIFIERS: Arc<Mutex<Vec<MatchingRule>>> = Arc::new(Mutex::new(vec![
-        MatchingRule::Simple(IdWithIdentifier {
-            kind: ApplicationIdentifier::Class,
-            id: String::from("OPContainerClass"),
-            matching_strategy: Option::from(MatchingStrategy::Equals),
-        }),
-        MatchingRule::Simple(IdWithIdentifier {
-            kind: ApplicationIdentifier::Class,
-            id: String::from("IHWindowClass"),
-            matching_strategy: Option::from(MatchingStrategy::Equals),
-        }),
-        MatchingRule::Simple(IdWithIdentifier {
+    static ref IGNORE_IDENTIFIERS: Arc<Mutex<Vec<MatchingRule>>> =
+        Arc::new(Mutex::new(vec![MatchingRule::Simple(IdWithIdentifier {
             kind: ApplicationIdentifier::Exe,
-            id: String::from("komorebi-bar.exe"),
+            id: String::from("Spotlight"),
             matching_strategy: Option::from(MatchingStrategy::Equals),
-        })
-    ]));
+        })]));
     static ref SESSION_FLOATING_APPLICATIONS: Arc<Mutex<Vec<MatchingRule>>> =
         Arc::new(Mutex::new(Vec::new()));
     static ref FLOATING_APPLICATIONS: Arc<Mutex<Vec<MatchingRule>>> =
@@ -120,6 +109,8 @@ lazy_static! {
         "Finder".to_string(),
         "Ghostty".to_string()
     ]));
+    static ref DO_NOT_OBSERVE_APPLICATIONS: Arc<Mutex<Vec<String>>> =
+        Arc::new(Mutex::new(vec!["Spotlight".to_string(),]));
 }
 
 shadow_rs::shadow!(build);

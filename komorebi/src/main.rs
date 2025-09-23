@@ -7,7 +7,6 @@ use color_eyre::eyre::OptionExt;
 use komorebi::DATA_DIR;
 use komorebi::HOME_DIR;
 use komorebi::UPDATE_MONITOR_WORK_AREAS;
-use komorebi::ax_event_listener;
 use komorebi::core::pathext::replace_env_in_path;
 use komorebi::display_reconfiguration_listener::DisplayReconfigurationListener;
 use komorebi::input_event_listener::InputEventListener;
@@ -19,6 +18,7 @@ use komorebi::process_event::listen_for_events;
 use komorebi::reaper;
 use komorebi::static_config::StaticConfig;
 use komorebi::window_manager::WindowManager;
+use komorebi::window_manager_event_listener;
 use objc2::rc::autoreleasepool;
 use objc2_application_services::AXIsProcessTrusted;
 use objc2_core_foundation::CFRunLoop;
@@ -213,14 +213,14 @@ fn main() -> eyre::Result<()> {
 
         Arc::new(Mutex::new(StaticConfig::preload(
             config,
-            ax_event_listener::event_rx(),
+            window_manager_event_listener::event_rx(),
             None,
             &run_loop,
         )?))
     } else {
         Arc::new(Mutex::new(WindowManager::new(
             &run_loop,
-            ax_event_listener::event_rx(),
+            window_manager_event_listener::event_rx(),
             None,
         )?))
     };

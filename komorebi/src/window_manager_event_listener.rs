@@ -10,10 +10,16 @@ fn channel() -> &'static (Sender<WindowManagerEvent>, Receiver<WindowManagerEven
     CHANNEL.get_or_init(|| crossbeam_channel::bounded(20))
 }
 
-pub fn event_tx() -> Sender<WindowManagerEvent> {
+fn event_tx() -> Sender<WindowManagerEvent> {
     channel().0.clone()
 }
 
 pub fn event_rx() -> Receiver<WindowManagerEvent> {
     channel().1.clone()
+}
+
+pub fn send_notification(notification: WindowManagerEvent) {
+    if event_tx().try_send(notification).is_err() {
+        tracing::warn!("channel is full; dropping notification")
+    }
 }

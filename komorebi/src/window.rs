@@ -26,7 +26,6 @@ use crate::accessibility::notification_constants::kAXWindowMiniaturizedNotificat
 use crate::accessibility::notification_constants::kAXWindowMovedNotification;
 use crate::accessibility::notification_constants::kAXWindowResizedNotification;
 use crate::application::Application;
-use crate::ax_event_listener::event_tx;
 use crate::cf_dictionary_value;
 use crate::core::ApplicationIdentifier;
 use crate::core::config_generation::IdWithIdentifier;
@@ -39,6 +38,7 @@ use crate::macos_api::MacosApi;
 use crate::reaper;
 use crate::window_manager_event::SystemNotification;
 use crate::window_manager_event::WindowManagerEvent;
+use crate::window_manager_event_listener;
 use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
 use objc2::__framework_prelude::Retained;
@@ -115,14 +115,12 @@ unsafe extern "C-unwind" fn window_observer_callback(
                     window_id,
                 )
             {
-                if let Err(error) = event_tx().send(event) {
-                    tracing::error!("failed to send window manager event: {error}");
-                } else {
-                    tracing::debug!(
-                        "notification: {}, process: {process_id}, name: \"{name}\"",
-                        notification,
-                    );
-                }
+                tracing::debug!(
+                    "notification: {}, process: {process_id}, name: \"{name}\"",
+                    notification,
+                );
+
+                window_manager_event_listener::send_notification(event);
             }
         }
     }

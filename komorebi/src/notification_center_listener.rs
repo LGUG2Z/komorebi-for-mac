@@ -1,8 +1,8 @@
 use crate::app_kit_notification_constants::AppKitWorkspaceNotification;
 use crate::application::Application;
-use crate::ax_event_listener::event_tx;
 use crate::window_manager_event::SystemNotification;
 use crate::window_manager_event::WindowManagerEvent;
+use crate::window_manager_event_listener;
 use objc2::AnyThread;
 use objc2::define_class;
 use objc2::msg_send;
@@ -74,9 +74,8 @@ define_class! {
                                 process_id,
                                 window_id,
                             )
-                            && let Err(error) = event_tx().send(event)
                         {
-                            tracing::error!("failed to send window manager event: {error}");
+                            window_manager_event_listener::send_notification(event);
                         };
                     }
                 }

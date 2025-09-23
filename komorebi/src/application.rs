@@ -13,10 +13,10 @@ use crate::accessibility::notification_constants::kAXApplicationShownNotificatio
 use crate::accessibility::notification_constants::kAXMainWindowChangedNotification;
 use crate::accessibility::notification_constants::kAXUIElementDestroyedNotification;
 use crate::accessibility::notification_constants::kAXWindowCreatedNotification;
-use crate::ax_event_listener::event_tx;
 use crate::window::Window;
 use crate::window_manager_event::SystemNotification;
 use crate::window_manager_event::WindowManagerEvent;
+use crate::window_manager_event_listener;
 use objc2_application_services::AXObserver;
 use objc2_application_services::AXUIElement;
 use objc2_core_foundation::CFArray;
@@ -76,13 +76,11 @@ unsafe extern "C-unwind" fn application_observer_callback(
                     None,
                 )
             {
-                if let Err(error) = event_tx().send(event) {
-                    tracing::error!("failed to send window manager event: {error}");
-                } else {
-                    tracing::debug!(
-                        "notification: {notification}, process: {process_id}, name: \"{name}\"",
-                    );
-                }
+                tracing::debug!(
+                    "notification: {notification}, process: {process_id}, name: \"{name}\"",
+                );
+
+                window_manager_event_listener::send_notification(event);
             }
         }
     }

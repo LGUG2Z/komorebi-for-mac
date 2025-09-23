@@ -1,5 +1,11 @@
+use crate::accessibility::AccessibilityApi;
+use crate::macos_api::MacosApi;
 use crate::reaper;
 use crate::reaper::ReaperNotification;
+use crate::window_manager_event::ManualNotification;
+use crate::window_manager_event::SystemNotification;
+use crate::window_manager_event::WindowManagerEvent;
+use crate::window_manager_event_listener;
 use objc2_core_foundation::CFMachPort;
 use objc2_core_foundation::CFRetained;
 use objc2_core_foundation::CFRunLoop;
@@ -24,6 +30,22 @@ extern "C-unwind" fn callback(
     _listener: *mut c_void,
 ) -> *mut CGEvent {
     reaper::send_notification(ReaperNotification::MouseUpKeyUp);
+    if let Some(element) = MacosApi::foreground_window() {
+        let mut pid = 0;
+        unsafe {
+            element.pid(NonNull::from_mut(&mut pid));
+        }
+
+        if pid != 0
+            && let Some(event) = WindowManagerEvent::from_system_notification(
+                SystemNotification::Manual(ManualNotification::ShowOnInputEvent),
+                pid,
+                AccessibilityApi::window_id(&element).ok(),
+            )
+        {
+            window_manager_event_listener::send_notification(event);
+        }
+    }
     unsafe { event_ref.as_mut() }
 }
 impl InputEventListener {
