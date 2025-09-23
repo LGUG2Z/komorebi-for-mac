@@ -3,6 +3,8 @@ with pkgs;
   mkShell {
     name = "komorebi";
 
+    RUST_BACKTRACE = "full";
+
     buildInputs = [
       just
       gcc

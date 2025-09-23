@@ -116,6 +116,10 @@ lazy_static! {
         })]));
     static ref PERMAIGNORE_CLASSES: Arc<Mutex<Vec<String>>> =
         Arc::new(Mutex::new(vec!["Chrome_RenderWidgetHostHWND".to_string(),]));
+    static ref TABBED_APPLICATIONS: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![
+        "Finder".to_string(),
+        "Ghostty".to_string()
+    ]));
 }
 
 pub static DEFAULT_WORKSPACE_PADDING: AtomicI32 = AtomicI32::new(5);

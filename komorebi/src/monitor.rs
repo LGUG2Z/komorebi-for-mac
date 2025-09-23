@@ -103,6 +103,7 @@ impl Monitor {
         }
     }
 
+    #[tracing::instrument(skip_all)]
     pub fn update_focused_workspace(&mut self, offset: Option<Rect>) -> eyre::Result<()> {
         let offset = if self.work_area_offset.is_some() {
             self.work_area_offset

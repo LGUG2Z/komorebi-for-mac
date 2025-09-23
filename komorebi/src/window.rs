@@ -7,6 +7,7 @@ use crate::LibraryError;
 use crate::MANAGE_IDENTIFIERS;
 use crate::PERMAIGNORE_CLASSES;
 use crate::REGEX_IDENTIFIERS;
+use crate::TABBED_APPLICATIONS;
 use crate::WINDOW_RESTORE_POSITIONS;
 use crate::accessibility::AccessibilityApi;
 use crate::accessibility::attribute_constants::kAXFocusedAttribute;
@@ -487,7 +488,18 @@ impl Window {
         match self.set_point(CGPoint::new(rect.left as CGFloat, rect.top as CGFloat)) {
             Ok(_) => {}
             Err(error) => {
-                reaper::send_notification(ReaperNotification::InvalidWindow(self.id));
+                let mut should_reap = true;
+                let tabbed_applications = TABBED_APPLICATIONS.lock();
+                if tabbed_applications.contains(&self.application.name().unwrap_or_default())
+                    && self.is_valid()
+                {
+                    should_reap = false;
+                }
+
+                if should_reap {
+                    reaper::send_notification(ReaperNotification::InvalidWindow(self.id));
+                }
+
                 return Err(error);
             }
         }
@@ -495,7 +507,18 @@ impl Window {
         match self.set_size(CGSize::new(rect.right as CGFloat, rect.bottom as CGFloat)) {
             Ok(_) => Ok(()),
             Err(error) => {
-                reaper::send_notification(ReaperNotification::InvalidWindow(self.id));
+                let mut should_reap = true;
+                let tabbed_applications = TABBED_APPLICATIONS.lock();
+                if tabbed_applications.contains(&self.application.name().unwrap_or_default())
+                    && self.is_valid()
+                {
+                    should_reap = false;
+                }
+
+                if should_reap {
+                    reaper::send_notification(ReaperNotification::InvalidWindow(self.id));
+                }
+
                 Err(error)
             }
         }
