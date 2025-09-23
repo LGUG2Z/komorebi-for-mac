@@ -204,22 +204,41 @@ struct Opts {
 
 #[derive(Parser)]
 enum SubCommand {
-    /// Start komorebi as a background process
+    // #[clap(hide = true)]
+    // Docgen,
+    // /// Gather example configurations for a new-user quickstart
+    // Quickstart,
+    /// Start komorebi.exe as a background process
     Start(Start),
-    /// Stop the komorebi process and restore all hidden windows
+    /// Stop the komorebi.exe process and restore all hidden windows
+    // komorebi for Windows signature
+    // Stop(Stop),
     Stop,
+    // /// Kill background processes started by komorebic
+    // Kill(Kill),
+    // /// Check komorebi configuration and related files for common errors
+    // Check(Check),
     /// Show the path to komorebi.json
     #[clap(alias = "config")]
     Configuration,
-    /// Show the path to komorebi's data directory in $HOME/Library/Application Support
+    // /// Show the path to komorebi.bar.json
+    // #[clap(alias = "bar-config")]
+    // #[clap(alias = "bconfig")]
+    // BarConfiguration,
+    // /// Show the path to whkdrc
+    // #[clap(alias = "whkd")]
+    // Whkdrc,
+    /// Show the path to komorebi's data directory in %LOCALAPPDATA%
     #[clap(alias = "datadir")]
     DataDirectory,
-    /// Tail komorebi's process logs (cancel with Ctrl-C)
-    Log,
     /// Show a JSON representation of the current window manager state
     State,
     /// Show a JSON representation of the current global state
     GlobalState,
+    // /// Launch the komorebi-gui debugging tool
+    // Gui,
+    // /// Toggle the komorebi-shortcuts helper
+    // ToggleShortcuts,
     /// Show a JSON representation of visible windows
     VisibleWindows,
     /// Show information about connected monitors
@@ -228,21 +247,60 @@ enum SubCommand {
     /// Query the current window manager state
     #[clap(arg_required_else_help = true)]
     Query(Query),
+    // /// Subscribe to komorebi events using a Unix Domain Socket
+    // #[clap(arg_required_else_help = true)]
+    // SubscribeSocket(SubscribeSocket),
+    // /// Unsubscribe from komorebi events
+    // #[clap(arg_required_else_help = true)]
+    // UnsubscribeSocket(UnsubscribeSocket),
+    // /// Subscribe to komorebi events using a Named Pipe
+    // #[clap(arg_required_else_help = true)]
+    // #[clap(alias = "subscribe")]
+    // SubscribePipe(SubscribePipe),
+    // /// Unsubscribe from komorebi events
+    // #[clap(arg_required_else_help = true)]
+    // #[clap(alias = "unsubscribe")]
+    // UnsubscribePipe(UnsubscribePipe),
+    /// Tail komorebi.exe's process logs (cancel with Ctrl-C)
+    Log,
+    // /// Quicksave the current resize layout dimensions
+    // #[clap(alias = "quick-save")]
+    // QuickSaveResize,
+    // /// Load the last quicksaved resize layout dimensions
+    // #[clap(alias = "quick-load")]
+    // QuickLoadResize,
+    // /// Save the current resize layout dimensions to a file
+    // #[clap(arg_required_else_help = true)]
+    // #[clap(alias = "save")]
+    // SaveResize(SaveResize),
+    // /// Load the resize layout dimensions from a file
+    // #[clap(arg_required_else_help = true)]
+    // #[clap(alias = "load")]
+    // LoadResize(LoadResize),
     /// Change focus to the window in the specified direction
     #[clap(arg_required_else_help = true)]
     Focus(Focus),
     /// Move the focused window in the specified direction
     #[clap(arg_required_else_help = true)]
     Move(Move),
-    /// Stack the focused window in the specified direction
-    #[clap(arg_required_else_help = true)]
-    Stack(Stack),
+    // /// Minimize the focused window
+    // Minimize,
+    // /// Close the focused window
+    // Close,
+    // /// Forcibly focus the window at the cursor with a left mouse click
+    // ForceFocus,
     /// Change focus to the window in the specified cycle direction
     #[clap(arg_required_else_help = true)]
     CycleFocus(CycleFocus),
     /// Move the focused window in the specified cycle direction
     #[clap(arg_required_else_help = true)]
     CycleMove(CycleMove),
+    // /// Focus the first managed window matching the given exe
+    // #[clap(arg_required_else_help = true)]
+    // EagerFocus(EagerFocus),
+    /// Stack the focused window in the specified direction
+    #[clap(arg_required_else_help = true)]
+    Stack(Stack),
     /// Unstack the focused window
     Unstack,
     /// Cycle the focused stack in the specified cycle direction
@@ -265,29 +323,6 @@ enum SubCommand {
     /// Resize the focused window or primary column along the specified axis
     #[clap(arg_required_else_help = true)]
     ResizeAxis(ResizeAxis),
-    /// Toggle the paused state for all window tiling
-    TogglePause,
-    /// Toggle monocle mode for the focused container
-    ToggleMonocle,
-    /// Toggle floating mode for the focused window
-    ToggleFloat,
-    /// Toggle between the Tiling and Floating layers on the focused workspace
-    ToggleWorkspaceLayer,
-    /// Set the layout on the focused workspace
-    #[clap(arg_required_else_help = true)]
-    ChangeLayout(ChangeLayout),
-    /// Cycle between available layouts
-    #[clap(arg_required_else_help = true)]
-    CycleLayout(CycleLayout),
-    /// Flip the layout on the focused workspace
-    #[clap(arg_required_else_help = true)]
-    FlipLayout(FlipLayout),
-    /// Promote the focused window to the top of the tree
-    Promote,
-    /// Promote the user focus to the top of the tree
-    PromoteFocus,
-    /// Promote the window in the specified direction
-    PromoteWindow(PromoteWindow),
     /// Move the focused window to the specified monitor
     #[clap(arg_required_else_help = true)]
     MoveToMonitor(MoveToMonitor),
@@ -328,15 +363,6 @@ enum SubCommand {
     SendToLastWorkspace,
     /// Move the focused window to the last focused monitor workspace
     MoveToLastWorkspace,
-    /// Move the focused workspace to the specified monitor
-    #[clap(arg_required_else_help = true)]
-    MoveWorkspaceToMonitor(MoveWorkspaceToMonitor),
-    /// Move the focused workspace monitor in the given cycle direction
-    #[clap(arg_required_else_help = true)]
-    CycleMoveWorkspaceToMonitor(CycleMoveWorkspaceToMonitor),
-    /// Swap focused monitor workspaces with specified monitor
-    #[clap(arg_required_else_help = true)]
-    SwapWorkspacesWithMonitor(SwapWorkspacesWithMonitor),
     /// Focus the specified monitor
     #[clap(arg_required_else_help = true)]
     FocusMonitor(FocusMonitor),
@@ -366,11 +392,138 @@ enum SubCommand {
     CycleWorkspace(CycleWorkspace),
     /// Focus the next empty workspace in the given cycle direction (if one exists)
     #[clap(arg_required_else_help = true)]
-    CycleEmptyWorkspace(CycleEmptyWorkspace),
-    /// Force the retiling of all managed windows
-    Retile,
+    CycleEmptyWorkspace(CycleWorkspace),
+    /// Move the focused workspace to the specified monitor
+    #[clap(arg_required_else_help = true)]
+    MoveWorkspaceToMonitor(MoveWorkspaceToMonitor),
+    /// Move the focused workspace monitor in the given cycle direction
+    #[clap(arg_required_else_help = true)]
+    CycleMoveWorkspaceToMonitor(CycleMoveWorkspaceToMonitor),
+    /// Swap focused monitor workspaces with specified monitor
+    #[clap(arg_required_else_help = true)]
+    SwapWorkspacesWithMonitor(SwapWorkspacesWithMonitor),
+    // /// Create and append a new workspace on the focused monitor
+    // NewWorkspace,
+    // /// Set the resize delta (used by resize-edge and resize-axis)
+    // #[clap(arg_required_else_help = true)]
+    // ResizeDelta(ResizeDelta),
+    // /// Set the invisible border dimensions around each window
+    // #[clap(arg_required_else_help = true)]
+    // InvisibleBorders(InvisibleBorders),
+    // /// Set offsets to exclude parts of the work area from tiling
+    // #[clap(arg_required_else_help = true)]
+    // GlobalWorkAreaOffset(GlobalWorkAreaOffset),
+    // /// Set offsets for a monitor to exclude parts of the work area from tiling
+    // #[clap(arg_required_else_help = true)]
+    // MonitorWorkAreaOffset(MonitorWorkAreaOffset),
+    // /// Set offsets for a workspace to exclude parts of the work area from tiling
+    // #[clap(arg_required_else_help = true)]
+    // WorkspaceWorkAreaOffset(WorkspaceWorkAreaOffset),
     /// Toggle application of the window-based work area offset for the focused workspace
     ToggleWindowBasedWorkAreaOffset,
+    // /// Set container padding on the focused workspace
+    // #[clap(arg_required_else_help = true)]
+    // FocusedWorkspaceContainerPadding(FocusedWorkspaceContainerPadding),
+    // /// Set workspace padding on the focused workspace
+    // #[clap(arg_required_else_help = true)]
+    // FocusedWorkspacePadding(FocusedWorkspacePadding),
+    // /// Adjust container padding on the focused workspace
+    // #[clap(arg_required_else_help = true)]
+    // AdjustContainerPadding(AdjustContainerPadding),
+    // /// Adjust workspace padding on the focused workspace
+    // #[clap(arg_required_else_help = true)]
+    // AdjustWorkspacePadding(AdjustWorkspacePadding),
+    /// Set the layout on the focused workspace
+    #[clap(arg_required_else_help = true)]
+    ChangeLayout(ChangeLayout),
+    /// Cycle between available layouts
+    #[clap(arg_required_else_help = true)]
+    CycleLayout(CycleLayout),
+    // /// Set the number of visible columns for the Scrolling layout on the focused workspace
+    // #[clap(arg_required_else_help = true)]
+    // ScrollingLayoutColumns(ScrollingLayoutColumns),
+    // /// Load a custom layout from file for the focused workspace
+    // #[clap(hide = true)]
+    // #[clap(arg_required_else_help = true)]
+    // LoadCustomLayout(LoadCustomLayout),
+    /// Flip the layout on the focused workspace
+    #[clap(arg_required_else_help = true)]
+    FlipLayout(FlipLayout),
+    /// Promote the focused window to the top of the tree
+    Promote,
+    /// Promote the user focus to the top of the tree
+    PromoteFocus,
+    /// Promote the window in the specified direction
+    PromoteWindow(PromoteWindow),
+    /// Force the retiling of all managed windows
+    Retile,
+    // /// Set the monitor index preference for a monitor identified using its size
+    // #[clap(arg_required_else_help = true)]
+    // MonitorIndexPreference(MonitorIndexPreference),
+    // /// Set the display index preference for a monitor identified using its display name
+    // #[clap(arg_required_else_help = true)]
+    // DisplayIndexPreference(DisplayIndexPreference),
+    // /// Create at least this many workspaces for the specified monitor
+    // #[clap(arg_required_else_help = true)]
+    // EnsureWorkspaces(EnsureWorkspaces),
+    // /// Create these many named workspaces for the specified monitor
+    // #[clap(arg_required_else_help = true)]
+    // EnsureNamedWorkspaces(EnsureNamedWorkspaces),
+    // /// Set the container padding for the specified workspace
+    // #[clap(arg_required_else_help = true)]
+    // ContainerPadding(ContainerPadding),
+    // /// Set the container padding for the specified workspace
+    // #[clap(arg_required_else_help = true)]
+    // NamedWorkspaceContainerPadding(NamedWorkspaceContainerPadding),
+    // /// Set the workspace padding for the specified workspace
+    // #[clap(arg_required_else_help = true)]
+    // WorkspacePadding(WorkspacePadding),
+    // /// Set the workspace padding for the specified workspace
+    // #[clap(arg_required_else_help = true)]
+    // NamedWorkspacePadding(NamedWorkspacePadding),
+    // /// Set the layout for the specified workspace
+    // #[clap(arg_required_else_help = true)]
+    // WorkspaceLayout(WorkspaceLayout),
+    // /// Set the layout for the specified workspace
+    // #[clap(arg_required_else_help = true)]
+    // NamedWorkspaceLayout(NamedWorkspaceLayout),
+    // /// Set a custom layout for the specified workspace
+    // #[clap(hide = true)]
+    // #[clap(arg_required_else_help = true)]
+    // WorkspaceCustomLayout(WorkspaceCustomLayout),
+    // /// Set a custom layout for the specified workspace
+    // #[clap(hide = true)]
+    // #[clap(arg_required_else_help = true)]
+    // NamedWorkspaceCustomLayout(NamedWorkspaceCustomLayout),
+    // /// Add a dynamic layout rule for the specified workspace
+    // #[clap(arg_required_else_help = true)]
+    // WorkspaceLayoutRule(WorkspaceLayoutRule),
+    // /// Add a dynamic layout rule for the specified workspace
+    // #[clap(arg_required_else_help = true)]
+    // NamedWorkspaceLayoutRule(NamedWorkspaceLayoutRule),
+    // /// Add a dynamic custom layout for the specified workspace
+    // #[clap(hide = true)]
+    // #[clap(arg_required_else_help = true)]
+    // WorkspaceCustomLayoutRule(WorkspaceCustomLayoutRule),
+    // /// Add a dynamic custom layout for the specified workspace
+    // #[clap(hide = true)]
+    // #[clap(arg_required_else_help = true)]
+    // NamedWorkspaceCustomLayoutRule(NamedWorkspaceCustomLayoutRule),
+    // /// Clear all dynamic layout rules for the specified workspace
+    // #[clap(arg_required_else_help = true)]
+    // ClearWorkspaceLayoutRules(ClearWorkspaceLayoutRules),
+    // /// Clear all dynamic layout rules for the specified workspace
+    // #[clap(arg_required_else_help = true)]
+    // ClearNamedWorkspaceLayoutRules(ClearNamedWorkspaceLayoutRules),
+    // /// Enable or disable window tiling for the specified workspace
+    // #[clap(arg_required_else_help = true)]
+    // WorkspaceTiling(WorkspaceTiling),
+    // /// Enable or disable window tiling for the specified workspace
+    // #[clap(arg_required_else_help = true)]
+    // NamedWorkspaceTiling(NamedWorkspaceTiling),
+    // /// Set the workspace name for the specified workspace
+    // #[clap(arg_required_else_help = true)]
+    // WorkspaceName(WorkspaceName),
     /// Toggle the behaviour for new windows (stacking or dynamic tiling)
     ToggleWindowContainerBehaviour,
     /// Enable or disable float override, which makes it so every new window opens in floating mode
@@ -383,21 +536,197 @@ enum SubCommand {
     /// mode, for the currently focused workspace. If there was no override value set for the
     /// workspace previously it takes the opposite of the global value.
     ToggleWorkspaceFloatOverride,
+    /// Toggle between the Tiling and Floating layers on the focused workspace
+    ToggleWorkspaceLayer,
+    /// Toggle the paused state for all window tiling
+    TogglePause,
     /// Toggle window tiling on the focused workspace
     ToggleTiling,
+    /// Toggle floating mode for the focused window
+    ToggleFloat,
+    /// Toggle monocle mode for the focused container
+    ToggleMonocle,
+    // /// Toggle native maximization for the focused window
+    // ToggleMaximize,
     /// Toggle a lock for the focused container, ensuring it will not be displaced by any new windows
     ToggleLock,
+    // /// Restore all hidden windows (debugging command)
+    // RestoreWindows,
+    // /// Force komorebi to manage the focused window
+    // Manage,
+    // /// Unmanage a window that was forcibly managed
+    // Unmanage,
+    // /// Replace the configuration of a running instance of komorebi from a static configuration file
+    // #[clap(arg_required_else_help = true)]
+    // ReplaceConfiguration(ReplaceConfiguration),
+    // /// Reload legacy komorebi.ahk or komorebi.ps1 configurations (if they exist)
+    // ReloadConfiguration,
+    // /// Enable or disable watching of legacy komorebi.ahk or komorebi.ps1 configurations (if they exist)
+    // #[clap(arg_required_else_help = true)]
+    // WatchConfiguration(WatchConfiguration),
+    // /// For legacy komorebi.ahk or komorebi.ps1 configurations, signal that the final configuration option has been sent
+    // CompleteConfiguration,
+    // /// DEPRECATED since v0.1.22
+    // #[clap(arg_required_else_help = true)]
+    // #[clap(hide = true)]
+    // AltFocusHack(AltFocusHack),
+    // /// Set the window behaviour when switching workspaces / cycling stacks
+    // #[clap(arg_required_else_help = true)]
+    // WindowHidingBehaviour(WindowHidingBehaviour),
+    // /// Set the behaviour when moving windows across monitor boundaries
+    // #[clap(arg_required_else_help = true)]
+    // CrossMonitorMoveBehaviour(CrossMonitorMoveBehaviour),
     /// Toggle the behaviour when moving windows across monitor boundaries
     ToggleCrossMonitorMoveBehaviour,
-    /// Fetch the latest version of applications.json from komorebi-application-specific-configuration
-    #[clap(alias = "fetch-asc")]
-    FetchAppSpecificConfiguration,
+    // /// Set the operation behaviour when the focused window is not managed
+    // #[clap(arg_required_else_help = true)]
+    // UnmanagedWindowOperationBehaviour(UnmanagedWindowOperationBehaviour),
     /// Add a rule to float the foreground window for the rest of this session
     SessionFloatRule,
     /// Show all session float rules
     SessionFloatRules,
     /// Clear all session float rules
     ClearSessionFloatRules,
+    // /// Add a rule to ignore the specified application
+    // #[clap(arg_required_else_help = true)]
+    // #[clap(alias = "float-rule")]
+    // IgnoreRule(IgnoreRule),
+    // /// Add a rule to always manage the specified application
+    // #[clap(arg_required_else_help = true)]
+    // ManageRule(ManageRule),
+    // /// Add a rule to associate an application with a workspace on first show
+    // #[clap(arg_required_else_help = true)]
+    // InitialWorkspaceRule(InitialWorkspaceRule),
+    // /// Add a rule to associate an application with a named workspace on first show
+    // #[clap(arg_required_else_help = true)]
+    // InitialNamedWorkspaceRule(InitialNamedWorkspaceRule),
+    // /// Add a rule to associate an application with a workspace
+    // #[clap(arg_required_else_help = true)]
+    // WorkspaceRule(WorkspaceRule),
+    // /// Add a rule to associate an application with a named workspace
+    // #[clap(arg_required_else_help = true)]
+    // NamedWorkspaceRule(NamedWorkspaceRule),
+    // /// Remove all application association rules for a workspace by monitor and workspace index
+    // #[clap(arg_required_else_help = true)]
+    // ClearWorkspaceRules(ClearWorkspaceRules),
+    // /// Remove all application association rules for a named workspace
+    // #[clap(arg_required_else_help = true)]
+    // ClearNamedWorkspaceRules(ClearNamedWorkspaceRules),
+    // /// Remove all application association rules for all workspaces
+    // ClearAllWorkspaceRules,
+    // /// Enforce all workspace rules, including initial workspace rules that have already been applied
+    // EnforceWorkspaceRules,
+    // /// Identify an application that sends EVENT_OBJECT_NAMECHANGE on launch
+    // #[clap(arg_required_else_help = true)]
+    // IdentifyObjectNameChangeApplication(IdentifyObjectNameChangeApplication),
+    // /// Identify an application that closes to the system tray
+    // #[clap(arg_required_else_help = true)]
+    // IdentifyTrayApplication(IdentifyTrayApplication),
+    // /// Identify an application that has WS_EX_LAYERED, but should still be managed
+    // #[clap(arg_required_else_help = true)]
+    // IdentifyLayeredApplication(IdentifyLayeredApplication),
+    // /// Whitelist an application for title bar removal
+    // #[clap(arg_required_else_help = true)]
+    // RemoveTitleBar(RemoveTitleBar),
+    // /// Toggle title bars for whitelisted applications
+    // ToggleTitleBars,
+    // /// Identify an application that has overflowing borders
+    // #[clap(hide = true)]
+    // #[clap(alias = "identify-border-overflow")]
+    // IdentifyBorderOverflowApplication(IdentifyBorderOverflowApplication),
+    // /// Enable or disable borders
+    // #[clap(arg_required_else_help = true)]
+    // #[clap(alias = "active-window-border")]
+    // Border(Border),
+    // /// Set the colour for a window border kind
+    // #[clap(arg_required_else_help = true)]
+    // #[clap(alias = "active-window-border-colour")]
+    // BorderColour(BorderColour),
+    // /// Set the border width
+    // #[clap(arg_required_else_help = true)]
+    // #[clap(alias = "active-window-border-width")]
+    // BorderWidth(BorderWidth),
+    // /// Set the border offset
+    // #[clap(arg_required_else_help = true)]
+    // #[clap(alias = "active-window-border-offset")]
+    // BorderOffset(BorderOffset),
+    // /// Set the border style
+    // #[clap(arg_required_else_help = true)]
+    // BorderStyle(BorderStyle),
+    // /// Set the border implementation
+    // #[clap(arg_required_else_help = true)]
+    // BorderImplementation(BorderImplementation),
+    // /// Set the stackbar mode
+    // #[clap(arg_required_else_help = true)]
+    // StackbarMode(StackbarMode),
+    // /// Enable or disable transparency for unfocused windows
+    // #[clap(arg_required_else_help = true)]
+    // Transparency(Transparency),
+    // /// Set the alpha value for unfocused window transparency
+    // #[clap(arg_required_else_help = true)]
+    // TransparencyAlpha(TransparencyAlpha),
+    // /// Toggle transparency for unfocused windows
+    // ToggleTransparency,
+    // /// Enable or disable movement animations
+    // #[clap(arg_required_else_help = true)]
+    // Animation(Animation),
+    // /// Set the duration for movement animations in ms
+    // #[clap(arg_required_else_help = true)]
+    // AnimationDuration(AnimationDuration),
+    // /// Set the frames per second for movement animations
+    // #[clap(arg_required_else_help = true)]
+    // AnimationFps(AnimationFps),
+    // /// Set the ease function for movement animations
+    // #[clap(arg_required_else_help = true)]
+    // AnimationStyle(AnimationStyle),
+    // /// Enable or disable focus follows mouse for the operating system
+    // #[clap(hide = true)]
+    // #[clap(arg_required_else_help = true)]
+    // FocusFollowsMouse(FocusFollowsMouse),
+    // /// Toggle focus follows mouse for the operating system
+    // #[clap(hide = true)]
+    // #[clap(arg_required_else_help = true)]
+    // ToggleFocusFollowsMouse(ToggleFocusFollowsMouse),
+    // /// Enable or disable mouse follows focus on all workspaces
+    // #[clap(arg_required_else_help = true)]
+    // MouseFollowsFocus(MouseFollowsFocus),
+    // /// Toggle mouse follows focus on all workspaces
+    // ToggleMouseFollowsFocus,
+    // /// Generate common app-specific configurations and fixes to use in komorebi.ahk
+    // #[clap(arg_required_else_help = true)]
+    // #[clap(alias = "ahk-asc")]
+    // AhkAppSpecificConfiguration(AhkAppSpecificConfiguration),
+    // /// Generate common app-specific configurations and fixes in a PowerShell script
+    // #[clap(arg_required_else_help = true)]
+    // #[clap(alias = "pwsh-asc")]
+    // PwshAppSpecificConfiguration(PwshAppSpecificConfiguration),
+    // /// Convert a v1 ASC YAML file to a v2 ASC JSON file
+    // #[clap(arg_required_else_help = true)]
+    // #[clap(alias = "convert-asc")]
+    // ConvertAppSpecificConfiguration(ConvertAppSpecificConfiguration),
+    // /// Format a YAML file for use with the 'app-specific-configuration' command
+    // #[clap(arg_required_else_help = true)]
+    // #[clap(alias = "fmt-asc")]
+    // #[clap(hide = true)]
+    // FormatAppSpecificConfiguration(FormatAppSpecificConfiguration),
+    /// Fetch the latest version of applications.json from komorebi-application-specific-configuration
+    #[clap(alias = "fetch-asc")]
+    FetchAppSpecificConfiguration,
+    // /// Generate a JSON Schema for applications.json
+    // #[clap(alias = "asc-schema")]
+    // ApplicationSpecificConfigurationSchema,
+    // /// Generate a JSON Schema of subscription notifications
+    // NotificationSchema,
+    // /// Generate a JSON Schema of socket messages
+    // SocketSchema,
+    // /// Generate a JSON Schema of the static configuration file
+    // StaticConfigSchema,
+    // /// Generates a static configuration JSON file based on the current window manager state
+    // GenerateStaticConfig,
+    // /// Generates the komorebi.lnk shortcut in shell:startup to autostart komorebi
+    // EnableAutostart(EnableAutostart),
+    // /// Deletes the komorebi.lnk shortcut in shell:startup to disable autostart
+    // DisableAutostart,
 }
 
 fn print_query(message: &SocketMessage) {

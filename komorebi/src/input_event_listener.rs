@@ -48,6 +48,7 @@ extern "C-unwind" fn callback(
     }
     unsafe { event_ref.as_mut() }
 }
+
 impl InputEventListener {
     pub fn init(run_loop: &CFRunLoop) -> Option<Self> {
         let mouse_event_mask = (1 << CGEventType::LeftMouseUp.0) | (1 << CGEventType::KeyUp.0);
