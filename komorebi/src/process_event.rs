@@ -1,6 +1,8 @@
 use crate::TABBED_APPLICATIONS;
 use crate::WORKSPACE_MATCHING_RULES;
 use crate::accessibility::AccessibilityApi;
+use crate::accessibility::error::AccessibilityApiError;
+use crate::accessibility::error::AccessibilityError;
 use crate::accessibility::notification_constants::AccessibilityNotification;
 use crate::ax_event_listener::event_tx;
 use crate::core::config_generation::MatchingRule;
@@ -96,16 +98,46 @@ impl WindowManager {
 
                         let tabbed_applications = TABBED_APPLICATIONS.lock();
                         if tabbed_applications.contains(&application_name) {
-                            for window in workspace.visible_windows().iter().flatten() {
-                                if window.application.name().unwrap_or_default() == application_name
+                            let mut first_tab_destroyed = false;
+
+                            for window in workspace.visible_windows() {
+                                if let Some(window) = window
+                                    && window.application.name().unwrap_or_default()
+                                        == application_name
                                 {
                                     let tab_rect = MacosApi::window_rect(&element)?;
-                                    let main_rect = MacosApi::window_rect(&window.element)?;
+                                    let main_rect = match MacosApi::window_rect(&window.element) {
+                                        Ok(rect) => rect,
+                                        Err(AccessibilityError::Api(
+                                            AccessibilityApiError::InvalidUIElement,
+                                        )) => {
+                                            // this means we have closed the 1st tab, so we need this window object to be reaped
+                                            // and for the new 1st tab to be the key element of the window struct
+                                            event_tx().send(WindowManagerEvent::Show(
+                                                notification,
+                                                event.process_id(),
+                                            ))?;
+
+                                            first_tab_destroyed = true;
+
+                                            tracing::debug!(
+                                                "first tab of a native tabbed app was destroyed; reaping window and sending a new show event"
+                                            );
+
+                                            tab_rect
+                                        }
+                                        Err(error) => return Err(error.into()),
+                                    };
+
                                     if tab_rect == main_rect {
                                         tracing::debug!("ignoring focus change for tabbed window");
                                         tabbed_window = true;
                                     }
                                 }
+                            }
+
+                            if first_tab_destroyed {
+                                self.reap_invalid_windows_for_application(process_id)?;
                             }
                         }
 

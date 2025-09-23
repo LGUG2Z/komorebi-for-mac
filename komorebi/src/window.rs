@@ -7,7 +7,6 @@ use crate::LibraryError;
 use crate::MANAGE_IDENTIFIERS;
 use crate::PERMAIGNORE_CLASSES;
 use crate::REGEX_IDENTIFIERS;
-use crate::TABBED_APPLICATIONS;
 use crate::WINDOW_RESTORE_POSITIONS;
 use crate::accessibility::AccessibilityApi;
 use crate::accessibility::attribute_constants::kAXFocusedAttribute;
@@ -38,7 +37,6 @@ use crate::core_graphics::CoreGraphicsApi;
 use crate::hidden_frame_bottom_left;
 use crate::macos_api::MacosApi;
 use crate::reaper;
-use crate::reaper::ReaperNotification;
 use crate::window_manager_event::SystemNotification;
 use crate::window_manager_event::WindowManagerEvent;
 use color_eyre::eyre;
@@ -348,8 +346,8 @@ impl Window {
                     rect.origin.y,
                 );
 
-                self.set_point(hidden_rect.origin)?;
-                self.set_size(hidden_rect.size)?;
+                self.set_point(hidden_rect.origin, true)?;
+                self.set_size(hidden_rect.size, true)?;
             }
         }
 
@@ -419,8 +417,8 @@ impl Window {
                     .unwrap_or_else(|| String::from("<NO TITLE FOUND>"))
             );
 
-            self.set_point(cg_rect.origin)?;
-            self.set_size(cg_rect.size)?;
+            self.set_point(cg_rect.origin, true)?;
+            self.set_size(cg_rect.size, true)?;
             should_remove_restore_position = true;
         }
 
@@ -485,49 +483,31 @@ impl Window {
     }
 
     pub fn set_position(&self, rect: &Rect) -> Result<(), AccessibilityError> {
-        match self.set_point(CGPoint::new(rect.left as CGFloat, rect.top as CGFloat)) {
-            Ok(_) => {}
-            Err(error) => {
-                let mut should_reap = true;
-                let tabbed_applications = TABBED_APPLICATIONS.lock();
-                if tabbed_applications.contains(&self.application.name().unwrap_or_default())
-                    && self.is_valid()
-                {
-                    should_reap = false;
-                }
-
-                if should_reap {
-                    reaper::send_notification(ReaperNotification::InvalidWindow(self.id));
-                }
-
-                return Err(error);
-            }
-        }
-
-        match self.set_size(CGSize::new(rect.right as CGFloat, rect.bottom as CGFloat)) {
-            Ok(_) => Ok(()),
-            Err(error) => {
-                let mut should_reap = true;
-                let tabbed_applications = TABBED_APPLICATIONS.lock();
-                if tabbed_applications.contains(&self.application.name().unwrap_or_default())
-                    && self.is_valid()
-                {
-                    should_reap = false;
-                }
-
-                if should_reap {
-                    reaper::send_notification(ReaperNotification::InvalidWindow(self.id));
-                }
-
-                Err(error)
-            }
-        }
+        self.set_point(
+            CGPoint::new(rect.left as CGFloat, rect.top as CGFloat),
+            true,
+        )?;
+        self.set_size(
+            CGSize::new(rect.right as CGFloat, rect.bottom as CGFloat),
+            true,
+        )
     }
 
     pub fn focus(&self, mouse_follows_focus: bool) -> Result<(), LibraryError> {
         unsafe {
-            self.running_application()?
-                .activateWithOptions(NSApplicationActivationOptions::empty());
+            match self.running_application() {
+                Ok(running_application) => {
+                    running_application
+                        .activateWithOptions(NSApplicationActivationOptions::empty());
+                }
+                Err(error) => {
+                    tracing::warn!(
+                        "failed to get running application for {} ({:?}): {error}",
+                        self.application.process_id,
+                        self.application.name()
+                    );
+                }
+            }
 
             let cf_boolean = CFBoolean::new(true);
             let value = &**cf_boolean;
@@ -548,22 +528,34 @@ impl Window {
         AccessibilityApi::set_attribute_cf_value(&self.element, kAXFocusedAttribute, value)
     }
 
-    pub fn set_point(&self, point: CGPoint) -> Result<(), AccessibilityError> {
-        AccessibilityApi::set_attribute_ax_value(
+    pub fn set_point(&self, point: CGPoint, should_reap: bool) -> Result<(), AccessibilityError> {
+        let result = AccessibilityApi::set_attribute_ax_value(
             &self.element,
             kAXPositionAttribute,
             AXValueType::CGPoint,
             point,
-        )
+        );
+
+        if should_reap {
+            reaper::notify_on_error(self, result)
+        } else {
+            result
+        }
     }
 
-    pub fn set_size(&self, size: CGSize) -> Result<(), AccessibilityError> {
-        AccessibilityApi::set_attribute_ax_value(
+    pub fn set_size(&self, size: CGSize, should_reap: bool) -> Result<(), AccessibilityError> {
+        let result = AccessibilityApi::set_attribute_ax_value(
             &self.element,
             kAXSizeAttribute,
             AXValueType::CGSize,
             size,
-        )
+        );
+
+        if should_reap {
+            reaper::notify_on_error(self, result)
+        } else {
+            result
+        }
     }
 
     pub fn center(&mut self, work_area: &Rect, resize: bool) -> Result<(), AccessibilityError> {

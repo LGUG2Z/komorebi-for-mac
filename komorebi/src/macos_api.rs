@@ -187,6 +187,7 @@ impl MacosApi {
         )?)
     }
 
+    #[tracing::instrument(skip_all)]
     pub fn window_rect(element: &AXUIElement) -> Result<CGRect, AccessibilityError> {
         let mut position_receiver = std::ptr::null();
         let mut size_receiver = std::ptr::null();

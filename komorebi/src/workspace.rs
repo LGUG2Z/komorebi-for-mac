@@ -287,12 +287,14 @@ impl Workspace {
         insertion_idx
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn reap_invalid_windows_for_application(
         &mut self,
         process_id: i32,
         valid_window_ids: &[u32],
     ) -> eyre::Result<usize> {
         let mut invalid_window_ids = vec![];
+        let mut invalid_floating_window_ids = vec![];
         for container in self.containers() {
             if let Some(focused_window) = container.focused_window()
                 && focused_window.application.process_id == process_id
@@ -309,11 +311,33 @@ impl Workspace {
             }
         }
 
+        for window in self.floating_windows() {
+            if window.application.process_id == process_id {
+                if !valid_window_ids.contains(&window.id) {
+                    invalid_floating_window_ids.push(window.id);
+                }
+
+                // if accessibility API calls fail on AXError::InvalidUIElement
+                // let's try and nuke these early
+                if !window.is_valid() {
+                    invalid_floating_window_ids.push(window.id);
+                }
+            }
+        }
+
         for window_id in &invalid_window_ids {
             self.remove_window(*window_id)?;
         }
 
-        Ok(invalid_window_ids.len())
+        for window_id in &invalid_floating_window_ids {
+            self.remove_floating_window(*window_id);
+        }
+
+        tracing::debug!(
+            "reaping invalid windows {invalid_window_ids:?} {invalid_floating_window_ids:?}"
+        );
+
+        Ok(invalid_window_ids.len() + invalid_floating_window_ids.len())
     }
 
     pub fn remove_window(&mut self, window_id: u32) -> eyre::Result<Window> {
@@ -538,8 +562,10 @@ impl Workspace {
                 should_hide = true
             }
 
-            if should_hide {
-                window.hide()?;
+            if should_hide && let Err(error) = window.hide() {
+                tracing::warn!(
+                    "failed to hide floating window, but this might be because it is already hidden: {error}"
+                );
             }
         }
 
@@ -773,7 +799,10 @@ impl Workspace {
 
     pub fn remove_focused_floating_window(&mut self) -> Option<Window> {
         let window_id = MacosApi::foreground_window_id()?;
+        self.remove_floating_window(window_id)
+    }
 
+    pub fn remove_floating_window(&mut self, window_id: u32) -> Option<Window> {
         let mut idx = None;
         for (i, window) in self.floating_windows().iter().enumerate() {
             if window_id == window.id {

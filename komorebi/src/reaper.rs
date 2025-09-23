@@ -1,3 +1,6 @@
+use crate::TABBED_APPLICATIONS;
+use crate::accessibility::error::AccessibilityError;
+use crate::window::Window;
 use crate::window_manager::WindowManager;
 use crossbeam_channel::Receiver;
 use crossbeam_channel::Sender;
@@ -69,6 +72,15 @@ fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result<()>
                                 w.id != window_id
                             });
                         }
+
+                        workspace.floating_windows_mut().retain(|w| {
+                            if w.id == window_id {
+                                should_update = true;
+                                tracing::info!("reaping window: {window_id}");
+                            }
+
+                            w.id != window_id
+                        });
                     }
                 }
 
@@ -86,4 +98,25 @@ fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result<()>
     }
 
     Ok(())
+}
+
+pub fn notify_on_error(
+    window: &Window,
+    result: Result<(), AccessibilityError>,
+) -> Result<(), AccessibilityError> {
+    if let Err(_error) = &result {
+        let mut should_reap = true;
+        let tabbed_applications = TABBED_APPLICATIONS.lock();
+        if tabbed_applications.contains(&window.application.name().unwrap_or_default())
+            && window.is_valid()
+        {
+            should_reap = false;
+        }
+
+        if should_reap {
+            send_notification(ReaperNotification::InvalidWindow(window.id));
+        }
+    }
+
+    result
 }
