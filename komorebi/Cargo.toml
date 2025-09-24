@@ -1,6 +1,7 @@
 [package]
 name = "komorebi"
 version = "0.1.0"
+description = "A tiling window manager for macOS"
 edition = "2024"
 
 [dependencies]

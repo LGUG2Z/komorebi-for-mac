@@ -3,10 +3,12 @@ use crate::core::cycle_direction::CycleDirection;
 use crate::core::default_layout::DefaultLayout;
 use crate::core::operation_direction::OperationDirection;
 use crate::core::pathext::ResolvedPathBuf;
+use crate::core::rect::Rect;
 use clap::ValueEnum;
 use color_eyre::eyre;
 use serde::Deserialize;
 use serde::Serialize;
+use std::num::NonZeroUsize;
 use std::path::PathBuf;
 use std::str::FromStr;
 use strum::Display;
@@ -38,6 +40,22 @@ pub enum OperationBehaviour {
 pub enum Sizing {
     Increase,
     Decrease,
+}
+
+impl Sizing {
+    #[must_use]
+    pub const fn adjust_by(&self, value: i32, adjustment: i32) -> i32 {
+        match self {
+            Self::Increase => value + adjustment,
+            Self::Decrease => {
+                if value > 0 && value - adjustment >= 0 {
+                    value - adjustment
+                } else {
+                    value
+                }
+            }
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq)]
@@ -233,11 +251,11 @@ pub enum SocketMessage {
     // Current Workspace Commands
     // ManageFocusedWindow,
     // UnmanageFocusedWindow,
-    // AdjustContainerPadding(Sizing, i32),
-    // AdjustWorkspacePadding(Sizing, i32),
+    AdjustContainerPadding(Sizing, i32),
+    AdjustWorkspacePadding(Sizing, i32),
     ChangeLayout(DefaultLayout),
     CycleLayout(CycleDirection),
-    // ScrollingLayoutColumns(NonZeroUsize),
+    ScrollingLayoutColumns(NonZeroUsize),
     // ChangeLayoutCustom(#[serde_as(as = "ResolvedPathBuf")] PathBuf),
     FlipLayout(Axis),
     ToggleWorkspaceWindowContainerBehaviour,
@@ -247,7 +265,7 @@ pub enum SocketMessage {
     // DisplayIndexPreference(usize, String),
     // EnsureWorkspaces(usize, usize),
     // EnsureNamedWorkspaces(usize, Vec<String>),
-    // NewWorkspace,
+    NewWorkspace,
     ToggleTiling,
     // Stop,
     // StopIgnoreRestore,
@@ -269,21 +287,21 @@ pub enum SocketMessage {
     FocusWorkspaceNumbers(usize),
     FocusMonitorWorkspaceNumber(usize, usize),
     FocusNamedWorkspace(String),
-    // ContainerPadding(usize, usize, i32),
-    // NamedWorkspaceContainerPadding(String, i32),
-    // FocusedWorkspaceContainerPadding(i32),
-    // WorkspacePadding(usize, usize, i32),
-    // NamedWorkspacePadding(String, i32),
-    // FocusedWorkspacePadding(i32),
-    // WorkspaceTiling(usize, usize, bool),
-    // NamedWorkspaceTiling(String, bool),
-    // WorkspaceName(usize, usize, String),
-    // WorkspaceLayout(usize, usize, DefaultLayout),
-    // NamedWorkspaceLayout(String, DefaultLayout),
+    ContainerPadding(usize, usize, i32),
+    NamedWorkspaceContainerPadding(String, i32),
+    FocusedWorkspaceContainerPadding(i32),
+    WorkspacePadding(usize, usize, i32),
+    NamedWorkspacePadding(String, i32),
+    FocusedWorkspacePadding(i32),
+    WorkspaceTiling(usize, usize, bool),
+    NamedWorkspaceTiling(String, bool),
+    WorkspaceName(usize, usize, String),
+    WorkspaceLayout(usize, usize, DefaultLayout),
+    NamedWorkspaceLayout(String, DefaultLayout),
     // WorkspaceLayoutCustom(usize, usize, #[serde_as(as = "ResolvedPathBuf")] PathBuf),
     // NamedWorkspaceLayoutCustom(String, #[serde_as(as = "ResolvedPathBuf")] PathBuf),
-    // WorkspaceLayoutRule(usize, usize, usize, DefaultLayout),
-    // NamedWorkspaceLayoutRule(String, usize, DefaultLayout),
+    WorkspaceLayoutRule(usize, usize, usize, DefaultLayout),
+    NamedWorkspaceLayoutRule(String, usize, DefaultLayout),
     // WorkspaceLayoutCustomRule(
     //     usize,
     //     usize,
@@ -291,8 +309,8 @@ pub enum SocketMessage {
     //     #[serde_as(as = "ResolvedPathBuf")] PathBuf,
     // ),
     // NamedWorkspaceLayoutCustomRule(String, usize, #[serde_as(as = "ResolvedPathBuf")] PathBuf),
-    // ClearWorkspaceLayoutRules(usize, usize),
-    // ClearNamedWorkspaceLayoutRules(String),
+    ClearWorkspaceLayoutRules(usize, usize),
+    ClearNamedWorkspaceLayoutRules(String),
     ToggleWorkspaceLayer,
     // Configuration
     // ReloadConfiguration,
@@ -328,11 +346,11 @@ pub enum SocketMessage {
     // StackbarTabWidth(i32),
     // StackbarFontSize(i32),
     // StackbarFontFamily(Option<String>),
-    // WorkAreaOffset(Rect),
-    // MonitorWorkAreaOffset(usize, Rect),
-    // WorkspaceWorkAreaOffset(usize, usize, Rect),
+    WorkAreaOffset(Rect),
+    MonitorWorkAreaOffset(usize, Rect),
+    WorkspaceWorkAreaOffset(usize, usize, Rect),
     ToggleWindowBasedWorkAreaOffset,
-    // ResizeDelta(i32),
+    ResizeDelta(i32),
     InitialWorkspaceRule(ApplicationIdentifier, String, usize, usize),
     InitialNamedWorkspaceRule(ApplicationIdentifier, String, String),
     WorkspaceRule(ApplicationIdentifier, String, usize, usize),

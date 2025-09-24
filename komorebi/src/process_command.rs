@@ -14,6 +14,8 @@ use crate::core::config_generation::IdWithIdentifier;
 use crate::core::config_generation::MatchingRule;
 use crate::core::config_generation::MatchingStrategy;
 use crate::core::config_generation::WorkspaceMatchingRule;
+use crate::core::default_layout::LayoutOptions;
+use crate::core::default_layout::ScrollingLayoutOptions;
 use crate::core::layout::Layout;
 use crate::core::operation_direction::OperationDirection;
 use crate::core::rect::Rect;
@@ -1233,6 +1235,153 @@ impl WindowManager {
                         id: id.clone(),
                         matching_strategy: Option::from(MatchingStrategy::Legacy),
                     }));
+                }
+            }
+            SocketMessage::NewWorkspace => {
+                self.new_workspace()?;
+            }
+            SocketMessage::ContainerPadding(monitor_idx, workspace_idx, size) => {
+                self.set_container_padding(monitor_idx, workspace_idx, size)?;
+            }
+            SocketMessage::NamedWorkspaceContainerPadding(ref workspace, size) => {
+                if let Some((monitor_idx, workspace_idx)) =
+                    self.monitor_workspace_index_by_name(workspace)
+                {
+                    self.set_container_padding(monitor_idx, workspace_idx, size)?;
+                }
+            }
+            SocketMessage::WorkspacePadding(monitor_idx, workspace_idx, size) => {
+                self.set_workspace_padding(monitor_idx, workspace_idx, size)?;
+            }
+            SocketMessage::NamedWorkspacePadding(ref workspace, size) => {
+                if let Some((monitor_idx, workspace_idx)) =
+                    self.monitor_workspace_index_by_name(workspace)
+                {
+                    self.set_workspace_padding(monitor_idx, workspace_idx, size)?;
+                }
+            }
+            SocketMessage::FocusedWorkspaceContainerPadding(adjustment) => {
+                let focused_monitor_idx = self.focused_monitor_idx();
+
+                let focused_monitor = self.focused_monitor().ok_or_eyre("there is no monitor")?;
+
+                let focused_workspace_idx = focused_monitor.focused_workspace_idx();
+
+                self.set_container_padding(focused_monitor_idx, focused_workspace_idx, adjustment)?;
+            }
+            SocketMessage::FocusedWorkspacePadding(adjustment) => {
+                let focused_monitor_idx = self.focused_monitor_idx();
+
+                let focused_monitor = self.focused_monitor().ok_or_eyre("there is no monitor")?;
+
+                let focused_workspace_idx = focused_monitor.focused_workspace_idx();
+
+                self.set_workspace_padding(focused_monitor_idx, focused_workspace_idx, adjustment)?;
+            }
+            SocketMessage::WorkspaceTiling(monitor_idx, workspace_idx, tile) => {
+                self.set_workspace_tiling(monitor_idx, workspace_idx, tile)?;
+            }
+            SocketMessage::WorkspaceLayout(monitor_idx, workspace_idx, layout) => {
+                self.set_workspace_layout_default(monitor_idx, workspace_idx, layout)?;
+            }
+            SocketMessage::WorkspaceLayoutRule(
+                monitor_idx,
+                workspace_idx,
+                at_container_count,
+                layout,
+            ) => {
+                self.add_workspace_layout_default_rule(
+                    monitor_idx,
+                    workspace_idx,
+                    at_container_count,
+                    layout,
+                )?;
+            }
+            SocketMessage::NamedWorkspaceTiling(ref workspace, tile) => {
+                if let Some((monitor_idx, workspace_idx)) =
+                    self.monitor_workspace_index_by_name(workspace)
+                {
+                    self.set_workspace_tiling(monitor_idx, workspace_idx, tile)?;
+                }
+            }
+            SocketMessage::WorkspaceName(monitor_idx, workspace_idx, ref name) => {
+                self.set_workspace_name(monitor_idx, workspace_idx, name.to_string())?;
+            }
+            SocketMessage::NamedWorkspaceLayout(ref workspace, layout) => {
+                if let Some((monitor_idx, workspace_idx)) =
+                    self.monitor_workspace_index_by_name(workspace)
+                {
+                    self.set_workspace_layout_default(monitor_idx, workspace_idx, layout)?;
+                }
+            }
+            SocketMessage::ClearWorkspaceLayoutRules(monitor_idx, workspace_idx) => {
+                self.clear_workspace_layout_rules(monitor_idx, workspace_idx)?;
+            }
+            SocketMessage::WorkAreaOffset(rect) => {
+                self.work_area_offset = Option::from(rect);
+                self.retile_all(false)?;
+            }
+            SocketMessage::MonitorWorkAreaOffset(monitor_idx, rect) => {
+                if let Some(monitor) = self.monitors_mut().get_mut(monitor_idx) {
+                    monitor.work_area_offset = Option::from(rect);
+                    self.retile_all(false)?;
+                }
+            }
+            SocketMessage::WorkspaceWorkAreaOffset(monitor_idx, workspace_idx, rect) => {
+                if let Some(monitor) = self.monitors_mut().get_mut(monitor_idx)
+                    && let Some(workspace) = monitor.workspaces_mut().get_mut(workspace_idx)
+                {
+                    workspace.work_area_offset = Option::from(rect);
+                    self.retile_all(false)?
+                }
+            }
+            SocketMessage::ResizeDelta(delta) => {
+                self.resize_delta = delta;
+            }
+            SocketMessage::AdjustContainerPadding(sizing, adjustment) => {
+                self.adjust_container_padding(sizing, adjustment)?;
+            }
+            SocketMessage::AdjustWorkspacePadding(sizing, adjustment) => {
+                self.adjust_workspace_padding(sizing, adjustment)?;
+            }
+            SocketMessage::ScrollingLayoutColumns(count) => {
+                let focused_workspace = self.focused_workspace_mut()?;
+
+                let options = match focused_workspace.layout_options {
+                    Some(mut opts) => {
+                        if let Some(scrolling) = &mut opts.scrolling {
+                            scrolling.columns = count.into();
+                        }
+
+                        opts
+                    }
+                    None => LayoutOptions {
+                        scrolling: Some(ScrollingLayoutOptions {
+                            columns: count.into(),
+                        }),
+                    },
+                };
+
+                focused_workspace.layout_options = Some(options);
+                self.update_focused_workspace(false, false)?;
+            }
+            SocketMessage::NamedWorkspaceLayoutRule(ref workspace, at_container_count, layout) => {
+                if let Some((monitor_idx, workspace_idx)) =
+                    self.monitor_workspace_index_by_name(workspace)
+                {
+                    self.add_workspace_layout_default_rule(
+                        monitor_idx,
+                        workspace_idx,
+                        at_container_count,
+                        layout,
+                    )?;
+                }
+            }
+            SocketMessage::ClearNamedWorkspaceLayoutRules(ref workspace) => {
+                if let Some((monitor_idx, workspace_idx)) =
+                    self.monitor_workspace_index_by_name(workspace)
+                {
+                    self.clear_workspace_layout_rules(monitor_idx, workspace_idx)?;
                 }
             }
         }

@@ -9,6 +9,7 @@ pub use komorebi::core::default_layout::DefaultLayout;
 pub use komorebi::core::operation_direction::OperationDirection;
 pub use komorebi::core::pathext::PathExt;
 pub use komorebi::core::pathext::replace_env_in_path;
+pub use komorebi::core::rect::Rect;
 use std::borrow::Borrow;
 use std::io::BufReader;
 use std::io::Read;

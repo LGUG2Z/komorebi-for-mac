@@ -180,6 +180,10 @@ impl Monitor {
         Ok(())
     }
 
+    pub fn new_workspace_idx(&self) -> usize {
+        self.workspaces().len()
+    }
+
     #[tracing::instrument(skip(self))]
     pub fn move_container_to_workspace(
         &mut self,

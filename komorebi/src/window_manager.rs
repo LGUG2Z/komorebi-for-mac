@@ -597,6 +597,40 @@ impl WindowManager {
         self.update_focused_workspace(self.mouse_follows_focus, false)
     }
 
+    #[tracing::instrument(skip(self))]
+    pub fn set_workspace_layout_default(
+        &mut self,
+        monitor_idx: usize,
+        workspace_idx: usize,
+        layout: DefaultLayout,
+    ) -> eyre::Result<()> {
+        tracing::info!("setting workspace layout");
+
+        let focused_monitor_idx = self.focused_monitor_idx();
+
+        let monitor = self
+            .monitors_mut()
+            .get_mut(monitor_idx)
+            .ok_or_eyre("there is no monitor")?;
+
+        let focused_workspace_idx = monitor.focused_workspace_idx();
+
+        let workspace = monitor
+            .workspaces_mut()
+            .get_mut(workspace_idx)
+            .ok_or_eyre("there is no monitor")?;
+
+        workspace.layout = Layout::Default(layout);
+
+        // If this is the focused workspace on a non-focused screen, let's update it
+        if focused_monitor_idx != monitor_idx && focused_workspace_idx == workspace_idx {
+            workspace.update()?;
+            Ok(())
+        } else {
+            Ok(self.update_focused_workspace(false, false)?)
+        }
+    }
+
     pub fn focused_workspace_idx(&self) -> eyre::Result<usize> {
         Ok(self
             .focused_monitor()
@@ -643,6 +677,21 @@ impl WindowManager {
             .ok_or_eyre("there is no monitor at this index")?
             .focused_workspace_mut()
             .ok_or_eyre("there is no workspace")
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn new_workspace(&mut self) -> eyre::Result<()> {
+        tracing::info!("adding new workspace");
+
+        let mouse_follows_focus = self.mouse_follows_focus;
+        let monitor = self
+            .focused_monitor_mut()
+            .ok_or_eyre("there is no workspace")?;
+
+        monitor.focus_workspace(monitor.new_workspace_idx())?;
+        monitor.load_focused_workspace(mouse_follows_focus)?;
+
+        self.update_focused_workspace(self.mouse_follows_focus, false)
     }
 
     pub fn focused_container(&self) -> eyre::Result<&Container> {
@@ -2267,5 +2316,210 @@ impl WindowManager {
             float_override_placement: self.window_management_behaviour.float_override_placement,
             float_rule_placement: self.window_management_behaviour.float_rule_placement,
         }
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn set_workspace_padding(
+        &mut self,
+        monitor_idx: usize,
+        workspace_idx: usize,
+        size: i32,
+    ) -> eyre::Result<()> {
+        tracing::info!("setting workspace padding");
+
+        let monitor = self
+            .monitors_mut()
+            .get_mut(monitor_idx)
+            .ok_or_eyre("there is no monitor")?;
+
+        let workspace = monitor
+            .workspaces_mut()
+            .get_mut(workspace_idx)
+            .ok_or_eyre("there is no monitor")?;
+
+        workspace.workspace_padding = Option::from(size);
+
+        self.update_focused_workspace(false, false)
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn set_workspace_name(
+        &mut self,
+        monitor_idx: usize,
+        workspace_idx: usize,
+        name: String,
+    ) -> eyre::Result<()> {
+        tracing::info!("setting workspace name");
+
+        let monitor = self
+            .monitors_mut()
+            .get_mut(monitor_idx)
+            .ok_or_eyre("there is no monitor")?;
+
+        let workspace = monitor
+            .workspaces_mut()
+            .get_mut(workspace_idx)
+            .ok_or_eyre("there is no monitor")?;
+
+        workspace.name = Option::from(name.clone());
+        // monitor.workspace_names.insert(workspace_idx, name);
+
+        Ok(())
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn set_container_padding(
+        &mut self,
+        monitor_idx: usize,
+        workspace_idx: usize,
+        size: i32,
+    ) -> eyre::Result<()> {
+        tracing::info!("setting container padding");
+
+        let monitor = self
+            .monitors_mut()
+            .get_mut(monitor_idx)
+            .ok_or_eyre("there is no monitor")?;
+
+        let workspace = monitor
+            .workspaces_mut()
+            .get_mut(workspace_idx)
+            .ok_or_eyre("there is no monitor")?;
+
+        workspace.container_padding = Option::from(size);
+
+        self.update_focused_workspace(false, false)
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn set_workspace_tiling(
+        &mut self,
+        monitor_idx: usize,
+        workspace_idx: usize,
+        tile: bool,
+    ) -> eyre::Result<()> {
+        let monitor = self
+            .monitors_mut()
+            .get_mut(monitor_idx)
+            .ok_or_eyre("there is no monitor")?;
+
+        let workspace = monitor
+            .workspaces_mut()
+            .get_mut(workspace_idx)
+            .ok_or_eyre("there is no monitor")?;
+
+        workspace.tile = tile;
+
+        self.update_focused_workspace(false, false)
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn add_workspace_layout_default_rule(
+        &mut self,
+        monitor_idx: usize,
+        workspace_idx: usize,
+        at_container_count: usize,
+        layout: DefaultLayout,
+    ) -> eyre::Result<()> {
+        tracing::info!("setting workspace layout");
+
+        let focused_monitor_idx = self.focused_monitor_idx();
+
+        let monitor = self
+            .monitors_mut()
+            .get_mut(monitor_idx)
+            .ok_or_eyre("there is no monitor")?;
+
+        let focused_workspace_idx = monitor.focused_workspace_idx();
+
+        let workspace = monitor
+            .workspaces_mut()
+            .get_mut(workspace_idx)
+            .ok_or_eyre("there is no monitor")?;
+
+        let rules: &mut Vec<(usize, Layout)> = &mut workspace.layout_rules;
+        rules.retain(|pair| pair.0 != at_container_count);
+        rules.push((at_container_count, Layout::Default(layout)));
+        rules.sort_by(|a, b| a.0.cmp(&b.0));
+
+        // If this is the focused workspace on a non-focused screen, let's update it
+        if focused_monitor_idx != monitor_idx && focused_workspace_idx == workspace_idx {
+            workspace.update()?;
+            Ok(())
+        } else {
+            Ok(self.update_focused_workspace(false, false)?)
+        }
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn clear_workspace_layout_rules(
+        &mut self,
+        monitor_idx: usize,
+        workspace_idx: usize,
+    ) -> eyre::Result<()> {
+        tracing::info!("clearing workspace layout rules");
+
+        let focused_monitor_idx = self.focused_monitor_idx();
+
+        let monitor = self
+            .monitors_mut()
+            .get_mut(monitor_idx)
+            .ok_or_eyre("there is no monitor")?;
+
+        let focused_workspace_idx = monitor.focused_workspace_idx();
+
+        let workspace = monitor
+            .workspaces_mut()
+            .get_mut(workspace_idx)
+            .ok_or_eyre("there is no monitor")?;
+
+        let rules: &mut Vec<(usize, Layout)> = &mut workspace.layout_rules;
+        rules.clear();
+
+        // If this is the focused workspace on a non-focused screen, let's update it
+        if focused_monitor_idx != monitor_idx && focused_workspace_idx == workspace_idx {
+            workspace.update()?;
+            Ok(())
+        } else {
+            Ok(self.update_focused_workspace(false, false)?)
+        }
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn adjust_workspace_padding(
+        &mut self,
+        sizing: Sizing,
+        adjustment: i32,
+    ) -> eyre::Result<()> {
+        tracing::info!("adjusting workspace padding");
+
+        let workspace = self.focused_workspace_mut()?;
+
+        let padding = workspace
+            .workspace_padding
+            .ok_or_eyre("there is no workspace padding")?;
+
+        workspace.workspace_padding = Option::from(sizing.adjust_by(padding, adjustment));
+
+        self.update_focused_workspace(false, false)
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn adjust_container_padding(
+        &mut self,
+        sizing: Sizing,
+        adjustment: i32,
+    ) -> eyre::Result<()> {
+        tracing::info!("adjusting container padding");
+
+        let workspace = self.focused_workspace_mut()?;
+
+        let padding = workspace
+            .container_padding
+            .ok_or_eyre("there is no container padding")?;
+
+        workspace.container_padding = Option::from(sizing.adjust_by(padding, adjustment));
+
+        self.update_focused_workspace(false, false)
     }
 }

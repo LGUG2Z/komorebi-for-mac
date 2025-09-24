@@ -2,6 +2,7 @@
 
 use chrono::Utc;
 use clap::Parser;
+use clap::ValueEnum;
 use color_eyre::eyre;
 use fs_tail::TailedFile;
 use komorebi_client::ApplicationIdentifier;
@@ -10,6 +11,7 @@ use komorebi_client::CycleDirection;
 use komorebi_client::DefaultLayout;
 use komorebi_client::OperationDirection;
 use komorebi_client::PathExt;
+use komorebi_client::Rect;
 use komorebi_client::Sizing;
 use komorebi_client::SocketMessage;
 use komorebi_client::StateQuery;
@@ -21,6 +23,7 @@ use std::fs::File;
 use std::fs::OpenOptions;
 use std::io::BufRead;
 use std::io::Write;
+use std::num::NonZeroUsize;
 use std::path::PathBuf;
 use std::process::Command;
 use std::process::Stdio;
@@ -54,6 +57,21 @@ lazy_static! {
 }
 
 shadow_rs::shadow!(build);
+
+#[derive(Copy, Clone, ValueEnum)]
+enum BooleanState {
+    Enable,
+    Disable,
+}
+
+impl From<BooleanState> for bool {
+    fn from(b: BooleanState) -> Self {
+        match b {
+            BooleanState::Enable => true,
+            BooleanState::Disable => false,
+        }
+    }
+}
 
 macro_rules! gen_enum_subcommand_args {
     // SubCommand Pattern: Enum Type
@@ -144,6 +162,149 @@ gen_named_target_subcommand_args! {
     ClearNamedWorkspaceLayoutRules
 }
 
+// Thanks to @danielhenrymantilla for showing me how to use cfg_attr with an optional argument like
+// this on the Rust Programming Language Community Discord Server
+macro_rules! gen_workspace_subcommand_args {
+    // Workspace Property: #[enum] Value Enum (if the value is an Enum)
+    // Workspace Property: Value Type (if the value is anything else)
+    ( $( $name:ident: $(#[enum] $(@$value_enum:tt)?)? $value:ty ),+ $(,)? ) => (
+        pastey::paste! {
+            $(
+                #[derive(clap::Parser)]
+                pub struct [<Workspace $name>] {
+                    /// Monitor index (zero-indexed)
+                    monitor: usize,
+
+                    /// Workspace index on the specified monitor (zero-indexed)
+                    workspace: usize,
+
+                    $(#[clap(value_enum)] $($value_enum)?)?
+                    #[cfg_attr(
+                        all($(FALSE $($value_enum)?)?),
+                        doc = ""$name " of the workspace as a "$value ""
+                    )]
+                    value: $value,
+                }
+            )+
+        }
+    )
+}
+
+gen_workspace_subcommand_args! {
+    Name: String,
+    Layout: #[enum] DefaultLayout,
+    Tiling: #[enum] BooleanState,
+}
+
+macro_rules! gen_named_workspace_subcommand_args {
+    // Workspace Property: #[enum] Value Enum (if the value is an Enum)
+    // Workspace Property: Value Type (if the value is anything else)
+    ( $( $name:ident: $(#[enum] $(@$value_enum:tt)?)? $value:ty ),+ $(,)? ) => (
+        pastey::paste! {
+            $(
+                #[derive(clap::Parser)]
+                pub struct [<NamedWorkspace $name>] {
+                    /// Target workspace name
+                    workspace: String,
+
+                    $(#[clap(value_enum)] $($value_enum)?)?
+                    #[cfg_attr(
+                        all($(FALSE $($value_enum)?)?),
+                        doc = ""$name " of the workspace as a "$value ""
+                    )]
+                    value: $value,
+                }
+            )+
+        }
+    )
+}
+
+gen_named_workspace_subcommand_args! {
+    Layout: #[enum] DefaultLayout,
+    Tiling: #[enum] BooleanState,
+}
+
+macro_rules! gen_focused_workspace_padding_subcommand_args {
+    // SubCommand Pattern
+    ( $( $name:ident ),+ $(,)? ) => {
+        $(
+            #[derive(clap::Parser)]
+            pub struct $name {
+                /// Pixels size to set as an integer
+                size: i32,
+            }
+        )+
+    };
+}
+
+gen_focused_workspace_padding_subcommand_args! {
+    FocusedWorkspaceContainerPadding,
+    FocusedWorkspacePadding,
+}
+
+macro_rules! gen_padding_subcommand_args {
+    // SubCommand Pattern
+    ( $( $name:ident ),+ $(,)? ) => {
+        $(
+            #[derive(clap::Parser)]
+            pub struct $name {
+                /// Monitor index (zero-indexed)
+                monitor: usize,
+                /// Workspace index on the specified monitor (zero-indexed)
+                workspace: usize,
+                /// Pixels to pad with as an integer
+                size: i32,
+            }
+        )+
+    };
+}
+
+gen_padding_subcommand_args! {
+    ContainerPadding,
+    WorkspacePadding,
+}
+
+macro_rules! gen_named_padding_subcommand_args {
+    // SubCommand Pattern
+    ( $( $name:ident ),+ $(,)? ) => {
+        $(
+            #[derive(clap::Parser)]
+            pub struct $name {
+                /// Target workspace name
+                workspace: String,
+
+                /// Pixels to pad with as an integer
+                size: i32,
+            }
+        )+
+    };
+}
+
+gen_named_padding_subcommand_args! {
+    NamedWorkspaceContainerPadding,
+    NamedWorkspacePadding,
+}
+
+macro_rules! gen_padding_adjustment_subcommand_args {
+    // SubCommand Pattern
+    ( $( $name:ident ),+ $(,)? ) => {
+        $(
+            #[derive(clap::Parser)]
+            pub struct $name {
+                #[clap(value_enum)]
+                sizing: Sizing,
+                /// Pixels to adjust by as an integer
+                adjustment: i32,
+            }
+        )+
+    };
+}
+
+gen_padding_adjustment_subcommand_args! {
+    AdjustContainerPadding,
+    AdjustWorkspacePadding,
+}
+
 macro_rules! gen_application_target_subcommand_args {
     // SubCommand Pattern
     ( $( $name:ident ),+ $(,)? ) => {
@@ -167,6 +328,15 @@ gen_application_target_subcommand_args! {
     IdentifyObjectNameChangeApplication,
     IdentifyBorderOverflowApplication,
     RemoveTitleBar,
+}
+
+#[derive(Parser)]
+pub struct ClearWorkspaceLayoutRules {
+    /// Monitor index (zero-indexed)
+    monitor: usize,
+
+    /// Workspace index on the specified monitor (zero-indexed)
+    workspace: usize,
 }
 
 #[derive(Parser)]
@@ -244,6 +414,54 @@ struct ResizeAxis {
 }
 
 #[derive(Parser)]
+struct ResizeDelta {
+    /// The delta of pixels by which to increase or decrease window dimensions when resizing
+    pixels: i32,
+}
+
+#[derive(Parser)]
+struct GlobalWorkAreaOffset {
+    /// Size of the left work area offset (set right to left * 2 to maintain right padding)
+    left: i32,
+    /// Size of the top work area offset (set bottom to the same value to maintain bottom padding)
+    top: i32,
+    /// Size of the right work area offset
+    right: i32,
+    /// Size of the bottom work area offset
+    bottom: i32,
+}
+
+#[derive(Parser)]
+struct MonitorWorkAreaOffset {
+    /// Monitor index (zero-indexed)
+    monitor: usize,
+    /// Size of the left work area offset (set right to left * 2 to maintain right padding)
+    left: i32,
+    /// Size of the top work area offset (set bottom to the same value to maintain bottom padding)
+    top: i32,
+    /// Size of the right work area offset
+    right: i32,
+    /// Size of the bottom work area offset
+    bottom: i32,
+}
+
+#[derive(Parser)]
+struct WorkspaceWorkAreaOffset {
+    /// Monitor index (zero-indexed)
+    monitor: usize,
+    /// Workspace index (zero-indexed)
+    workspace: usize,
+    /// Size of the left work area offset (set right to left * 2 to maintain right padding)
+    left: i32,
+    /// Size of the top work area offset (set bottom to the same value to maintain bottom padding)
+    top: i32,
+    /// Size of the right work area offset
+    right: i32,
+    /// Size of the bottom work area offset
+    bottom: i32,
+}
+
+#[derive(Parser)]
 struct FocusMonitorWorkspace {
     /// Target monitor index (zero-indexed)
     target_monitor: usize,
@@ -283,6 +501,12 @@ struct Start {
 struct EagerFocus {
     /// Case-sensitive exe identifier
     exe: String,
+}
+
+#[derive(Parser)]
+struct ScrollingLayoutColumns {
+    /// Desired number of visible columns
+    count: NonZeroUsize,
 }
 
 #[derive(Parser)]
@@ -492,46 +716,46 @@ enum SubCommand {
     /// Swap focused monitor workspaces with specified monitor
     #[clap(arg_required_else_help = true)]
     SwapWorkspacesWithMonitor(SwapWorkspacesWithMonitor),
-    // /// Create and append a new workspace on the focused monitor
-    // NewWorkspace,
-    // /// Set the resize delta (used by resize-edge and resize-axis)
-    // #[clap(arg_required_else_help = true)]
-    // ResizeDelta(ResizeDelta),
+    /// Create and append a new workspace on the focused monitor
+    NewWorkspace,
+    /// Set the resize delta (used by resize-edge and resize-axis)
+    #[clap(arg_required_else_help = true)]
+    ResizeDelta(ResizeDelta),
     // /// Set the invisible border dimensions around each window
     // #[clap(arg_required_else_help = true)]
     // InvisibleBorders(InvisibleBorders),
-    // /// Set offsets to exclude parts of the work area from tiling
-    // #[clap(arg_required_else_help = true)]
-    // GlobalWorkAreaOffset(GlobalWorkAreaOffset),
-    // /// Set offsets for a monitor to exclude parts of the work area from tiling
-    // #[clap(arg_required_else_help = true)]
-    // MonitorWorkAreaOffset(MonitorWorkAreaOffset),
-    // /// Set offsets for a workspace to exclude parts of the work area from tiling
-    // #[clap(arg_required_else_help = true)]
-    // WorkspaceWorkAreaOffset(WorkspaceWorkAreaOffset),
+    /// Set offsets to exclude parts of the work area from tiling
+    #[clap(arg_required_else_help = true)]
+    GlobalWorkAreaOffset(GlobalWorkAreaOffset),
+    /// Set offsets for a monitor to exclude parts of the work area from tiling
+    #[clap(arg_required_else_help = true)]
+    MonitorWorkAreaOffset(MonitorWorkAreaOffset),
+    /// Set offsets for a workspace to exclude parts of the work area from tiling
+    #[clap(arg_required_else_help = true)]
+    WorkspaceWorkAreaOffset(WorkspaceWorkAreaOffset),
     /// Toggle application of the window-based work area offset for the focused workspace
     ToggleWindowBasedWorkAreaOffset,
-    // /// Set container padding on the focused workspace
-    // #[clap(arg_required_else_help = true)]
-    // FocusedWorkspaceContainerPadding(FocusedWorkspaceContainerPadding),
-    // /// Set workspace padding on the focused workspace
-    // #[clap(arg_required_else_help = true)]
-    // FocusedWorkspacePadding(FocusedWorkspacePadding),
-    // /// Adjust container padding on the focused workspace
-    // #[clap(arg_required_else_help = true)]
-    // AdjustContainerPadding(AdjustContainerPadding),
-    // /// Adjust workspace padding on the focused workspace
-    // #[clap(arg_required_else_help = true)]
-    // AdjustWorkspacePadding(AdjustWorkspacePadding),
+    /// Set container padding on the focused workspace
+    #[clap(arg_required_else_help = true)]
+    FocusedWorkspaceContainerPadding(FocusedWorkspaceContainerPadding),
+    /// Set workspace padding on the focused workspace
+    #[clap(arg_required_else_help = true)]
+    FocusedWorkspacePadding(FocusedWorkspacePadding),
+    /// Adjust container padding on the focused workspace
+    #[clap(arg_required_else_help = true)]
+    AdjustContainerPadding(AdjustContainerPadding),
+    /// Adjust workspace padding on the focused workspace
+    #[clap(arg_required_else_help = true)]
+    AdjustWorkspacePadding(AdjustWorkspacePadding),
     /// Set the layout on the focused workspace
     #[clap(arg_required_else_help = true)]
     ChangeLayout(ChangeLayout),
     /// Cycle between available layouts
     #[clap(arg_required_else_help = true)]
     CycleLayout(CycleLayout),
-    // /// Set the number of visible columns for the Scrolling layout on the focused workspace
-    // #[clap(arg_required_else_help = true)]
-    // ScrollingLayoutColumns(ScrollingLayoutColumns),
+    /// Set the number of visible columns for the Scrolling layout on the focused workspace
+    #[clap(arg_required_else_help = true)]
+    ScrollingLayoutColumns(ScrollingLayoutColumns),
     // /// Load a custom layout from file for the focused workspace
     // #[clap(hide = true)]
     // #[clap(arg_required_else_help = true)]
@@ -559,24 +783,24 @@ enum SubCommand {
     // /// Create these many named workspaces for the specified monitor
     // #[clap(arg_required_else_help = true)]
     // EnsureNamedWorkspaces(EnsureNamedWorkspaces),
-    // /// Set the container padding for the specified workspace
-    // #[clap(arg_required_else_help = true)]
-    // ContainerPadding(ContainerPadding),
-    // /// Set the container padding for the specified workspace
-    // #[clap(arg_required_else_help = true)]
-    // NamedWorkspaceContainerPadding(NamedWorkspaceContainerPadding),
-    // /// Set the workspace padding for the specified workspace
-    // #[clap(arg_required_else_help = true)]
-    // WorkspacePadding(WorkspacePadding),
-    // /// Set the workspace padding for the specified workspace
-    // #[clap(arg_required_else_help = true)]
-    // NamedWorkspacePadding(NamedWorkspacePadding),
-    // /// Set the layout for the specified workspace
-    // #[clap(arg_required_else_help = true)]
-    // WorkspaceLayout(WorkspaceLayout),
-    // /// Set the layout for the specified workspace
-    // #[clap(arg_required_else_help = true)]
-    // NamedWorkspaceLayout(NamedWorkspaceLayout),
+    /// Set the container padding for the specified workspace
+    #[clap(arg_required_else_help = true)]
+    ContainerPadding(ContainerPadding),
+    /// Set the container padding for the specified workspace
+    #[clap(arg_required_else_help = true)]
+    NamedWorkspaceContainerPadding(NamedWorkspaceContainerPadding),
+    /// Set the workspace padding for the specified workspace
+    #[clap(arg_required_else_help = true)]
+    WorkspacePadding(WorkspacePadding),
+    /// Set the workspace padding for the specified workspace
+    #[clap(arg_required_else_help = true)]
+    NamedWorkspacePadding(NamedWorkspacePadding),
+    /// Set the layout for the specified workspace
+    #[clap(arg_required_else_help = true)]
+    WorkspaceLayout(WorkspaceLayout),
+    /// Set the layout for the specified workspace
+    #[clap(arg_required_else_help = true)]
+    NamedWorkspaceLayout(NamedWorkspaceLayout),
     // /// Set a custom layout for the specified workspace
     // #[clap(hide = true)]
     // #[clap(arg_required_else_help = true)]
@@ -599,21 +823,21 @@ enum SubCommand {
     // #[clap(hide = true)]
     // #[clap(arg_required_else_help = true)]
     // NamedWorkspaceCustomLayoutRule(NamedWorkspaceCustomLayoutRule),
-    // /// Clear all dynamic layout rules for the specified workspace
-    // #[clap(arg_required_else_help = true)]
-    // ClearWorkspaceLayoutRules(ClearWorkspaceLayoutRules),
-    // /// Clear all dynamic layout rules for the specified workspace
-    // #[clap(arg_required_else_help = true)]
-    // ClearNamedWorkspaceLayoutRules(ClearNamedWorkspaceLayoutRules),
-    // /// Enable or disable window tiling for the specified workspace
-    // #[clap(arg_required_else_help = true)]
-    // WorkspaceTiling(WorkspaceTiling),
-    // /// Enable or disable window tiling for the specified workspace
-    // #[clap(arg_required_else_help = true)]
-    // NamedWorkspaceTiling(NamedWorkspaceTiling),
-    // /// Set the workspace name for the specified workspace
-    // #[clap(arg_required_else_help = true)]
-    // WorkspaceName(WorkspaceName),
+    /// Clear all dynamic layout rules for the specified workspace
+    #[clap(arg_required_else_help = true)]
+    ClearWorkspaceLayoutRules(ClearWorkspaceLayoutRules),
+    /// Clear all dynamic layout rules for the specified workspace
+    #[clap(arg_required_else_help = true)]
+    ClearNamedWorkspaceLayoutRules(ClearNamedWorkspaceLayoutRules),
+    /// Enable or disable window tiling for the specified workspace
+    #[clap(arg_required_else_help = true)]
+    WorkspaceTiling(WorkspaceTiling),
+    /// Enable or disable window tiling for the specified workspace
+    #[clap(arg_required_else_help = true)]
+    NamedWorkspaceTiling(NamedWorkspaceTiling),
+    /// Set the workspace name for the specified workspace
+    #[clap(arg_required_else_help = true)]
+    WorkspaceName(WorkspaceName),
     /// Toggle the behaviour for new windows (stacking or dynamic tiling)
     ToggleWindowContainerBehaviour,
     /// Enable or disable float override, which makes it so every new window opens in floating mode
@@ -1247,6 +1471,136 @@ fn main() -> eyre::Result<()> {
         }
         SubCommand::EagerFocus(arg) => {
             send_message(&SocketMessage::EagerFocus(arg.exe))?;
+        }
+        SubCommand::NewWorkspace => {
+            send_message(&SocketMessage::NewWorkspace)?;
+        }
+        SubCommand::WorkspaceName(name) => {
+            send_message(&SocketMessage::WorkspaceName(
+                name.monitor,
+                name.workspace,
+                name.value,
+            ))?;
+        }
+        SubCommand::ResizeDelta(arg) => {
+            send_message(&SocketMessage::ResizeDelta(arg.pixels))?;
+        }
+        SubCommand::MonitorWorkAreaOffset(arg) => {
+            send_message(&SocketMessage::MonitorWorkAreaOffset(
+                arg.monitor,
+                Rect {
+                    left: arg.left,
+                    top: arg.top,
+                    right: arg.right,
+                    bottom: arg.bottom,
+                },
+            ))?;
+        }
+        SubCommand::GlobalWorkAreaOffset(arg) => {
+            send_message(&SocketMessage::WorkAreaOffset(Rect {
+                left: arg.left,
+                top: arg.top,
+                right: arg.right,
+                bottom: arg.bottom,
+            }))?;
+        }
+
+        SubCommand::WorkspaceWorkAreaOffset(arg) => {
+            send_message(&SocketMessage::WorkspaceWorkAreaOffset(
+                arg.monitor,
+                arg.workspace,
+                Rect {
+                    left: arg.left,
+                    top: arg.top,
+                    right: arg.right,
+                    bottom: arg.bottom,
+                },
+            ))?;
+        }
+        SubCommand::ContainerPadding(arg) => {
+            send_message(&SocketMessage::ContainerPadding(
+                arg.monitor,
+                arg.workspace,
+                arg.size,
+            ))?;
+        }
+        SubCommand::NamedWorkspaceContainerPadding(arg) => {
+            send_message(&SocketMessage::NamedWorkspaceContainerPadding(
+                arg.workspace,
+                arg.size,
+            ))?;
+        }
+        SubCommand::WorkspacePadding(arg) => {
+            send_message(&SocketMessage::WorkspacePadding(
+                arg.monitor,
+                arg.workspace,
+                arg.size,
+            ))?;
+        }
+        SubCommand::NamedWorkspacePadding(arg) => {
+            send_message(&SocketMessage::NamedWorkspacePadding(
+                arg.workspace,
+                arg.size,
+            ))?;
+        }
+        SubCommand::FocusedWorkspacePadding(arg) => {
+            send_message(&SocketMessage::FocusedWorkspacePadding(arg.size))?;
+        }
+        SubCommand::FocusedWorkspaceContainerPadding(arg) => {
+            send_message(&SocketMessage::FocusedWorkspaceContainerPadding(arg.size))?;
+        }
+        SubCommand::AdjustWorkspacePadding(arg) => {
+            send_message(&SocketMessage::AdjustWorkspacePadding(
+                arg.sizing,
+                arg.adjustment,
+            ))?;
+        }
+        SubCommand::AdjustContainerPadding(arg) => {
+            send_message(&SocketMessage::AdjustContainerPadding(
+                arg.sizing,
+                arg.adjustment,
+            ))?;
+        }
+        SubCommand::WorkspaceLayout(arg) => {
+            send_message(&SocketMessage::WorkspaceLayout(
+                arg.monitor,
+                arg.workspace,
+                arg.value,
+            ))?;
+        }
+        SubCommand::NamedWorkspaceLayout(arg) => {
+            send_message(&SocketMessage::NamedWorkspaceLayout(
+                arg.workspace,
+                arg.value,
+            ))?;
+        }
+
+        SubCommand::WorkspaceTiling(arg) => {
+            send_message(&SocketMessage::WorkspaceTiling(
+                arg.monitor,
+                arg.workspace,
+                arg.value.into(),
+            ))?;
+        }
+        SubCommand::NamedWorkspaceTiling(arg) => {
+            send_message(&SocketMessage::NamedWorkspaceTiling(
+                arg.workspace,
+                arg.value.into(),
+            ))?;
+        }
+        SubCommand::ScrollingLayoutColumns(arg) => {
+            send_message(&SocketMessage::ScrollingLayoutColumns(arg.count))?;
+        }
+        SubCommand::ClearWorkspaceLayoutRules(arg) => {
+            send_message(&SocketMessage::ClearWorkspaceLayoutRules(
+                arg.monitor,
+                arg.workspace,
+            ))?;
+        }
+        SubCommand::ClearNamedWorkspaceLayoutRules(arg) => {
+            send_message(&SocketMessage::ClearNamedWorkspaceLayoutRules(
+                arg.workspace,
+            ))?;
         }
     }
 
