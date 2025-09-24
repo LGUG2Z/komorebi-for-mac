@@ -7,6 +7,7 @@ use serde::Serialize;
 use strum::Display;
 
 #[derive(Debug, Copy, Clone, Serialize, Deserialize, Display)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(tag = "type", content = "content")]
 pub enum SystemNotification {
     Accessibility(AccessibilityNotification),
@@ -15,6 +16,7 @@ pub enum SystemNotification {
 }
 
 #[derive(Debug, Copy, Clone, Serialize, Deserialize, Display)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub enum ManualNotification {
     ShowOnInputEvent,
     ShowOnFocusChangeFirstTabDestroyed,
@@ -22,6 +24,7 @@ pub enum ManualNotification {
 }
 
 #[derive(Debug, Copy, Clone, Serialize, Deserialize, Display)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(tag = "type", content = "content")]
 pub enum WindowManagerEvent {
     FocusChange(SystemNotification, i32, Option<u32>),

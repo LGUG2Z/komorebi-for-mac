@@ -2564,4 +2564,43 @@ impl WindowManager {
 
         Ok(())
     }
+
+    #[tracing::instrument(skip(self))]
+    pub fn move_workspace_to_monitor(&mut self, idx: usize) -> eyre::Result<()> {
+        tracing::info!("moving workspace");
+        let mouse_follows_focus = self.mouse_follows_focus;
+        let offset = self.work_area_offset;
+        let workspace = self
+            .remove_focused_workspace()
+            .ok_or_eyre("there is no workspace")?;
+
+        {
+            let target_monitor: &mut Monitor = self
+                .monitors_mut()
+                .get_mut(idx)
+                .ok_or_eyre("there is no monitor")?;
+
+            target_monitor.workspaces_mut().push_back(workspace);
+            target_monitor.update_workspaces_globals(offset);
+            target_monitor.focus_workspace(target_monitor.workspaces().len().saturating_sub(1))?;
+            target_monitor.load_focused_workspace(mouse_follows_focus)?;
+        }
+
+        self.focus_monitor(idx)?;
+        self.update_focused_workspace(mouse_follows_focus, true)
+    }
+
+    pub fn remove_focused_workspace(&mut self) -> Option<Workspace> {
+        let focused_monitor: &mut Monitor = self.focused_monitor_mut()?;
+        let focused_workspace_idx = focused_monitor.focused_workspace_idx();
+        let workspace = focused_monitor.remove_workspace_by_idx(focused_workspace_idx);
+        if let Err(error) = focused_monitor.focus_workspace(focused_workspace_idx.saturating_sub(1))
+        {
+            tracing::error!(
+                "Error focusing previous workspace while removing the focused workspace: {}",
+                error
+            );
+        }
+        workspace
+    }
 }

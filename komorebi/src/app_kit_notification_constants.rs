@@ -10,6 +10,7 @@ use strum::Display;
 use strum::EnumString;
 
 #[derive(Debug, Copy, Clone, Serialize, Deserialize, Display, EnumString)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub enum AppKitWorkspaceNotification {
     // A notification that the workspace posts when any of the accessibility display options change.
     NSWorkspaceAccessibilityDisplayOptionsDidChangeNotification,

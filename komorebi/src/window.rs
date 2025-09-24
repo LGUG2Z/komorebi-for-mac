@@ -257,8 +257,8 @@ impl Serialize for Window {
     where
         S: Serializer,
     {
-        let mut state = serializer.serialize_struct("Window", 5)?;
-        state.serialize_field("window_id", &self.id)?;
+        let mut state = serializer.serialize_struct("Window", 6)?;
+        state.serialize_field("id", &self.id)?;
         state.serialize_field(
             "title",
             &self
@@ -288,6 +288,29 @@ impl Serialize for Window {
             &Rect::from(MacosApi::window_rect(&self.element).unwrap_or_default()),
         )?;
         state.end()
+    }
+}
+
+#[cfg(feature = "schemars")]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+struct SerializedWindow {
+    id: u32,
+    title: String,
+    exe: String,
+    role: String,
+    subrole: String,
+    rect: Rect,
+}
+
+#[cfg(feature = "schemars")]
+impl schemars::JsonSchema for Window {
+    fn schema_name() -> String {
+        "Window".to_string()
+    }
+
+    fn json_schema(generator: &mut schemars::SchemaGenerator) -> schemars::schema::Schema {
+        <SerializedWindow as schemars::JsonSchema>::json_schema(generator)
     }
 }
 

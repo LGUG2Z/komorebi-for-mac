@@ -52,6 +52,7 @@ impl From<&Monitor> for MonitorInformation {
 impl_ring_elements!(Monitor, Workspace);
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct Monitor {
     pub id: u32,
     pub device: String,

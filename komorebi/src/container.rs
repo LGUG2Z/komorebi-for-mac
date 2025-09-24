@@ -10,7 +10,7 @@ use serde::Serialize;
 impl_ring_elements!(Container, Window);
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct Container {
     pub id: String,
     pub locked: bool,

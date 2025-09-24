@@ -1,4 +1,8 @@
+use crate::Notification;
+use crate::NotificationEvent;
 use crate::UPDATE_MONITOR_WORK_AREAS;
+use crate::notify_subscribers;
+use crate::state::State;
 use crate::window_manager::WindowManager;
 use crossbeam_channel::Receiver;
 use crossbeam_channel::Sender;
@@ -12,7 +16,7 @@ use std::sync::atomic::Ordering;
 use strum::Display;
 
 #[derive(Debug, Copy, Clone, Serialize, Deserialize, Display)]
-
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub enum MonitorNotification {
     Resize(CGDirectDisplayID),
 }
@@ -58,18 +62,30 @@ pub fn listen_for_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Re
     Ok(())
 }
 
-pub fn handle_notifications(_wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result<()> {
+pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result<()> {
     tracing::info!("listening");
 
     let receiver = event_rx();
 
     for notification in receiver {
+        let wm = wm.lock();
+
+        let initial_state = State::from(wm.as_ref());
+
         match notification {
             MonitorNotification::Resize(_display_id) => {
                 tracing::debug!("handling resize notification");
                 UPDATE_MONITOR_WORK_AREAS.store(true, Ordering::Relaxed);
             }
         }
+
+        notify_subscribers(
+            Notification {
+                event: NotificationEvent::Monitor(notification),
+                state: wm.as_ref().into(),
+            },
+            initial_state.has_been_modified(&wm),
+        )?;
     }
 
     Ok(())

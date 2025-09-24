@@ -6,7 +6,6 @@ use clap::ValueEnum;
 use color_eyre::eyre;
 use fs_tail::TailedFile;
 use komorebi_client::ApplicationIdentifier;
-use komorebi_client::ApplicationSpecificConfiguration;
 use komorebi_client::Axis;
 use komorebi_client::CycleDirection;
 use komorebi_client::DefaultLayout;
@@ -18,7 +17,6 @@ use komorebi_client::Rect;
 use komorebi_client::Sizing;
 use komorebi_client::SocketMessage;
 use komorebi_client::StateQuery;
-use komorebi_client::StaticConfig;
 use komorebi_client::replace_env_in_path;
 use komorebi_client::send_message;
 use komorebi_client::send_query;
@@ -424,6 +422,18 @@ struct ResizeDelta {
 }
 
 #[derive(Parser)]
+struct SubscribeSocket {
+    /// Name of the socket to send event notifications to
+    socket: String,
+}
+
+#[derive(Parser)]
+struct UnsubscribeSocket {
+    /// Name of the socket to stop sending event notifications to
+    socket: String,
+}
+
+#[derive(Parser)]
 struct GlobalWorkAreaOffset {
     /// Size of the left work area offset (set right to left * 2 to maintain right padding)
     left: i32,
@@ -608,12 +618,12 @@ enum SubCommand {
     /// Query the current window manager state
     #[clap(arg_required_else_help = true)]
     Query(Query),
-    // /// Subscribe to komorebi events using a Unix Domain Socket
-    // #[clap(arg_required_else_help = true)]
-    // SubscribeSocket(SubscribeSocket),
-    // /// Unsubscribe from komorebi events
-    // #[clap(arg_required_else_help = true)]
-    // UnsubscribeSocket(UnsubscribeSocket),
+    /// Subscribe to komorebi events using a Unix Domain Socket
+    #[clap(arg_required_else_help = true)]
+    SubscribeSocket(SubscribeSocket),
+    /// Unsubscribe from komorebi events
+    #[clap(arg_required_else_help = true)]
+    UnsubscribeSocket(UnsubscribeSocket),
     // /// Subscribe to komorebi events using a Named Pipe
     // #[clap(arg_required_else_help = true)]
     // #[clap(alias = "subscribe")]
@@ -1695,7 +1705,7 @@ fn main() -> eyre::Result<()> {
         SubCommand::ApplicationSpecificConfigurationSchema => {
             #[cfg(feature = "schemars")]
             {
-                let asc = schemars::schema_for!(ApplicationSpecificConfiguration);
+                let asc = schemars::schema_for!(komorebi_client::ApplicationSpecificConfiguration);
                 let schema = serde_json::to_string_pretty(&asc)?;
                 println!("{schema}");
             }
@@ -1718,10 +1728,17 @@ fn main() -> eyre::Result<()> {
                 });
 
                 let generator = settings.into_generator();
-                let socket_message = generator.into_root_schema_for::<StaticConfig>();
+                let socket_message =
+                    generator.into_root_schema_for::<komorebi_client::StaticConfig>();
                 let schema = serde_json::to_string_pretty(&socket_message)?;
                 println!("{schema}");
             }
+        }
+        SubCommand::SubscribeSocket(arg) => {
+            send_message(&SocketMessage::AddSubscriberSocket(arg.socket))?;
+        }
+        SubCommand::UnsubscribeSocket(arg) => {
+            send_message(&SocketMessage::RemoveSubscriberSocket(arg.socket))?;
         }
     }
 

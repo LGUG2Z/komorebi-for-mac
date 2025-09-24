@@ -1,4 +1,6 @@
 use crate::FLOATING_APPLICATIONS;
+use crate::Notification;
+use crate::NotificationEvent;
 use crate::REGEX_IDENTIFIERS;
 use crate::TABBED_APPLICATIONS;
 use crate::WORKSPACE_MATCHING_RULES;
@@ -11,6 +13,8 @@ use crate::core::config_generation::MatchingRule;
 use crate::core::default_layout::DefaultLayout;
 use crate::core::layout::Layout;
 use crate::macos_api::MacosApi;
+use crate::notify_subscribers;
+use crate::state::State;
 use crate::window::AdhocWindow;
 use crate::window::Window;
 use crate::window::should_act;
@@ -91,6 +95,10 @@ impl WindowManager {
                 event.notification(),
             );
         }
+
+        #[allow(clippy::useless_asref)]
+        // We don't have From implemented for &mut WindowManager
+        let initial_state = State::from(self.as_ref());
 
         self.enforce_workspace_rules()?;
 
@@ -518,8 +526,15 @@ impl WindowManager {
             }
         }
 
-        self.enforce_workspace_rules()?;
         self.update_known_window_ids();
+
+        notify_subscribers(
+            Notification {
+                event: NotificationEvent::WindowManager(event),
+                state: self.as_ref().into(),
+            },
+            initial_state.has_been_modified(self.as_ref()),
+        )?;
 
         Ok(())
     }

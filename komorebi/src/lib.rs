@@ -3,13 +3,18 @@
 use crate::accessibility::AccessibilityApi;
 use crate::accessibility::error::AccessibilityError;
 use crate::core::ApplicationIdentifier;
+use crate::core::SocketMessage;
+use crate::core::SubscribeOptions;
 use crate::core::config_generation::IdWithIdentifier;
 use crate::core::config_generation::MatchingRule;
 use crate::core::config_generation::MatchingStrategy;
 use crate::core::config_generation::WorkspaceMatchingRule;
 use crate::core_graphics::error::CoreGraphicsError;
+use crate::monitor_reconciliator::MonitorNotification;
+use crate::state::State;
 use crate::window::AspectRatio;
 use crate::window::PredefinedAspectRatio;
+use crate::window_manager_event::WindowManagerEvent;
 use color_eyre::eyre;
 use core::pathext::PathExt;
 use lazy_static::lazy_static;
@@ -25,8 +30,12 @@ use objc2_core_foundation::CGRect;
 use objc2_core_foundation::CGSize;
 use parking_lot::Mutex;
 use regex::Regex;
+use serde::Deserialize;
+use serde::Serialize;
 use std::collections::HashMap;
+use std::io::Write;
 use std::ops::Deref;
+use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
 use std::ptr::NonNull;
 use std::sync::Arc;
@@ -78,6 +87,10 @@ lazy_static! {
     pub static ref DATA_DIR: PathBuf = dirs::data_local_dir()
         .expect("there is no local data directory")
         .join("komorebi");
+    pub static ref SUBSCRIPTION_SOCKETS: Arc<Mutex<HashMap<String, PathBuf>>> =
+        Arc::new(Mutex::new(HashMap::new()));
+    pub static ref SUBSCRIPTION_SOCKET_OPTIONS: Arc<Mutex<HashMap<String, SubscribeOptions>>> =
+        Arc::new(Mutex::new(HashMap::new()));
     static ref FLOATING_WINDOW_TOGGLE_ASPECT_RATIO: Arc<Mutex<AspectRatio>> = Arc::new(Mutex::new(
         AspectRatio::Predefined(PredefinedAspectRatio::Widescreen)
     ));
@@ -117,6 +130,86 @@ shadow_rs::shadow!(build);
 
 pub static DEFAULT_WORKSPACE_PADDING: AtomicI32 = AtomicI32::new(5);
 pub static DEFAULT_CONTAINER_PADDING: AtomicI32 = AtomicI32::new(5);
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+#[serde(untagged)]
+pub enum NotificationEvent {
+    WindowManager(WindowManagerEvent),
+    Socket(SocketMessage),
+    Monitor(MonitorNotification),
+    // TODO: See if we want reaper notifications as well
+    // // TODO: See if we're actually gonna use this
+    // VirtualDesktop(VirtualDesktopNotification),
+}
+
+// #[derive(Debug, Copy, Clone, Serialize, Deserialize, PartialEq)]
+// #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+// pub enum VirtualDesktopNotification {
+//     EnteredAssociatedVirtualDesktop,
+//     LeftAssociatedVirtualDesktop,
+// }
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+pub struct Notification {
+    pub event: NotificationEvent,
+    pub state: State,
+}
+
+pub fn notify_subscribers(
+    notification: Notification,
+    state_has_been_modified: bool,
+) -> eyre::Result<()> {
+    let is_override_event = matches!(
+        notification.event,
+        NotificationEvent::Socket(SocketMessage::AddSubscriberSocket(_))
+            | NotificationEvent::Socket(SocketMessage::AddSubscriberSocketWithOptions(_, _))
+            // | NotificationEvent::Socket(SocketMessage::Theme(_))
+            | NotificationEvent::Socket(SocketMessage::ReloadStaticConfiguration(_)) // | NotificationEvent::WindowManager(WindowManagerEvent::TitleUpdate(_, _))
+                                                                                     // | NotificationEvent::WindowManager(WindowManagerEvent::Show(_, _))
+                                                                                     // | NotificationEvent::WindowManager(WindowManagerEvent::Uncloak(_, _))
+    );
+
+    let notification = &serde_json::to_string(&notification)?;
+    let mut stale_sockets = vec![];
+    let mut sockets = SUBSCRIPTION_SOCKETS.lock();
+    let options = SUBSCRIPTION_SOCKET_OPTIONS.lock();
+
+    for (socket, path) in &mut *sockets {
+        let apply_state_filter = (*options)
+            .get(socket)
+            .copied()
+            .unwrap_or_default()
+            .filter_state_changes;
+
+        if !apply_state_filter || state_has_been_modified || is_override_event {
+            match UnixStream::connect(path) {
+                Ok(mut stream) => {
+                    tracing::debug!("pushed notification to subscriber: {socket}");
+                    stream.write_all(notification.as_bytes())?;
+                }
+                Err(_) => {
+                    stale_sockets.push(socket.clone());
+                }
+            }
+        }
+    }
+
+    for socket in stale_sockets {
+        tracing::warn!("removing stale subscription: {socket}");
+        sockets.remove(&socket);
+        let socket_path = DATA_DIR.join(socket);
+        if let Err(error) = std::fs::remove_file(&socket_path) {
+            tracing::error!(
+                "could not remove stale subscriber socket file at {}: {error}",
+                socket_path.display()
+            )
+        }
+    }
+
+    Ok(())
+}
 
 #[derive(Debug)]
 pub struct CoreFoundationRunLoop(pub CFRetained<CFRunLoop>);

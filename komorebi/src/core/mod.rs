@@ -202,6 +202,13 @@ pub enum StateQuery {
     Version,
 }
 
+#[derive(Default, Debug, Copy, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+pub struct SubscribeOptions {
+    /// Only emit notifications when the window manager state has changed
+    pub filter_state_changes: bool,
+}
+
 // serde_as must be before derive
 #[serde_with::serde_as]
 #[derive(Clone, Debug, Serialize, Deserialize, Display)]
@@ -390,9 +397,9 @@ pub enum SocketMessage {
     ToggleMouseFollowsFocus,
     // RemoveTitleBar(ApplicationIdentifier, String),
     // ToggleTitleBars,
-    // AddSubscriberSocket(String),
-    // AddSubscriberSocketWithOptions(String, SubscribeOptions),
-    // RemoveSubscriberSocket(String),
+    AddSubscriberSocket(String),
+    AddSubscriberSocketWithOptions(String, SubscribeOptions),
+    RemoveSubscriberSocket(String),
     // AddSubscriberPipe(String),
     // RemoveSubscriberPipe(String),
     ApplicationSpecificConfigurationSchema,

@@ -1,7 +1,12 @@
+use crate::DATA_DIR;
 use crate::FLOATING_APPLICATIONS;
 use crate::IGNORE_IDENTIFIERS;
 use crate::MANAGE_IDENTIFIERS;
+use crate::Notification;
+use crate::NotificationEvent;
 use crate::SESSION_FLOATING_APPLICATIONS;
+use crate::SUBSCRIPTION_SOCKET_OPTIONS;
+use crate::SUBSCRIPTION_SOCKETS;
 use crate::WORKSPACE_MATCHING_RULES;
 use crate::build;
 use crate::core::ApplicationIdentifier;
@@ -10,7 +15,6 @@ use crate::core::SocketMessage;
 use crate::core::StateQuery;
 use crate::core::WindowContainerBehaviour;
 use crate::core::arrangement::Axis;
-use crate::core::asc::ApplicationSpecificConfiguration;
 use crate::core::config_generation::IdWithIdentifier;
 use crate::core::config_generation::MatchingRule;
 use crate::core::config_generation::MatchingStrategy;
@@ -21,14 +25,12 @@ use crate::core::layout::Layout;
 use crate::core::operation_direction::OperationDirection;
 use crate::core::rect::Rect;
 use crate::macos_api::MacosApi;
-use crate::monitor::Monitor;
 use crate::monitor::MonitorInformation;
+use crate::notify_subscribers;
 use crate::state::GlobalState;
 use crate::state::State;
-use crate::static_config::StaticConfig;
 use crate::window::AdhocWindow;
 use crate::window_manager::WindowManager;
-use crate::workspace::Workspace;
 use crate::workspace::WorkspaceLayer;
 use crate::workspace::WorkspaceWindowLocation;
 use color_eyre::eyre;
@@ -92,6 +94,11 @@ impl WindowManager {
         mut reply: impl std::io::Write,
     ) -> eyre::Result<()> {
         tracing::info!("processing command: {message}");
+
+        #[allow(clippy::useless_asref)]
+        // We don't have From implemented for &mut WindowManager
+        let initial_state = State::from(self.as_ref());
+
         self.handle_unmanaged_window_behaviour()?;
 
         match message {
@@ -1407,7 +1414,9 @@ impl WindowManager {
             SocketMessage::ApplicationSpecificConfigurationSchema => {
                 #[cfg(feature = "schemars")]
                 {
-                    let asc = schemars::schema_for!(Vec<ApplicationSpecificConfiguration>);
+                    let asc = schemars::schema_for!(
+                        Vec<crate::core::asc::ApplicationSpecificConfiguration>
+                    );
                     let schema = serde_json::to_string_pretty(&asc)?;
 
                     reply.write_all(schema.as_bytes())?;
@@ -1432,56 +1441,45 @@ impl WindowManager {
                     });
 
                     let generator = settings.into_generator();
-                    let socket_message = generator.into_root_schema_for::<StaticConfig>();
+                    let socket_message =
+                        generator.into_root_schema_for::<crate::static_config::StaticConfig>();
                     let schema = serde_json::to_string_pretty(&socket_message)?;
 
                     reply.write_all(schema.as_bytes())?;
                 }
             }
+            SocketMessage::AddSubscriberSocket(ref socket) => {
+                let mut sockets = SUBSCRIPTION_SOCKETS.lock();
+                let socket_path = DATA_DIR.join(socket);
+                sockets.insert(socket.clone(), socket_path);
+            }
+            SocketMessage::AddSubscriberSocketWithOptions(ref socket, options) => {
+                let mut sockets = SUBSCRIPTION_SOCKETS.lock();
+                let socket_path = DATA_DIR.join(socket);
+                sockets.insert(socket.clone(), socket_path);
+
+                let mut socket_options = SUBSCRIPTION_SOCKET_OPTIONS.lock();
+                socket_options.insert(socket.clone(), options);
+            }
+            SocketMessage::RemoveSubscriberSocket(ref socket) => {
+                let mut sockets = SUBSCRIPTION_SOCKETS.lock();
+                sockets.remove(socket);
+            }
         }
+
+        notify_subscribers(
+            Notification {
+                event: NotificationEvent::Socket(message.clone()),
+                state: self.as_ref().into(),
+            },
+            initial_state.has_been_modified(self.as_ref()),
+        )?;
 
         self.update_known_window_ids();
 
+        tracing::info!("processed");
+
         Ok(())
-    }
-
-    #[tracing::instrument(skip(self))]
-    pub fn move_workspace_to_monitor(&mut self, idx: usize) -> eyre::Result<()> {
-        tracing::info!("moving workspace");
-        let mouse_follows_focus = self.mouse_follows_focus;
-        let offset = self.work_area_offset;
-        let workspace = self
-            .remove_focused_workspace()
-            .ok_or_eyre("there is no workspace")?;
-
-        {
-            let target_monitor: &mut Monitor = self
-                .monitors_mut()
-                .get_mut(idx)
-                .ok_or_eyre("there is no monitor")?;
-
-            target_monitor.workspaces_mut().push_back(workspace);
-            target_monitor.update_workspaces_globals(offset);
-            target_monitor.focus_workspace(target_monitor.workspaces().len().saturating_sub(1))?;
-            target_monitor.load_focused_workspace(mouse_follows_focus)?;
-        }
-
-        self.focus_monitor(idx)?;
-        self.update_focused_workspace(mouse_follows_focus, true)
-    }
-
-    pub fn remove_focused_workspace(&mut self) -> Option<Workspace> {
-        let focused_monitor: &mut Monitor = self.focused_monitor_mut()?;
-        let focused_workspace_idx = focused_monitor.focused_workspace_idx();
-        let workspace = focused_monitor.remove_workspace_by_idx(focused_workspace_idx);
-        if let Err(error) = focused_monitor.focus_workspace(focused_workspace_idx.saturating_sub(1))
-        {
-            tracing::error!(
-                "Error focusing previous workspace while removing the focused workspace: {}",
-                error
-            );
-        }
-        workspace
     }
 }
 

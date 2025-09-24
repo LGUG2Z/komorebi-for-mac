@@ -48,6 +48,7 @@ pub const kAXAnnouncementKey: &str = "AXAnnouncementKey";
 pub const kAXUIElementTitleKey: &str = "AXUIElementTitleKey";
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, EnumString, Display, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub enum AccessibilityNotification {
     AXMainWindowChanged,
     AXFocusedWindowChanged,

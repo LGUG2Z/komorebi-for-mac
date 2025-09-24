@@ -15,8 +15,11 @@ fix:
 clean:
     cargo clean
 
-install target:
+install-with-jsonschema target:
     cargo +stable install --path {{ target }} --locked --target-dir ~/.cargo/bin
+
+install target:
+    cargo +stable install --path {{ target }} --locked --target-dir ~/.cargo/bin --no-default-features
 
 build target:
     cargo +stable build --package {{ target }} --locked --release

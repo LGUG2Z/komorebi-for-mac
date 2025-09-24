@@ -24,6 +24,7 @@ use std::fmt::Formatter;
 use std::num::NonZeroUsize;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct Workspace {
     pub name: Option<String>,
     pub containers: Ring<Container>,
@@ -57,6 +58,7 @@ pub struct Workspace {
 }
 
 #[derive(Debug, Default, Copy, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub enum WorkspaceLayer {
     #[default]
     Tiling,

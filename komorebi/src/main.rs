@@ -29,6 +29,8 @@ use objc2_core_graphics::CGPreflightScreenCaptureAccess;
 use objc2_core_graphics::CGRequestScreenCaptureAccess;
 use parking_lot::Mutex;
 use serde::Deserialize;
+use std::net::Shutdown;
+use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
@@ -280,6 +282,16 @@ fn main() -> eyre::Result<()> {
     }
 
     wm.lock().restore_all_windows(false)?;
+
+    let sockets = komorebi::SUBSCRIPTION_SOCKETS.lock();
+    for path in (*sockets).values() {
+        if let Ok(stream) = UnixStream::connect(path) {
+            stream.shutdown(Shutdown::Both)?;
+        }
+    }
+
+    let socket = DATA_DIR.join("komorebi.sock");
+    let _ = std::fs::remove_file(socket);
 
     Ok(())
 }
