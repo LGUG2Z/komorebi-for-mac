@@ -26,6 +26,7 @@ use crate::window::AdhocWindow;
 use crate::window_manager::WindowManager;
 use crate::workspace::Workspace;
 use crate::workspace::WorkspaceLayer;
+use crate::workspace::WorkspaceWindowLocation;
 use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
 use parking_lot::Mutex;
@@ -95,6 +96,81 @@ impl WindowManager {
             SocketMessage::PromoteWindow(direction) => {
                 self.focus_container_in_direction(direction)?;
                 self.promote_container_to_front()?
+            }
+            SocketMessage::EagerFocus(ref exe) => {
+                let focused_monitor_idx = self.focused_monitor_idx();
+                let mouse_follows_focus = self.mouse_follows_focus;
+
+                let mut window_location = None;
+                let mut monitor_to_focus = None;
+                let mut needs_workspace_loading = false;
+
+                'search: for (monitor_idx, monitor) in self.monitors_mut().iter_mut().enumerate() {
+                    for (workspace_idx, workspace) in monitor.workspaces().iter().enumerate() {
+                        if let Some(location) = workspace.location_from_exe(exe) {
+                            window_location = Some(location);
+
+                            if monitor_idx != focused_monitor_idx {
+                                monitor_to_focus = Some(monitor_idx);
+                            }
+
+                            // Focus workspace if it is not already the focused one, without
+                            // loading it so that we don't give focus to the wrong window, we will
+                            // load it later after focusing the wanted window
+                            let focused_ws_idx = monitor.focused_workspace_idx();
+                            if focused_ws_idx != workspace_idx {
+                                monitor.last_focused_workspace = Option::from(focused_ws_idx);
+                                monitor.focus_workspace(workspace_idx)?;
+                                needs_workspace_loading = true;
+                            }
+
+                            break 'search;
+                        }
+                    }
+                }
+
+                if let Some(monitor_idx) = monitor_to_focus {
+                    self.focus_monitor(monitor_idx)?;
+                }
+
+                if let Some(location) = window_location {
+                    match location {
+                        WorkspaceWindowLocation::Monocle(window_idx) => {
+                            self.focus_container_window(window_idx)?;
+                        }
+                        WorkspaceWindowLocation::Maximized => {
+                            if let Some(window) =
+                                &mut self.focused_workspace_mut()?.maximized_window
+                            {
+                                window.focus(mouse_follows_focus)?;
+                            }
+                        }
+                        WorkspaceWindowLocation::Container(container_idx, window_idx) => {
+                            let focused_container_idx = self.focused_container_idx()?;
+                            if container_idx != focused_container_idx {
+                                self.focused_workspace_mut()?.focus_container(container_idx);
+                            }
+
+                            self.focus_container_window(window_idx)?;
+                        }
+                        WorkspaceWindowLocation::Floating(window_idx) => {
+                            if let Some(window) = self
+                                .focused_workspace_mut()?
+                                .floating_windows_mut()
+                                .get_mut(window_idx)
+                            {
+                                window.focus(mouse_follows_focus)?;
+                            }
+                        }
+                    }
+
+                    if needs_workspace_loading {
+                        let mouse_follows_focus = self.mouse_follows_focus;
+                        if let Some(monitor) = self.focused_monitor_mut() {
+                            monitor.load_focused_workspace(mouse_follows_focus)?;
+                        }
+                    }
+                }
             }
             SocketMessage::FocusWindow(direction) => {
                 let focused_workspace = self.focused_workspace()?;

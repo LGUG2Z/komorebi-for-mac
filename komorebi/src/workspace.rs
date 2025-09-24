@@ -107,6 +107,14 @@ impl Default for Workspace {
     }
 }
 
+#[derive(Debug)]
+pub enum WorkspaceWindowLocation {
+    Monocle(usize), // window_idx
+    Maximized,
+    Container(usize, usize), // container_idx, window_idx
+    Floating(usize),         // idx in floating_windows
+}
+
 #[derive(Debug, Default, Copy, Clone, Serialize, Deserialize, PartialEq)]
 /// Settings setup either by the parent monitor or by the `WindowManager`
 pub struct WorkspaceGlobals {
@@ -512,6 +520,40 @@ impl Workspace {
         }
 
         false
+    }
+
+    pub fn location_from_exe(&self, exe: &str) -> Option<WorkspaceWindowLocation> {
+        for (container_idx, container) in self.containers().iter().enumerate() {
+            if let Some(window_idx) = container.idx_from_exe(exe) {
+                return Some(WorkspaceWindowLocation::Container(
+                    container_idx,
+                    window_idx,
+                ));
+            }
+        }
+
+        if let Some(window) = &self.maximized_window
+            && let Some(window_exe) = window.exe()
+            && exe == window_exe
+        {
+            return Some(WorkspaceWindowLocation::Maximized);
+        }
+
+        if let Some(container) = &self.monocle_container
+            && let Some(window_idx) = container.idx_from_exe(exe)
+        {
+            return Some(WorkspaceWindowLocation::Monocle(window_idx));
+        }
+
+        for (window_idx, window) in self.floating_windows().iter().enumerate() {
+            if let Some(window_exe) = window.exe()
+                && exe == window_exe
+            {
+                return Some(WorkspaceWindowLocation::Floating(window_idx));
+            }
+        }
+
+        None
     }
 
     pub fn contains_managed_window(&self, window_id: u32) -> bool {

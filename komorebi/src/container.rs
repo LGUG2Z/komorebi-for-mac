@@ -39,6 +39,18 @@ impl Lockable for Container {
 }
 
 impl Container {
+    pub fn idx_from_exe(&self, exe: &str) -> Option<usize> {
+        for (idx, window) in self.windows().iter().enumerate() {
+            if let Some(window_exe) = window.exe()
+                && exe == window_exe
+            {
+                return Option::from(idx);
+            }
+        }
+
+        None
+    }
+
     pub fn contains_window(&self, window_id: u32) -> bool {
         for window in self.windows() {
             if window.id == window_id {

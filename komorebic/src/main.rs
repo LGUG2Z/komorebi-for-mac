@@ -280,6 +280,12 @@ struct Start {
 }
 
 #[derive(Parser)]
+struct EagerFocus {
+    /// Case-sensitive exe identifier
+    exe: String,
+}
+
+#[derive(Parser)]
 #[clap(author, about, version = build::CLAP_LONG_VERSION)]
 struct Opts {
     #[clap(subcommand)]
@@ -379,9 +385,9 @@ enum SubCommand {
     /// Move the focused window in the specified cycle direction
     #[clap(arg_required_else_help = true)]
     CycleMove(CycleMove),
-    // /// Focus the first managed window matching the given exe
-    // #[clap(arg_required_else_help = true)]
-    // EagerFocus(EagerFocus),
+    /// Focus the first managed window matching the given exe
+    #[clap(arg_required_else_help = true)]
+    EagerFocus(EagerFocus),
     /// Stack the focused window in the specified direction
     #[clap(arg_required_else_help = true)]
     Stack(Stack),
@@ -1238,6 +1244,9 @@ fn main() -> eyre::Result<()> {
         }
         SubCommand::EnforceWorkspaceRules => {
             send_message(&SocketMessage::EnforceWorkspaceRules)?;
+        }
+        SubCommand::EagerFocus(arg) => {
+            send_message(&SocketMessage::EagerFocus(arg.exe))?;
         }
     }
 
