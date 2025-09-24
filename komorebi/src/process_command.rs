@@ -1,5 +1,8 @@
 use crate::FLOATING_APPLICATIONS;
+use crate::IGNORE_IDENTIFIERS;
+use crate::MANAGE_IDENTIFIERS;
 use crate::SESSION_FLOATING_APPLICATIONS;
+use crate::WORKSPACE_MATCHING_RULES;
 use crate::build;
 use crate::core::ApplicationIdentifier;
 use crate::core::MoveBehaviour;
@@ -10,6 +13,7 @@ use crate::core::arrangement::Axis;
 use crate::core::config_generation::IdWithIdentifier;
 use crate::core::config_generation::MatchingRule;
 use crate::core::config_generation::MatchingStrategy;
+use crate::core::config_generation::WorkspaceMatchingRule;
 use crate::core::layout::Layout;
 use crate::core::operation_direction::OperationDirection;
 use crate::core::rect::Rect;
@@ -956,6 +960,204 @@ impl WindowManager {
                 let mut session_floating_applications = SESSION_FLOATING_APPLICATIONS.lock();
                 floating_applications.retain(|r| !session_floating_applications.contains(r));
                 session_floating_applications.clear()
+            }
+            SocketMessage::InitialWorkspaceRule(identifier, ref id, monitor_idx, workspace_idx) => {
+                let mut workspace_rules = WORKSPACE_MATCHING_RULES.lock();
+                let workspace_matching_rule = WorkspaceMatchingRule {
+                    monitor_index: monitor_idx,
+                    workspace_index: workspace_idx,
+                    matching_rule: MatchingRule::Simple(IdWithIdentifier {
+                        kind: identifier,
+                        id: id.to_string(),
+                        matching_strategy: Some(MatchingStrategy::Legacy),
+                    }),
+                    initial_only: true,
+                };
+
+                if !workspace_rules.contains(&workspace_matching_rule) {
+                    workspace_rules.push(workspace_matching_rule);
+                }
+            }
+            SocketMessage::InitialNamedWorkspaceRule(identifier, ref id, ref workspace) => {
+                if let Some((monitor_idx, workspace_idx)) =
+                    self.monitor_workspace_index_by_name(workspace)
+                {
+                    let mut workspace_rules = WORKSPACE_MATCHING_RULES.lock();
+                    let workspace_matching_rule = WorkspaceMatchingRule {
+                        monitor_index: monitor_idx,
+                        workspace_index: workspace_idx,
+                        matching_rule: MatchingRule::Simple(IdWithIdentifier {
+                            kind: identifier,
+                            id: id.to_string(),
+                            matching_strategy: Some(MatchingStrategy::Legacy),
+                        }),
+                        initial_only: true,
+                    };
+
+                    if !workspace_rules.contains(&workspace_matching_rule) {
+                        workspace_rules.push(workspace_matching_rule);
+                    }
+                }
+            }
+            SocketMessage::WorkspaceRule(identifier, ref id, monitor_idx, workspace_idx) => {
+                let mut workspace_rules = WORKSPACE_MATCHING_RULES.lock();
+                let workspace_matching_rule = WorkspaceMatchingRule {
+                    monitor_index: monitor_idx,
+                    workspace_index: workspace_idx,
+                    matching_rule: MatchingRule::Simple(IdWithIdentifier {
+                        kind: identifier,
+                        id: id.to_string(),
+                        matching_strategy: Some(MatchingStrategy::Legacy),
+                    }),
+                    initial_only: false,
+                };
+
+                if !workspace_rules.contains(&workspace_matching_rule) {
+                    workspace_rules.push(workspace_matching_rule);
+                }
+            }
+            SocketMessage::NamedWorkspaceRule(identifier, ref id, ref workspace) => {
+                if let Some((monitor_idx, workspace_idx)) =
+                    self.monitor_workspace_index_by_name(workspace)
+                {
+                    let mut workspace_rules = WORKSPACE_MATCHING_RULES.lock();
+                    let workspace_matching_rule = WorkspaceMatchingRule {
+                        monitor_index: monitor_idx,
+                        workspace_index: workspace_idx,
+                        matching_rule: MatchingRule::Simple(IdWithIdentifier {
+                            kind: identifier,
+                            id: id.to_string(),
+                            matching_strategy: Some(MatchingStrategy::Legacy),
+                        }),
+                        initial_only: false,
+                    };
+
+                    if !workspace_rules.contains(&workspace_matching_rule) {
+                        workspace_rules.push(workspace_matching_rule);
+                    }
+                }
+            }
+            SocketMessage::ClearWorkspaceRules(monitor_idx, workspace_idx) => {
+                let mut workspace_rules = WORKSPACE_MATCHING_RULES.lock();
+
+                workspace_rules.retain(|r| {
+                    r.monitor_index != monitor_idx && r.workspace_index != workspace_idx
+                });
+            }
+            SocketMessage::ClearNamedWorkspaceRules(ref workspace) => {
+                if let Some((monitor_idx, workspace_idx)) =
+                    self.monitor_workspace_index_by_name(workspace)
+                {
+                    let mut workspace_rules = WORKSPACE_MATCHING_RULES.lock();
+                    workspace_rules.retain(|r| {
+                        r.monitor_index != monitor_idx && r.workspace_index != workspace_idx
+                    });
+                }
+            }
+            SocketMessage::ClearAllWorkspaceRules => {
+                let mut workspace_rules = WORKSPACE_MATCHING_RULES.lock();
+                workspace_rules.clear();
+            }
+            SocketMessage::EnforceWorkspaceRules => {
+                {
+                    let mut already_moved = self.already_moved_window_handles.lock();
+                    already_moved.clear();
+                }
+                self.enforce_workspace_rules()?;
+            }
+            SocketMessage::IgnoreRule(identifier, ref id) => {
+                let mut ignore_identifiers = IGNORE_IDENTIFIERS.lock();
+
+                let mut should_push = true;
+                for i in &*ignore_identifiers {
+                    if let MatchingRule::Simple(i) = i
+                        && i.id.eq(id)
+                    {
+                        should_push = false;
+                    }
+                }
+
+                if should_push {
+                    ignore_identifiers.push(MatchingRule::Simple(IdWithIdentifier {
+                        kind: identifier,
+                        id: id.clone(),
+                        matching_strategy: Option::from(MatchingStrategy::Legacy),
+                    }));
+                }
+
+                let offset = self.work_area_offset;
+
+                let mut window_ids_to_purge = vec![];
+                for (i, monitor) in self.monitors().iter().enumerate() {
+                    for container in monitor
+                        .focused_workspace()
+                        .ok_or_eyre("there is no workspace")?
+                        .containers()
+                    {
+                        for window in container.windows() {
+                            match identifier {
+                                ApplicationIdentifier::Path => {
+                                    if window.path().unwrap_or_default().to_string_lossy() == *id {
+                                        window_ids_to_purge.push((i, window.id));
+                                    }
+                                }
+                                ApplicationIdentifier::Exe => {
+                                    if window.exe().unwrap_or_default() == *id {
+                                        window_ids_to_purge.push((i, window.id));
+                                    }
+                                }
+                                ApplicationIdentifier::Class => {
+                                    if window.role().unwrap_or_default() == *id {
+                                        window_ids_to_purge.push((i, window.id));
+                                    }
+
+                                    if window.subrole().unwrap_or_default() == *id {
+                                        window_ids_to_purge.push((i, window.id));
+                                    }
+                                }
+                                ApplicationIdentifier::Title => {
+                                    if window.title().unwrap_or_default() == *id {
+                                        window_ids_to_purge.push((i, window.id));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                for (monitor_idx, id) in window_ids_to_purge {
+                    let monitor = self
+                        .monitors_mut()
+                        .get_mut(monitor_idx)
+                        .ok_or_eyre("there is no monitor")?;
+
+                    monitor
+                        .focused_workspace_mut()
+                        .ok_or_eyre("there is no focused workspace")?
+                        .remove_window(id)?;
+
+                    monitor.update_focused_workspace(offset)?;
+                }
+            }
+            SocketMessage::ManageRule(identifier, ref id) => {
+                let mut manage_identifiers = MANAGE_IDENTIFIERS.lock();
+
+                let mut should_push = true;
+                for m in &*manage_identifiers {
+                    if let MatchingRule::Simple(m) = m
+                        && m.id.eq(id)
+                    {
+                        should_push = false;
+                    }
+                }
+
+                if should_push {
+                    manage_identifiers.push(MatchingRule::Simple(IdWithIdentifier {
+                        kind: identifier,
+                        id: id.clone(),
+                        matching_strategy: Option::from(MatchingStrategy::Legacy),
+                    }));
+                }
             }
         }
 

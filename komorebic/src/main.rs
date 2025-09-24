@@ -4,6 +4,7 @@ use chrono::Utc;
 use clap::Parser;
 use color_eyre::eyre;
 use fs_tail::TailedFile;
+use komorebi_client::ApplicationIdentifier;
 use komorebi_client::Axis;
 use komorebi_client::CycleDirection;
 use komorebi_client::DefaultLayout;
@@ -141,6 +142,89 @@ gen_named_target_subcommand_args! {
     SendToNamedWorkspace,
     FocusNamedWorkspace,
     ClearNamedWorkspaceLayoutRules
+}
+
+macro_rules! gen_application_target_subcommand_args {
+    // SubCommand Pattern
+    ( $( $name:ident ),+ $(,)? ) => {
+        $(
+            #[derive(clap::Parser)]
+            pub struct $name {
+                #[clap(value_enum)]
+                identifier: ApplicationIdentifier,
+                /// Identifier as a string
+                id: String,
+            }
+        )+
+    };
+}
+
+gen_application_target_subcommand_args! {
+    IgnoreRule,
+    ManageRule,
+    IdentifyTrayApplication,
+    IdentifyLayeredApplication,
+    IdentifyObjectNameChangeApplication,
+    IdentifyBorderOverflowApplication,
+    RemoveTitleBar,
+}
+
+#[derive(Parser)]
+struct InitialWorkspaceRule {
+    #[clap(value_enum)]
+    identifier: ApplicationIdentifier,
+    /// Identifier as a string
+    id: String,
+    /// Monitor index (zero-indexed)
+    monitor: usize,
+    /// Workspace index on the specified monitor (zero-indexed)
+    workspace: usize,
+}
+
+#[derive(Parser)]
+struct InitialNamedWorkspaceRule {
+    #[clap(value_enum)]
+    identifier: ApplicationIdentifier,
+    /// Identifier as a string
+    id: String,
+    /// Name of a workspace
+    workspace: String,
+}
+
+#[derive(Parser)]
+struct WorkspaceRule {
+    #[clap(value_enum)]
+    identifier: ApplicationIdentifier,
+    /// Identifier as a string
+    id: String,
+    /// Monitor index (zero-indexed)
+    monitor: usize,
+    /// Workspace index on the specified monitor (zero-indexed)
+    workspace: usize,
+}
+
+#[derive(Parser)]
+struct NamedWorkspaceRule {
+    #[clap(value_enum)]
+    identifier: ApplicationIdentifier,
+    /// Identifier as a string
+    id: String,
+    /// Name of a workspace
+    workspace: String,
+}
+
+#[derive(Parser)]
+struct ClearWorkspaceRules {
+    /// Monitor index (zero-indexed)
+    monitor: usize,
+    /// Workspace index on the specified monitor (zero-indexed)
+    workspace: usize,
+}
+
+#[derive(Parser)]
+struct ClearNamedWorkspaceRules {
+    /// Name of a workspace
+    workspace: String,
 }
 
 #[derive(Parser)]
@@ -587,35 +671,35 @@ enum SubCommand {
     SessionFloatRules,
     /// Clear all session float rules
     ClearSessionFloatRules,
-    // /// Add a rule to ignore the specified application
-    // #[clap(arg_required_else_help = true)]
-    // #[clap(alias = "float-rule")]
-    // IgnoreRule(IgnoreRule),
-    // /// Add a rule to always manage the specified application
-    // #[clap(arg_required_else_help = true)]
-    // ManageRule(ManageRule),
-    // /// Add a rule to associate an application with a workspace on first show
-    // #[clap(arg_required_else_help = true)]
-    // InitialWorkspaceRule(InitialWorkspaceRule),
-    // /// Add a rule to associate an application with a named workspace on first show
-    // #[clap(arg_required_else_help = true)]
-    // InitialNamedWorkspaceRule(InitialNamedWorkspaceRule),
-    // /// Add a rule to associate an application with a workspace
-    // #[clap(arg_required_else_help = true)]
-    // WorkspaceRule(WorkspaceRule),
-    // /// Add a rule to associate an application with a named workspace
-    // #[clap(arg_required_else_help = true)]
-    // NamedWorkspaceRule(NamedWorkspaceRule),
-    // /// Remove all application association rules for a workspace by monitor and workspace index
-    // #[clap(arg_required_else_help = true)]
-    // ClearWorkspaceRules(ClearWorkspaceRules),
-    // /// Remove all application association rules for a named workspace
-    // #[clap(arg_required_else_help = true)]
-    // ClearNamedWorkspaceRules(ClearNamedWorkspaceRules),
-    // /// Remove all application association rules for all workspaces
-    // ClearAllWorkspaceRules,
-    // /// Enforce all workspace rules, including initial workspace rules that have already been applied
-    // EnforceWorkspaceRules,
+    /// Add a rule to ignore the specified application
+    #[clap(arg_required_else_help = true)]
+    #[clap(alias = "float-rule")]
+    IgnoreRule(IgnoreRule),
+    /// Add a rule to always manage the specified application
+    #[clap(arg_required_else_help = true)]
+    ManageRule(ManageRule),
+    /// Add a rule to associate an application with a workspace on first show
+    #[clap(arg_required_else_help = true)]
+    InitialWorkspaceRule(InitialWorkspaceRule),
+    /// Add a rule to associate an application with a named workspace on first show
+    #[clap(arg_required_else_help = true)]
+    InitialNamedWorkspaceRule(InitialNamedWorkspaceRule),
+    /// Add a rule to associate an application with a workspace
+    #[clap(arg_required_else_help = true)]
+    WorkspaceRule(WorkspaceRule),
+    /// Add a rule to associate an application with a named workspace
+    #[clap(arg_required_else_help = true)]
+    NamedWorkspaceRule(NamedWorkspaceRule),
+    /// Remove all application association rules for a workspace by monitor and workspace index
+    #[clap(arg_required_else_help = true)]
+    ClearWorkspaceRules(ClearWorkspaceRules),
+    /// Remove all application association rules for a named workspace
+    #[clap(arg_required_else_help = true)]
+    ClearNamedWorkspaceRules(ClearNamedWorkspaceRules),
+    /// Remove all application association rules for all workspaces
+    ClearAllWorkspaceRules,
+    /// Enforce all workspace rules, including initial workspace rules that have already been applied
+    EnforceWorkspaceRules,
     // /// Identify an application that sends EVENT_OBJECT_NAMECHANGE on launch
     // #[clap(arg_required_else_help = true)]
     // IdentifyObjectNameChangeApplication(IdentifyObjectNameChangeApplication),
@@ -1103,6 +1187,57 @@ fn main() -> eyre::Result<()> {
         }
         SubCommand::ClearSessionFloatRules => {
             send_message(&SocketMessage::ClearSessionFloatRules)?;
+        }
+        SubCommand::IgnoreRule(arg) => {
+            send_message(&SocketMessage::IgnoreRule(arg.identifier, arg.id))?;
+        }
+        SubCommand::ManageRule(arg) => {
+            send_message(&SocketMessage::ManageRule(arg.identifier, arg.id))?;
+        }
+        SubCommand::InitialWorkspaceRule(arg) => {
+            send_message(&SocketMessage::InitialWorkspaceRule(
+                arg.identifier,
+                arg.id,
+                arg.monitor,
+                arg.workspace,
+            ))?;
+        }
+        SubCommand::InitialNamedWorkspaceRule(arg) => {
+            send_message(&SocketMessage::InitialNamedWorkspaceRule(
+                arg.identifier,
+                arg.id,
+                arg.workspace,
+            ))?;
+        }
+        SubCommand::WorkspaceRule(arg) => {
+            send_message(&SocketMessage::WorkspaceRule(
+                arg.identifier,
+                arg.id,
+                arg.monitor,
+                arg.workspace,
+            ))?;
+        }
+        SubCommand::NamedWorkspaceRule(arg) => {
+            send_message(&SocketMessage::NamedWorkspaceRule(
+                arg.identifier,
+                arg.id,
+                arg.workspace,
+            ))?;
+        }
+        SubCommand::ClearWorkspaceRules(arg) => {
+            send_message(&SocketMessage::ClearWorkspaceRules(
+                arg.monitor,
+                arg.workspace,
+            ))?;
+        }
+        SubCommand::ClearNamedWorkspaceRules(arg) => {
+            send_message(&SocketMessage::ClearNamedWorkspaceRules(arg.workspace))?;
+        }
+        SubCommand::ClearAllWorkspaceRules => {
+            send_message(&SocketMessage::ClearAllWorkspaceRules)?;
+        }
+        SubCommand::EnforceWorkspaceRules => {
+            send_message(&SocketMessage::EnforceWorkspaceRules)?;
         }
     }
 
