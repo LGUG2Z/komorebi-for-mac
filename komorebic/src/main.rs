@@ -6,6 +6,7 @@ use clap::ValueEnum;
 use color_eyre::eyre;
 use fs_tail::TailedFile;
 use komorebi_client::ApplicationIdentifier;
+use komorebi_client::ApplicationSpecificConfiguration;
 use komorebi_client::Axis;
 use komorebi_client::CycleDirection;
 use komorebi_client::DefaultLayout;
@@ -17,6 +18,7 @@ use komorebi_client::Rect;
 use komorebi_client::Sizing;
 use komorebi_client::SocketMessage;
 use komorebi_client::StateQuery;
+use komorebi_client::StaticConfig;
 use komorebi_client::replace_env_in_path;
 use komorebi_client::send_message;
 use komorebi_client::send_query;
@@ -1071,15 +1073,15 @@ enum SubCommand {
     /// Fetch the latest version of applications.json from komorebi-application-specific-configuration
     #[clap(alias = "fetch-asc")]
     FetchAppSpecificConfiguration,
-    // /// Generate a JSON Schema for applications.json
-    // #[clap(alias = "asc-schema")]
-    // ApplicationSpecificConfigurationSchema,
-    // /// Generate a JSON Schema of subscription notifications
+    /// Generate a JSON Schema for applications.json
+    #[clap(alias = "asc-schema")]
+    ApplicationSpecificConfigurationSchema,
+    /// Generate a JSON Schema of subscription notifications
     // NotificationSchema,
-    // /// Generate a JSON Schema of socket messages
-    // SocketSchema,
-    // /// Generate a JSON Schema of the static configuration file
-    // StaticConfigSchema,
+    /// Generate a JSON Schema of socket messages
+    SocketSchema,
+    /// Generate a JSON Schema of the static configuration file
+    StaticConfigSchema,
     // /// Generates a static configuration JSON file based on the current window manager state
     // GenerateStaticConfig,
     // /// Generates the komorebi.lnk shortcut in shell:startup to autostart komorebi
@@ -1689,6 +1691,37 @@ fn main() -> eyre::Result<()> {
         }
         SubCommand::MouseFollowsFocus(arg) => {
             send_message(&SocketMessage::MouseFollowsFocus(arg.boolean_state.into()))?;
+        }
+        SubCommand::ApplicationSpecificConfigurationSchema => {
+            #[cfg(feature = "schemars")]
+            {
+                let asc = schemars::schema_for!(ApplicationSpecificConfiguration);
+                let schema = serde_json::to_string_pretty(&asc)?;
+                println!("{schema}");
+            }
+        }
+        SubCommand::SocketSchema => {
+            #[cfg(feature = "schemars")]
+            {
+                let socket_message = schemars::schema_for!(SocketMessage);
+                let schema = serde_json::to_string_pretty(&socket_message)?;
+                println!("{schema}");
+            }
+        }
+        SubCommand::StaticConfigSchema => {
+            #[cfg(feature = "schemars")]
+            {
+                let settings = schemars::r#gen::SchemaSettings::default().with(|s| {
+                    s.option_nullable = false;
+                    s.option_add_null_type = false;
+                    s.inline_subschemas = true;
+                });
+
+                let generator = settings.into_generator();
+                let socket_message = generator.into_root_schema_for::<StaticConfig>();
+                let schema = serde_json::to_string_pretty(&socket_message)?;
+                println!("{schema}");
+            }
         }
     }
 

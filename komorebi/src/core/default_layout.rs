@@ -10,6 +10,7 @@ use strum::EnumString;
 #[derive(
     Clone, Copy, Debug, Serialize, Deserialize, Eq, PartialEq, Display, EnumString, ValueEnum,
 )]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub enum DefaultLayout {
     BSP,
     Columns,
@@ -24,12 +25,14 @@ pub enum DefaultLayout {
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, Eq, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct LayoutOptions {
     /// Options related to the Scrolling layout
     pub scrolling: Option<ScrollingLayoutOptions>,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, Eq, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct ScrollingLayoutOptions {
     /// Desired number of visible columns (default: 3)
     pub columns: usize,

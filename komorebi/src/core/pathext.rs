@@ -123,16 +123,16 @@ impl<'de> serde_with::DeserializeAs<'de, PathBuf> for ResolvedPathBuf {
     }
 }
 
-// #[cfg(feature = "schemars")]
-// impl serde_with::schemars_0_8::JsonSchemaAs<PathBuf> for ResolvedPathBuf {
-//     fn schema_name() -> String {
-//         "PathBuf".to_owned()
-//     }
-//
-//     fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
-//         <PathBuf as schemars::JsonSchema>::json_schema(gen)
-//     }
-// }
+#[cfg(feature = "schemars")]
+impl serde_with::schemars_0_8::JsonSchemaAs<PathBuf> for ResolvedPathBuf {
+    fn schema_name() -> String {
+        "PathBuf".to_string()
+    }
+
+    fn json_schema(generator: &mut schemars::SchemaGenerator) -> schemars::schema::Schema {
+        <PathBuf as schemars::JsonSchema>::json_schema(generator)
+    }
+}
 
 /// Custom deserializer for [`Option<HashMap<usize, PathBuf>>`] that uses
 /// [`PathExt::replace_env`] to resolve environment variables in the paths.

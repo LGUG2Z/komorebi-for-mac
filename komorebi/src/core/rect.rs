@@ -8,6 +8,7 @@ use serde::Deserialize;
 use serde::Serialize;
 
 #[derive(Debug, Default, Copy, Clone, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct Rect {
     pub left: i32,
     pub top: i32,

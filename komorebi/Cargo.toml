@@ -25,9 +25,10 @@ quick-xml = { version = "0.38", features = ["serialize"] }
 # forked to patch in serde_json_lenient and update some old dependencies
 quickxml_to_serde = { git = "https://github.com/LGUG2Z/quickxml_to_serde.git", version = "0.6.1" }
 regex = "1"
+schemars = { workspace = true, optional = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-serde_with = "3"
+serde_with = { version = "3", features = ["schemars_0_8"] }
 shadow-rs = { workspace = true }
 strum = { version = "0.27", features = ["derive"] }
 sysinfo = { workspace = true }
@@ -38,3 +39,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 [build-dependencies]
 shadow-rs = { workspace = true }
+
+[features]
+default = ["schemars"]
+schemars = ["dep:schemars"]

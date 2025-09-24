@@ -860,6 +860,7 @@ impl From<&CFDictionary> for WindowBounds {
 }
 
 #[derive(Copy, Clone, Debug, Display, EnumString, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(untagged)]
 pub enum AspectRatio {
     /// A predefined aspect ratio
@@ -875,6 +876,7 @@ impl Default for AspectRatio {
 }
 
 #[derive(Copy, Clone, Debug, Default, Display, EnumString, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub enum PredefinedAspectRatio {
     /// 21:9
     Ultrawide,

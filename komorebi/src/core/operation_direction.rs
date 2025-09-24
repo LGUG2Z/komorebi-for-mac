@@ -6,6 +6,7 @@ use serde::Serialize;
 use std::num::NonZeroUsize;
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, ValueEnum)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub enum OperationDirection {
     Left,
     Right,

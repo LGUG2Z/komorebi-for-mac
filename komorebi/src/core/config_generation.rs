@@ -7,6 +7,7 @@ use strum::EnumString;
 use super::ApplicationIdentifier;
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, Display, EnumString, ValueEnum)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[strum(serialize_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 pub enum ApplicationOptions {
@@ -18,6 +19,7 @@ pub enum ApplicationOptions {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(untagged)]
 pub enum MatchingRule {
     Simple(IdWithIdentifier),
@@ -25,6 +27,7 @@ pub enum MatchingRule {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct WorkspaceMatchingRule {
     pub monitor_index: usize,
     pub workspace_index: usize,
@@ -33,6 +36,7 @@ pub struct WorkspaceMatchingRule {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct IdWithIdentifier {
     pub kind: ApplicationIdentifier,
     pub id: String,
@@ -41,6 +45,7 @@ pub struct IdWithIdentifier {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Display)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub enum MatchingStrategy {
     Legacy,
     Equals,
@@ -55,6 +60,7 @@ pub enum MatchingStrategy {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct IdWithIdentifierAndComment {
     pub kind: ApplicationIdentifier,
     pub id: String,
@@ -75,6 +81,7 @@ impl From<IdWithIdentifierAndComment> for IdWithIdentifier {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct ApplicationConfiguration {
     pub name: String,
     pub identifier: IdWithIdentifier,

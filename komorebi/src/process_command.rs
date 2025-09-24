@@ -10,6 +10,7 @@ use crate::core::SocketMessage;
 use crate::core::StateQuery;
 use crate::core::WindowContainerBehaviour;
 use crate::core::arrangement::Axis;
+use crate::core::asc::ApplicationSpecificConfiguration;
 use crate::core::config_generation::IdWithIdentifier;
 use crate::core::config_generation::MatchingRule;
 use crate::core::config_generation::MatchingStrategy;
@@ -24,6 +25,7 @@ use crate::monitor::Monitor;
 use crate::monitor::MonitorInformation;
 use crate::state::GlobalState;
 use crate::state::State;
+use crate::static_config::StaticConfig;
 use crate::window::AdhocWindow;
 use crate::window_manager::WindowManager;
 use crate::workspace::Workspace;
@@ -1402,6 +1404,40 @@ impl WindowManager {
             SocketMessage::UnmanagedWindowOperationBehaviour(behaviour) => {
                 self.unmanaged_window_operation_behaviour = behaviour;
             }
+            SocketMessage::ApplicationSpecificConfigurationSchema => {
+                #[cfg(feature = "schemars")]
+                {
+                    let asc = schemars::schema_for!(Vec<ApplicationSpecificConfiguration>);
+                    let schema = serde_json::to_string_pretty(&asc)?;
+
+                    reply.write_all(schema.as_bytes())?;
+                }
+            }
+            SocketMessage::SocketSchema => {
+                #[cfg(feature = "schemars")]
+                {
+                    let socket_message = schemars::schema_for!(SocketMessage);
+                    let schema = serde_json::to_string_pretty(&socket_message)?;
+
+                    reply.write_all(schema.as_bytes())?;
+                }
+            }
+            SocketMessage::StaticConfigSchema => {
+                #[cfg(feature = "schemars")]
+                {
+                    let settings = schemars::r#gen::SchemaSettings::default().with(|s| {
+                        s.option_nullable = false;
+                        s.option_add_null_type = false;
+                        s.inline_subschemas = true;
+                    });
+
+                    let generator = settings.into_generator();
+                    let socket_message = generator.into_root_schema_for::<StaticConfig>();
+                    let schema = serde_json::to_string_pretty(&socket_message)?;
+
+                    reply.write_all(schema.as_bytes())?;
+                }
+            }
         }
 
         self.update_known_window_ids();
@@ -1471,8 +1507,8 @@ pub fn read_commands_uds(
                 if wm.is_paused {
                     return match message {
                         SocketMessage::TogglePause
-                        // | SocketMessage::State
-                        // | SocketMessage::GlobalState
+                        | SocketMessage::State
+                        | SocketMessage::GlobalState
                         // | SocketMessage::Stop
                         => Ok(wm.process_command(message, &mut stream)?),
                         _ => {

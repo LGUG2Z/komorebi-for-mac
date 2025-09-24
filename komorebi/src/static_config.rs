@@ -132,6 +132,7 @@ use std::sync::atomic::Ordering;
 // serde_as must be before derive
 #[serde_with::serde_as]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct WorkspaceConfig {
     /// Name
     pub name: String,
@@ -268,6 +269,7 @@ impl From<&Workspace> for WorkspaceConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct MonitorConfig {
     /// Workspace configurations
     pub workspaces: Vec<WorkspaceConfig>,
@@ -335,6 +337,7 @@ impl From<&Monitor> for MonitorConfig {
 
 #[serde_with::serde_as]
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(untagged)]
 pub enum AppSpecificConfigurationPath {
     /// A single applications.json file
@@ -345,6 +348,7 @@ pub enum AppSpecificConfigurationPath {
 
 #[serde_with::serde_as]
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 /// The `komorebi.json` static configuration file reference for `v0.1.39`
 pub struct StaticConfig {
     // /// DISCOURAGED: Minimum width for a window to be eligible for tiling

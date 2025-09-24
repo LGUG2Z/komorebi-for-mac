@@ -10,9 +10,11 @@ use std::ops::DerefMut;
 use std::path::PathBuf;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct ApplicationSpecificConfiguration(pub BTreeMap<String, AscApplicationRulesOrSchema>);
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(untagged)]
 pub enum AscApplicationRulesOrSchema {
     AscApplicationRules(AscApplicationRules),
@@ -46,6 +48,7 @@ impl ApplicationSpecificConfiguration {
 
 /// Rules that determine how an application is handled
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct AscApplicationRules {
     /// Rules to ignore specific windows
     #[serde(skip_serializing_if = "Option::is_none")]

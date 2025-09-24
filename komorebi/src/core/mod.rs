@@ -28,6 +28,7 @@ pub mod rect;
 #[derive(
     Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize, Display, EnumString, ValueEnum,
 )]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub enum OperationBehaviour {
     /// Process komorebic commands on temporarily unmanaged/floated windows
     #[default]
@@ -37,6 +38,7 @@ pub enum OperationBehaviour {
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, Display, EnumString, ValueEnum)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub enum Sizing {
     Increase,
     Decrease,
@@ -86,6 +88,7 @@ pub struct WindowManagementBehaviour {
 #[derive(
     Clone, Copy, Debug, Default, Serialize, Deserialize, Display, EnumString, ValueEnum, PartialEq,
 )]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub enum WindowContainerBehaviour {
     /// Create a new container for each new window
     #[default]
@@ -97,6 +100,7 @@ pub enum WindowContainerBehaviour {
 #[derive(
     Clone, Copy, Debug, Default, Serialize, Deserialize, Display, EnumString, ValueEnum, PartialEq,
 )]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub enum FloatingLayerBehaviour {
     /// Tile new windows (unless they match a float rule or float override is active)
     #[default]
@@ -108,6 +112,7 @@ pub enum FloatingLayerBehaviour {
 #[derive(
     Clone, Copy, Debug, Default, Serialize, Deserialize, Display, EnumString, ValueEnum, PartialEq,
 )]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub enum Placement {
     /// Does not change the size or position of the window
     #[default]
@@ -146,6 +151,7 @@ impl Placement {
 #[derive(
     Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize, Display, EnumString, ValueEnum,
 )]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub enum MoveBehaviour {
     /// Swap the window container with the window container at the edge of the adjacent monitor
     #[default]
@@ -159,6 +165,7 @@ pub enum MoveBehaviour {
 #[derive(
     Clone, Copy, Debug, Default, Serialize, Deserialize, Display, EnumString, ValueEnum, PartialEq,
 )]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub enum CrossBoundaryBehaviour {
     /// Attempt to perform actions across a workspace boundary
     Workspace,
@@ -170,6 +177,7 @@ pub enum CrossBoundaryBehaviour {
 #[derive(
     Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Display, EnumString, ValueEnum,
 )]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub enum ApplicationIdentifier {
     #[serde(alias = "exe")]
     Exe,
@@ -182,6 +190,7 @@ pub enum ApplicationIdentifier {
 }
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, Display, EnumString, ValueEnum)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub enum StateQuery {
     FocusedMonitorIndex,
     FocusedWorkspaceIndex,
@@ -196,6 +205,7 @@ pub enum StateQuery {
 // serde_as must be before derive
 #[serde_with::serde_as]
 #[derive(Clone, Debug, Serialize, Deserialize, Display)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(tag = "type", content = "content")]
 pub enum SocketMessage {
     // Window / Container Commands
@@ -385,10 +395,10 @@ pub enum SocketMessage {
     // RemoveSubscriberSocket(String),
     // AddSubscriberPipe(String),
     // RemoveSubscriberPipe(String),
-    // ApplicationSpecificConfigurationSchema,
+    ApplicationSpecificConfigurationSchema,
     // NotificationSchema,
-    // SocketSchema,
-    // StaticConfigSchema,
+    SocketSchema,
+    StaticConfigSchema,
     // GenerateStaticConfig,
     // DebugWindow(isize),
 }

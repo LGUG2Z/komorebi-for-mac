@@ -6,3 +6,7 @@ edition = "2024"
 [dependencies]
 komorebi = { path = "../komorebi", default-features = false }
 serde_json = { workspace = true }
+
+[features]
+default = ["schemars"]
+schemars = ["komorebi/default"]
