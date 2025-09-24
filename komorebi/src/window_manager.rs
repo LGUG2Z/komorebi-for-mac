@@ -2522,4 +2522,46 @@ impl WindowManager {
 
         self.update_focused_workspace(false, false)
     }
+
+    #[tracing::instrument(skip(self))]
+    pub fn ensure_workspaces_for_monitor(
+        &mut self,
+        monitor_idx: usize,
+        workspace_count: usize,
+    ) -> eyre::Result<()> {
+        tracing::info!("ensuring workspace count");
+
+        let monitor = self
+            .monitors_mut()
+            .get_mut(monitor_idx)
+            .ok_or_eyre("there is no monitor")?;
+
+        monitor.ensure_workspace_count(workspace_count);
+
+        Ok(())
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn ensure_named_workspaces_for_monitor(
+        &mut self,
+        monitor_idx: usize,
+        names: &Vec<String>,
+    ) -> eyre::Result<()> {
+        tracing::info!("ensuring workspace count");
+
+        let monitor = self
+            .monitors_mut()
+            .get_mut(monitor_idx)
+            .ok_or_eyre("there is no monitor")?;
+
+        monitor.ensure_workspace_count(names.len());
+
+        for (workspace_idx, name) in names.iter().enumerate() {
+            if let Some(workspace) = monitor.workspaces_mut().get_mut(workspace_idx) {
+                workspace.name = Option::from(name.clone());
+            }
+        }
+
+        Ok(())
+    }
 }

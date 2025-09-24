@@ -9,6 +9,8 @@ use komorebi_client::ApplicationIdentifier;
 use komorebi_client::Axis;
 use komorebi_client::CycleDirection;
 use komorebi_client::DefaultLayout;
+use komorebi_client::MoveBehaviour;
+use komorebi_client::OperationBehaviour;
 use komorebi_client::OperationDirection;
 use komorebi_client::PathExt;
 use komorebi_client::Rect;
@@ -108,11 +110,11 @@ gen_enum_subcommand_args! {
     ChangeLayout: DefaultLayout,
     CycleLayout: CycleDirection,
     // WatchConfiguration: BooleanState,
-    // MouseFollowsFocus: BooleanState,
+    MouseFollowsFocus: BooleanState,
     Query: StateQuery,
     // WindowHidingBehaviour: HidingBehaviour,
-    // CrossMonitorMoveBehaviour: MoveBehaviour,
-    // UnmanagedWindowOperationBehaviour: OperationBehaviour,
+    CrossMonitorMoveBehaviour: MoveBehaviour,
+    UnmanagedWindowOperationBehaviour: OperationBehaviour,
     PromoteWindow: OperationDirection,
 }
 
@@ -486,6 +488,49 @@ pub struct MoveToMonitorWorkspace {
 }
 
 #[derive(Parser)]
+pub struct WorkspaceLayoutRule {
+    /// Monitor index (zero-indexed)
+    monitor: usize,
+
+    /// Workspace index on the specified monitor (zero-indexed)
+    workspace: usize,
+
+    /// The number of window containers on-screen required to trigger this layout rule
+    at_container_count: usize,
+
+    #[clap(value_enum)]
+    layout: DefaultLayout,
+}
+
+#[derive(Parser)]
+pub struct NamedWorkspaceLayoutRule {
+    /// Target workspace name
+    workspace: String,
+
+    /// The number of window containers on-screen required to trigger this layout rule
+    at_container_count: usize,
+
+    #[clap(value_enum)]
+    layout: DefaultLayout,
+}
+
+#[derive(Parser)]
+struct EnsureWorkspaces {
+    /// Monitor index (zero-indexed)
+    monitor: usize,
+    /// Number of desired workspaces
+    workspace_count: usize,
+}
+
+#[derive(Parser)]
+struct EnsureNamedWorkspaces {
+    /// Monitor index (zero-indexed)
+    monitor: usize,
+    /// Names of desired workspaces
+    names: Vec<String>,
+}
+
+#[derive(Parser)]
 #[allow(clippy::struct_excessive_bools)]
 struct Start {
     /// Path to a static configuration JSON file
@@ -777,12 +822,12 @@ enum SubCommand {
     // /// Set the display index preference for a monitor identified using its display name
     // #[clap(arg_required_else_help = true)]
     // DisplayIndexPreference(DisplayIndexPreference),
-    // /// Create at least this many workspaces for the specified monitor
-    // #[clap(arg_required_else_help = true)]
-    // EnsureWorkspaces(EnsureWorkspaces),
-    // /// Create these many named workspaces for the specified monitor
-    // #[clap(arg_required_else_help = true)]
-    // EnsureNamedWorkspaces(EnsureNamedWorkspaces),
+    /// Create at least this many workspaces for the specified monitor
+    #[clap(arg_required_else_help = true)]
+    EnsureWorkspaces(EnsureWorkspaces),
+    /// Create these many named workspaces for the specified monitor
+    #[clap(arg_required_else_help = true)]
+    EnsureNamedWorkspaces(EnsureNamedWorkspaces),
     /// Set the container padding for the specified workspace
     #[clap(arg_required_else_help = true)]
     ContainerPadding(ContainerPadding),
@@ -809,12 +854,12 @@ enum SubCommand {
     // #[clap(hide = true)]
     // #[clap(arg_required_else_help = true)]
     // NamedWorkspaceCustomLayout(NamedWorkspaceCustomLayout),
-    // /// Add a dynamic layout rule for the specified workspace
-    // #[clap(arg_required_else_help = true)]
-    // WorkspaceLayoutRule(WorkspaceLayoutRule),
-    // /// Add a dynamic layout rule for the specified workspace
-    // #[clap(arg_required_else_help = true)]
-    // NamedWorkspaceLayoutRule(NamedWorkspaceLayoutRule),
+    /// Add a dynamic layout rule for the specified workspace
+    #[clap(arg_required_else_help = true)]
+    WorkspaceLayoutRule(WorkspaceLayoutRule),
+    /// Add a dynamic layout rule for the specified workspace
+    #[clap(arg_required_else_help = true)]
+    NamedWorkspaceLayoutRule(NamedWorkspaceLayoutRule),
     // /// Add a dynamic custom layout for the specified workspace
     // #[clap(hide = true)]
     // #[clap(arg_required_else_help = true)]
@@ -887,14 +932,14 @@ enum SubCommand {
     // /// Set the window behaviour when switching workspaces / cycling stacks
     // #[clap(arg_required_else_help = true)]
     // WindowHidingBehaviour(WindowHidingBehaviour),
-    // /// Set the behaviour when moving windows across monitor boundaries
-    // #[clap(arg_required_else_help = true)]
-    // CrossMonitorMoveBehaviour(CrossMonitorMoveBehaviour),
+    /// Set the behaviour when moving windows across monitor boundaries
+    #[clap(arg_required_else_help = true)]
+    CrossMonitorMoveBehaviour(CrossMonitorMoveBehaviour),
     /// Toggle the behaviour when moving windows across monitor boundaries
     ToggleCrossMonitorMoveBehaviour,
-    // /// Set the operation behaviour when the focused window is not managed
-    // #[clap(arg_required_else_help = true)]
-    // UnmanagedWindowOperationBehaviour(UnmanagedWindowOperationBehaviour),
+    /// Set the operation behaviour when the focused window is not managed
+    #[clap(arg_required_else_help = true)]
+    UnmanagedWindowOperationBehaviour(UnmanagedWindowOperationBehaviour),
     /// Add a rule to float the foreground window for the rest of this session
     SessionFloatRule,
     /// Show all session float rules
@@ -1001,11 +1046,11 @@ enum SubCommand {
     // #[clap(hide = true)]
     // #[clap(arg_required_else_help = true)]
     // ToggleFocusFollowsMouse(ToggleFocusFollowsMouse),
-    // /// Enable or disable mouse follows focus on all workspaces
-    // #[clap(arg_required_else_help = true)]
-    // MouseFollowsFocus(MouseFollowsFocus),
-    // /// Toggle mouse follows focus on all workspaces
-    // ToggleMouseFollowsFocus,
+    /// Enable or disable mouse follows focus on all workspaces
+    #[clap(arg_required_else_help = true)]
+    MouseFollowsFocus(MouseFollowsFocus),
+    /// Toggle mouse follows focus on all workspaces
+    ToggleMouseFollowsFocus,
     // /// Generate common app-specific configurations and fixes to use in komorebi.ahk
     // #[clap(arg_required_else_help = true)]
     // #[clap(alias = "ahk-asc")]
@@ -1601,6 +1646,49 @@ fn main() -> eyre::Result<()> {
             send_message(&SocketMessage::ClearNamedWorkspaceLayoutRules(
                 arg.workspace,
             ))?;
+        }
+        SubCommand::EnsureWorkspaces(workspaces) => {
+            send_message(&SocketMessage::EnsureWorkspaces(
+                workspaces.monitor,
+                workspaces.workspace_count,
+            ))?;
+        }
+        SubCommand::EnsureNamedWorkspaces(arg) => {
+            send_message(&SocketMessage::EnsureNamedWorkspaces(
+                arg.monitor,
+                arg.names,
+            ))?;
+        }
+        SubCommand::WorkspaceLayoutRule(arg) => {
+            send_message(&SocketMessage::WorkspaceLayoutRule(
+                arg.monitor,
+                arg.workspace,
+                arg.at_container_count,
+                arg.layout,
+            ))?;
+        }
+        SubCommand::NamedWorkspaceLayoutRule(arg) => {
+            send_message(&SocketMessage::NamedWorkspaceLayoutRule(
+                arg.workspace,
+                arg.at_container_count,
+                arg.layout,
+            ))?;
+        }
+        SubCommand::CrossMonitorMoveBehaviour(arg) => {
+            send_message(&SocketMessage::CrossMonitorMoveBehaviour(
+                arg.move_behaviour,
+            ))?;
+        }
+        SubCommand::UnmanagedWindowOperationBehaviour(arg) => {
+            send_message(&SocketMessage::UnmanagedWindowOperationBehaviour(
+                arg.operation_behaviour,
+            ))?;
+        }
+        SubCommand::ToggleMouseFollowsFocus => {
+            send_message(&SocketMessage::ToggleMouseFollowsFocus)?;
+        }
+        SubCommand::MouseFollowsFocus(arg) => {
+            send_message(&SocketMessage::MouseFollowsFocus(arg.boolean_state.into()))?;
         }
     }
 

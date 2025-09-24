@@ -1,5 +1,7 @@
 pub use komorebi::DATA_DIR;
 pub use komorebi::core::ApplicationIdentifier;
+pub use komorebi::core::MoveBehaviour;
+pub use komorebi::core::OperationBehaviour;
 pub use komorebi::core::Sizing;
 pub use komorebi::core::SocketMessage;
 pub use komorebi::core::StateQuery;

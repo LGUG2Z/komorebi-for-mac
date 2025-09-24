@@ -1384,6 +1384,24 @@ impl WindowManager {
                     self.clear_workspace_layout_rules(monitor_idx, workspace_idx)?;
                 }
             }
+            SocketMessage::EnsureWorkspaces(monitor_idx, workspace_count) => {
+                self.ensure_workspaces_for_monitor(monitor_idx, workspace_count)?;
+            }
+            SocketMessage::EnsureNamedWorkspaces(monitor_idx, ref names) => {
+                self.ensure_named_workspaces_for_monitor(monitor_idx, names)?;
+            }
+            SocketMessage::MouseFollowsFocus(enable) => {
+                self.mouse_follows_focus = enable;
+            }
+            SocketMessage::ToggleMouseFollowsFocus => {
+                self.mouse_follows_focus = !self.mouse_follows_focus;
+            }
+            SocketMessage::CrossMonitorMoveBehaviour(behaviour) => {
+                self.cross_monitor_move_behaviour = behaviour;
+            }
+            SocketMessage::UnmanagedWindowOperationBehaviour(behaviour) => {
+                self.unmanaged_window_operation_behaviour = behaviour;
+            }
         }
 
         self.update_known_window_ids();
