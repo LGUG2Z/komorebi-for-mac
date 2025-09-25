@@ -35,9 +35,12 @@ use crate::window_manager::WindowManager;
 use crate::workspace::WorkspaceLayer;
 use crate::workspace::WorkspaceWindowLocation;
 use color_eyre::eyre;
+use color_eyre::eyre::Context;
 use color_eyre::eyre::OptionExt;
 use parking_lot::Mutex;
 use std::collections::HashMap;
+use std::fs::File;
+use std::fs::OpenOptions;
 use std::io::BufRead;
 use std::io::BufReader;
 use std::num::NonZeroUsize;
@@ -1538,6 +1541,58 @@ impl WindowManager {
                 let config = serde_json::to_string_pretty(&StaticConfig::from(&*self))?;
 
                 reply.write_all(config.as_bytes())?;
+            }
+            SocketMessage::QuickSave => {
+                let workspace = self.focused_workspace()?;
+                let resize = &workspace.resize_dimensions;
+
+                let quicksave_json = std::env::temp_dir().join("komorebi.quicksave.json");
+
+                let file = OpenOptions::new()
+                    .write(true)
+                    .truncate(true)
+                    .create(true)
+                    .open(quicksave_json)?;
+
+                serde_json::to_writer_pretty(&file, &resize)?;
+            }
+            SocketMessage::QuickLoad => {
+                let workspace = self.focused_workspace_mut()?;
+
+                let quicksave_json = std::env::temp_dir().join("komorebi.quicksave.json");
+
+                let file = File::open(&quicksave_json).wrap_err(format!(
+                    "no quicksave found at {}",
+                    quicksave_json.display()
+                ))?;
+
+                let resize: Vec<Option<Rect>> = serde_json::from_reader(file)?;
+
+                workspace.resize_dimensions = resize;
+                self.update_focused_workspace(false, false)?;
+            }
+            SocketMessage::Save(ref path) => {
+                let workspace = self.focused_workspace_mut()?;
+                let resize = &workspace.resize_dimensions;
+
+                let file = OpenOptions::new()
+                    .write(true)
+                    .truncate(true)
+                    .create(true)
+                    .open(path)?;
+
+                serde_json::to_writer_pretty(&file, &resize)?;
+            }
+            SocketMessage::Load(ref path) => {
+                let workspace = self.focused_workspace_mut()?;
+
+                let file =
+                    File::open(path).wrap_err(format!("no file found at {}", path.display()))?;
+
+                let resize: Vec<Option<Rect>> = serde_json::from_reader(file)?;
+
+                workspace.resize_dimensions = resize;
+                self.update_focused_workspace(false, false)?;
             }
         }
 

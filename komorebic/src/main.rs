@@ -561,6 +561,20 @@ struct Stop {
 }
 
 #[derive(Parser)]
+struct SaveResize {
+    /// File to which the resize layout dimensions should be saved
+    #[clap(value_parser = replace_env_in_path)]
+    path: PathBuf,
+}
+
+#[derive(Parser)]
+struct LoadResize {
+    /// File from which the resize layout dimensions should be loaded
+    #[clap(value_parser = replace_env_in_path)]
+    path: PathBuf,
+}
+
+#[derive(Parser)]
 struct EagerFocus {
     /// Case-sensitive exe identifier
     exe: String,
@@ -640,20 +654,20 @@ enum SubCommand {
     // UnsubscribePipe(UnsubscribePipe),
     /// Tail komorebi.exe's process logs (cancel with Ctrl-C)
     Log,
-    // /// Quicksave the current resize layout dimensions
-    // #[clap(alias = "quick-save")]
-    // QuickSaveResize,
-    // /// Load the last quicksaved resize layout dimensions
-    // #[clap(alias = "quick-load")]
-    // QuickLoadResize,
-    // /// Save the current resize layout dimensions to a file
-    // #[clap(arg_required_else_help = true)]
-    // #[clap(alias = "save")]
-    // SaveResize(SaveResize),
-    // /// Load the resize layout dimensions from a file
-    // #[clap(arg_required_else_help = true)]
-    // #[clap(alias = "load")]
-    // LoadResize(LoadResize),
+    /// Quicksave the current resize layout dimensions
+    #[clap(alias = "quick-save")]
+    QuickSaveResize,
+    /// Load the last quicksaved resize layout dimensions
+    #[clap(alias = "quick-load")]
+    QuickLoadResize,
+    /// Save the current resize layout dimensions to a file
+    #[clap(arg_required_else_help = true)]
+    #[clap(alias = "save")]
+    SaveResize(SaveResize),
+    /// Load the resize layout dimensions from a file
+    #[clap(arg_required_else_help = true)]
+    #[clap(alias = "load")]
+    LoadResize(LoadResize),
     /// Change focus to the window in the specified direction
     #[clap(arg_required_else_help = true)]
     Focus(Focus),
@@ -1775,6 +1789,18 @@ fn main() -> eyre::Result<()> {
         }
         SubCommand::GenerateStaticConfig => {
             print_query(&SocketMessage::GenerateStaticConfig);
+        }
+        SubCommand::QuickSaveResize => {
+            send_message(&SocketMessage::QuickSave)?;
+        }
+        SubCommand::QuickLoadResize => {
+            send_message(&SocketMessage::QuickLoad)?;
+        }
+        SubCommand::SaveResize(arg) => {
+            send_message(&SocketMessage::Save(arg.path))?;
+        }
+        SubCommand::LoadResize(arg) => {
+            send_message(&SocketMessage::Load(arg.path))?;
         }
     }
 
