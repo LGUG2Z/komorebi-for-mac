@@ -8,7 +8,10 @@ use crate::SESSION_FLOATING_APPLICATIONS;
 use crate::SUBSCRIPTION_SOCKET_OPTIONS;
 use crate::SUBSCRIPTION_SOCKETS;
 use crate::WORKSPACE_MATCHING_RULES;
+use crate::accessibility::AccessibilityApi;
+use crate::application::Application;
 use crate::build;
+use crate::cf_array_as;
 use crate::core::ApplicationIdentifier;
 use crate::core::MoveBehaviour;
 use crate::core::SocketMessage;
@@ -24,6 +27,7 @@ use crate::core::default_layout::ScrollingLayoutOptions;
 use crate::core::layout::Layout;
 use crate::core::operation_direction::OperationDirection;
 use crate::core::rect::Rect;
+use crate::core_graphics::CoreGraphicsApi;
 use crate::macos_api::MacosApi;
 use crate::monitor::MonitorInformation;
 use crate::notify_subscribers;
@@ -31,12 +35,16 @@ use crate::state::GlobalState;
 use crate::state::State;
 use crate::static_config::StaticConfig;
 use crate::window::AdhocWindow;
+use crate::window::RuleDebug;
+use crate::window::Window;
+use crate::window::WindowInfo;
 use crate::window_manager::WindowManager;
 use crate::workspace::WorkspaceLayer;
 use crate::workspace::WorkspaceWindowLocation;
 use color_eyre::eyre;
 use color_eyre::eyre::Context;
 use color_eyre::eyre::OptionExt;
+use objc2_core_foundation::CFDictionary;
 use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::fs::File;
@@ -1593,6 +1601,28 @@ impl WindowManager {
 
                 workspace.resize_dimensions = resize;
                 self.update_focused_workspace(false, false)?;
+            }
+            SocketMessage::DebugWindow(window_id) => {
+                if let Some(window_list_info) = CoreGraphicsApi::window_list_info() {
+                    for raw_window_info in cf_array_as::<CFDictionary>(&window_list_info) {
+                        let raw_info = WindowInfo::new(raw_window_info);
+                        let application = Application::new(raw_info.owner_pid)?;
+                        if let Some(elements) = application.window_elements() {
+                            for element in elements {
+                                if let Ok(wid) = AccessibilityApi::window_id(&element)
+                                    && wid == window_id
+                                    && let Ok(window) = Window::new(element, application.clone())
+                                {
+                                    let mut rule_debug = RuleDebug::default();
+                                    let _ = window.should_manage(None, &mut rule_debug);
+                                    let schema = serde_json::to_string_pretty(&rule_debug)?;
+
+                                    reply.write_all(schema.as_bytes())?;
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
 

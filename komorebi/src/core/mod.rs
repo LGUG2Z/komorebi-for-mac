@@ -407,7 +407,7 @@ pub enum SocketMessage {
     SocketSchema,
     StaticConfigSchema,
     GenerateStaticConfig,
-    // DebugWindow(isize),
+    DebugWindow(u32),
 }
 
 impl SocketMessage {

@@ -18,6 +18,7 @@ use crate::macos_api::MacosApi;
 use crate::notify_subscribers;
 use crate::state::State;
 use crate::window::AdhocWindow;
+use crate::window::RuleDebug;
 use crate::window::Window;
 use crate::window::should_act;
 use crate::window_manager::WindowManager;
@@ -64,6 +65,8 @@ impl WindowManager {
             return Ok(());
         }
 
+        let mut rule_debug = RuleDebug::default();
+
         let mut should_manage = true;
         {
             let application = self.application(event.process_id())?;
@@ -72,7 +75,7 @@ impl WindowManager {
             {
                 let window_id = window.id;
                 let print_window = window.clone();
-                should_manage = window.should_manage(Some(event))?;
+                should_manage = window.should_manage(Some(event), &mut rule_debug)?;
 
                 if UNMANAGED_WINDOW_IDS.lock().contains(&window_id) {
                     should_manage = false;
@@ -389,7 +392,7 @@ impl WindowManager {
                 let application = self.application(process_id)?;
                 if let Some(element) = &window_element
                     && let Ok(window) = Window::new(element.clone(), application.clone())
-                    && !window.should_manage(Some(event))?
+                    && !window.should_manage(Some(event), &mut rule_debug)?
                 {
                     create = false;
                 }

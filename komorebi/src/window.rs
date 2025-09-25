@@ -132,7 +132,7 @@ unsafe extern "C-unwind" fn window_observer_callback(
 #[derive(Debug, Default)]
 pub struct WindowInfo {
     name: Option<String>,
-    owner_pid: i32,
+    pub owner_pid: i32,
     owner_name: String,
     alpha: f32,
     bounds: WindowBounds,
@@ -642,13 +642,13 @@ impl Window {
     pub fn should_manage(
         self,
         event: Option<WindowManagerEvent>,
-        // debug: &mut RuleDebug,
+        debug: &mut RuleDebug,
     ) -> eyre::Result<bool> {
         if !self.is_valid() {
             return Ok(false);
         }
 
-        // debug.is_window = true;
+        debug.is_window = true;
 
         // let rect = Rect::from(MacosApi::window_rect(&self.element).unwrap_or_default());
         //
@@ -668,7 +668,7 @@ impl Window {
             return Ok(false);
         }
 
-        // debug.has_title = true;
+        debug.has_title = true;
 
         // let is_cloaked = self.is_cloaked().unwrap_or_default();
         //
@@ -699,10 +699,11 @@ impl Window {
             self.subrole(),
             self.path(),
         ) {
-            // debug.title = Some(title.clone());
-            // debug.exe_name = Some(exe_name.clone());
-            // debug.class = Some(class.clone());
-            // debug.path = Some(path.clone());
+            debug.title = Some(title.clone());
+            debug.exe_name = Some(exe_name.clone());
+            debug.role = Some(role.clone());
+            debug.subrole = Some(subrole.clone());
+            debug.path = Some(path.to_string_lossy().to_string());
             // calls for styles can fail quite often for events with windows that aren't really "windows"
             // since we have moved up calls of should_manage to the beginning of the process_event handler,
             // we should handle failures here gracefully to be able to continue the execution of process_event
@@ -716,6 +717,7 @@ impl Window {
                 &[&role, &subrole],
                 &path.to_string_lossy(),
                 event,
+                debug,
             );
             // debug.should_manage = eligible;
             return Ok(eligible);
@@ -962,6 +964,32 @@ impl AspectRatio {
     }
 }
 
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct RuleDebug {
+    pub should_manage: bool,
+    pub is_window: bool,
+    // pub has_minimum_width: bool,
+    // pub has_minimum_height: bool,
+    pub has_title: bool,
+    // pub is_cloaked: bool,
+    // pub allow_cloaked: bool,
+    // pub allow_layered_transparency: bool,
+    // pub window_style: Option<WindowStyle>,
+    // pub extended_window_style: Option<ExtendedWindowStyle>,
+    pub title: Option<String>,
+    pub exe_name: Option<String>,
+    pub role: Option<String>,
+    pub subrole: Option<String>,
+    pub path: Option<String>,
+    pub matches_permaignore_class: Option<String>,
+    pub matches_ignore_identifier: Option<MatchingRule>,
+    pub matches_managed_override: Option<MatchingRule>,
+    // pub matches_layered_whitelist: Option<MatchingRule>,
+    pub matches_floating_applications: Option<MatchingRule>,
+    // pub matches_wsl2_gui: Option<String>,
+    // pub matches_no_titlebar: Option<MatchingRule>,
+}
+
 #[allow(clippy::too_many_arguments)]
 fn window_is_eligible(
     _window_id: u32,
@@ -972,13 +1000,13 @@ fn window_is_eligible(
     // style: &WindowStyle,
     // ex_style: &ExtendedWindowStyle,
     _event: Option<WindowManagerEvent>,
-    // debug: &mut RuleDebug,
+    debug: &mut RuleDebug,
 ) -> bool {
     {
         let permaignore_classes = PERMAIGNORE_CLASSES.lock();
         for class in classes {
             if permaignore_classes.contains(&class.to_string()) {
-                // debug.matches_permaignore_class = Some(class.clone());
+                debug.matches_permaignore_class = Some(class.to_string());
                 return false;
             }
         }
@@ -987,7 +1015,7 @@ fn window_is_eligible(
     let regex_identifiers = REGEX_IDENTIFIERS.lock();
 
     let ignore_identifiers = IGNORE_IDENTIFIERS.lock();
-    let should_ignore = if let Some(_rule) = should_act(
+    let should_ignore = if let Some(rule) = should_act(
         title,
         exe_name,
         classes,
@@ -995,14 +1023,14 @@ fn window_is_eligible(
         &ignore_identifiers,
         &regex_identifiers,
     ) {
-        // debug.matches_ignore_identifier = Some(rule);
+        debug.matches_ignore_identifier = Some(rule);
         true
     } else {
         false
     };
 
     let manage_identifiers = MANAGE_IDENTIFIERS.lock();
-    let managed_override = if let Some(_rule) = should_act(
+    let managed_override = if let Some(rule) = should_act(
         title,
         exe_name,
         classes,
@@ -1010,14 +1038,14 @@ fn window_is_eligible(
         &manage_identifiers,
         &regex_identifiers,
     ) {
-        // debug.matches_managed_override = Some(rule);
+        debug.matches_managed_override = Some(rule);
         true
     } else {
         false
     };
 
     let floating_identifiers = FLOATING_APPLICATIONS.lock();
-    if let Some(_rule) = should_act(
+    if let Some(rule) = should_act(
         title,
         exe_name,
         classes,
@@ -1025,7 +1053,7 @@ fn window_is_eligible(
         &floating_identifiers,
         &regex_identifiers,
     ) {
-        // debug.matches_floating_applications = Some(rule);
+        debug.matches_floating_applications = Some(rule);
     }
 
     if should_ignore && !managed_override {
