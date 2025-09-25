@@ -248,7 +248,7 @@ pub enum SocketMessage {
     SwapWorkspacesToMonitorNumber(usize),
     // ForceFocus,
     // Close,
-    // Minimize,
+    Minimize,
     Promote,
     PromoteFocus,
     PromoteWindow(OperationDirection),

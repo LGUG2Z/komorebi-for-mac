@@ -752,6 +752,12 @@ impl AdhocWindow {
             .map(|s| s.to_string())
     }
 
+    pub fn minimize(element: &CFRetained<AXUIElement>) -> Result<(), AccessibilityError> {
+        let cf_boolean = CFBoolean::new(true);
+        let value = &**cf_boolean;
+        AccessibilityApi::set_attribute_cf_value(element, kAXMinimizedAttribute, value)
+    }
+
     #[tracing::instrument(skip_all)]
     pub fn hide(id: u32, element: &CFRetained<AXUIElement>) -> Result<(), AccessibilityError> {
         let mut window_restore_positions = WINDOW_RESTORE_POSITIONS.lock();
