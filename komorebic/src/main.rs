@@ -1098,8 +1098,8 @@ enum SubCommand {
     SocketSchema,
     /// Generate a JSON Schema of the static configuration file
     StaticConfigSchema,
-    // /// Generates a static configuration JSON file based on the current window manager state
-    // GenerateStaticConfig,
+    /// Generates a static configuration JSON file based on the current window manager state
+    GenerateStaticConfig,
     // /// Generates the komorebi.lnk shortcut in shell:startup to autostart komorebi
     // EnableAutostart(EnableAutostart),
     // /// Deletes the komorebi.lnk shortcut in shell:startup to disable autostart
@@ -1772,6 +1772,9 @@ fn main() -> eyre::Result<()> {
         }
         SubCommand::UnsubscribeSocket(arg) => {
             send_message(&SocketMessage::RemoveSubscriberSocket(arg.socket))?;
+        }
+        SubCommand::GenerateStaticConfig => {
+            print_query(&SocketMessage::GenerateStaticConfig);
         }
     }
 

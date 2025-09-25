@@ -258,7 +258,11 @@ impl From<&Workspace> for WorkspaceConfig {
             work_area_offset: value.work_area_offset,
             apply_window_based_work_area_offset: Some(value.apply_window_based_work_area_offset),
             window_container_behaviour: value.window_container_behaviour,
-            window_container_behaviour_rules: Option::from(window_container_behaviour_rules),
+            window_container_behaviour_rules: if window_container_behaviour_rules.is_empty() {
+                None
+            } else {
+                Some(window_container_behaviour_rules)
+            },
             float_override: value.float_override,
             tile,
             layout_flip: value.layout_flip,

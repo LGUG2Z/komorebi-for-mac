@@ -29,6 +29,7 @@ use crate::monitor::MonitorInformation;
 use crate::notify_subscribers;
 use crate::state::GlobalState;
 use crate::state::State;
+use crate::static_config::StaticConfig;
 use crate::window::AdhocWindow;
 use crate::window_manager::WindowManager;
 use crate::workspace::WorkspaceLayer;
@@ -1532,6 +1533,11 @@ impl WindowManager {
             }
             SocketMessage::StopIgnoreRestore => {
                 self.stop(true)?;
+            }
+            SocketMessage::GenerateStaticConfig => {
+                let config = serde_json::to_string_pretty(&StaticConfig::from(&*self))?;
+
+                reply.write_all(config.as_bytes())?;
             }
         }
 

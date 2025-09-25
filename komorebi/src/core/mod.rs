@@ -406,7 +406,7 @@ pub enum SocketMessage {
     NotificationSchema,
     SocketSchema,
     StaticConfigSchema,
-    // GenerateStaticConfig,
+    GenerateStaticConfig,
     // DebugWindow(isize),
 }
 
