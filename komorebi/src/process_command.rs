@@ -240,7 +240,44 @@ impl WindowManager {
                 }
                 self.focus_container_window(idx)?;
             }
+            SocketMessage::LockMonitorWorkspaceContainer(
+                monitor_idx,
+                workspace_idx,
+                container_idx,
+            ) => {
+                let monitor = self
+                    .monitors_mut()
+                    .get_mut(monitor_idx)
+                    .ok_or_eyre("no monitor at the given index")?;
 
+                let workspace = monitor
+                    .workspaces_mut()
+                    .get_mut(workspace_idx)
+                    .ok_or_eyre("no workspace at the given index")?;
+
+                if let Some(container) = workspace.containers_mut().get_mut(container_idx) {
+                    container.locked = true;
+                }
+            }
+            SocketMessage::UnlockMonitorWorkspaceContainer(
+                monitor_idx,
+                workspace_idx,
+                container_idx,
+            ) => {
+                let monitor = self
+                    .monitors_mut()
+                    .get_mut(monitor_idx)
+                    .ok_or_eyre("no monitor at the given index")?;
+
+                let workspace = monitor
+                    .workspaces_mut()
+                    .get_mut(workspace_idx)
+                    .ok_or_eyre("no workspace at the given index")?;
+
+                if let Some(container) = workspace.containers_mut().get_mut(container_idx) {
+                    container.locked = false;
+                }
+            }
             SocketMessage::FlipLayout(layout_flip) => self.flip_layout(layout_flip)?,
             SocketMessage::ChangeLayout(layout) => self.change_workspace_layout_default(layout)?,
             SocketMessage::CycleLayout(direction) => self.cycle_layout(direction)?,
