@@ -583,6 +583,13 @@ struct LoadResize {
 }
 
 #[derive(Parser)]
+struct ReplaceConfiguration {
+    /// Static configuration JSON file from which the configuration should be loaded
+    #[clap(value_parser = replace_env_in_path)]
+    path: PathBuf,
+}
+
+#[derive(Parser)]
 struct EagerFocus {
     /// Case-sensitive exe identifier
     exe: String,
@@ -955,9 +962,9 @@ enum SubCommand {
     Manage,
     /// Unmanage a window that was forcibly managed
     Unmanage,
-    // /// Replace the configuration of a running instance of komorebi from a static configuration file
-    // #[clap(arg_required_else_help = true)]
-    // ReplaceConfiguration(ReplaceConfiguration),
+    /// Replace the configuration of a running instance of komorebi from a static configuration file
+    #[clap(arg_required_else_help = true)]
+    ReplaceConfiguration(ReplaceConfiguration),
     // /// Reload legacy komorebi.ahk or komorebi.ps1 configurations (if they exist)
     // ReloadConfiguration,
     // /// Enable or disable watching of legacy komorebi.ahk or komorebi.ps1 configurations (if they exist)
@@ -1815,6 +1822,9 @@ fn main() -> eyre::Result<()> {
                 arg.index_preference,
                 arg.display,
             ))?;
+        }
+        SubCommand::ReplaceConfiguration(arg) => {
+            send_message(&SocketMessage::ReplaceConfiguration(arg.path))?;
         }
     }
 

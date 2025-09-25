@@ -40,6 +40,7 @@ use crate::window::RuleDebug;
 use crate::window::Window;
 use crate::window::WindowInfo;
 use crate::window_manager::WindowManager;
+use crate::window_manager_event_listener;
 use crate::workspace::WorkspaceLayer;
 use crate::workspace::WorkspaceWindowLocation;
 use color_eyre::eyre;
@@ -1628,6 +1629,36 @@ impl WindowManager {
             SocketMessage::DisplayIndexPreference(index_preference, ref display) => {
                 let mut display_index_preferences = DISPLAY_INDEX_PREFERENCES.write();
                 display_index_preferences.insert(index_preference, display.clone());
+            }
+            SocketMessage::ReplaceConfiguration(ref config) => {
+                // Check that this is a valid static config file first
+                if StaticConfig::read(config).is_ok() {
+                    // Clear workspace rules; these will need to be replaced
+                    WORKSPACE_MATCHING_RULES.lock().clear();
+                    // Pause so that restored windows come to the foreground from all workspaces
+                    self.is_paused = true;
+                    // Bring all windows to the foreground
+                    self.restore_all_windows(false)?;
+
+                    // Create a new wm from the config path
+                    let mut wm = StaticConfig::preload(
+                        config,
+                        window_manager_event_listener::event_rx(),
+                        self.command_listener.try_clone().ok(),
+                        &self.run_loop.0,
+                    )?;
+
+                    // Initialize the new wm
+                    wm.init()?;
+
+                    wm.restore_all_windows(true)?;
+
+                    // This is equivalent to StaticConfig::postload for this use case
+                    StaticConfig::reload(config, &mut wm)?;
+
+                    // Set self to the new wm instance
+                    *self = wm;
+                }
             }
         }
         notify_subscribers(
