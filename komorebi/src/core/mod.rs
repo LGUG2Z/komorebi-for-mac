@@ -403,7 +403,7 @@ pub enum SocketMessage {
     // AddSubscriberPipe(String),
     // RemoveSubscriberPipe(String),
     ApplicationSpecificConfigurationSchema,
-    // NotificationSchema,
+    NotificationSchema,
     SocketSchema,
     StaticConfigSchema,
     // GenerateStaticConfig,

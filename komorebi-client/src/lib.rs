@@ -1,4 +1,5 @@
 pub use komorebi::DATA_DIR;
+pub use komorebi::Notification;
 pub use komorebi::core::ApplicationIdentifier;
 pub use komorebi::core::MoveBehaviour;
 pub use komorebi::core::OperationBehaviour;

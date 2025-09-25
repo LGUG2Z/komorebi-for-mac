@@ -1087,7 +1087,7 @@ enum SubCommand {
     #[clap(alias = "asc-schema")]
     ApplicationSpecificConfigurationSchema,
     /// Generate a JSON Schema of subscription notifications
-    // NotificationSchema,
+    NotificationSchema,
     /// Generate a JSON Schema of socket messages
     SocketSchema,
     /// Generate a JSON Schema of the static configuration file
@@ -1707,6 +1707,14 @@ fn main() -> eyre::Result<()> {
             {
                 let asc = schemars::schema_for!(komorebi_client::ApplicationSpecificConfiguration);
                 let schema = serde_json::to_string_pretty(&asc)?;
+                println!("{schema}");
+            }
+        }
+        SubCommand::NotificationSchema => {
+            #[cfg(feature = "schemars")]
+            {
+                let notification = schemars::schema_for!(komorebi_client::Notification);
+                let schema = serde_json::to_string_pretty(&notification)?;
                 println!("{schema}");
             }
         }

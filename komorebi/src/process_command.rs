@@ -1422,6 +1422,15 @@ impl WindowManager {
                     reply.write_all(schema.as_bytes())?;
                 }
             }
+            SocketMessage::NotificationSchema => {
+                #[cfg(feature = "schemars")]
+                {
+                    let notification = schemars::schema_for!(Notification);
+                    let schema = serde_json::to_string_pretty(&notification)?;
+
+                    reply.write_all(schema.as_bytes())?;
+                }
+            }
             SocketMessage::SocketSchema => {
                 #[cfg(feature = "schemars")]
                 {
