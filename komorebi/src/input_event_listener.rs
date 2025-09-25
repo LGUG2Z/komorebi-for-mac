@@ -25,12 +25,20 @@ pub struct InputEventListener {
 
 extern "C-unwind" fn callback(
     _: CGEventTapProxy,
-    _event_type: CGEventType,
+    event_type: CGEventType,
     mut event_ref: NonNull<CGEvent>,
     _listener: *mut c_void,
 ) -> *mut CGEvent {
+    // this should cover both clicking the close button and closing out something
+    // by using cmd+w or cmd+q since some apps don't send events on close
     reaper::send_notification(ReaperNotification::MouseUpKeyUp);
-    if let Some(element) = MacosApi::foreground_window() {
+
+    // this one is only really for when people "drag" a tab out of one window
+    // to create another window - we wanna make sure it gets handled because
+    // events don't get sent sometimes
+    if event_type == CGEventType::LeftMouseUp
+        && let Some(element) = MacosApi::foreground_window()
+    {
         let mut pid = 0;
         unsafe {
             element.pid(NonNull::from_mut(&mut pid));
@@ -46,6 +54,7 @@ extern "C-unwind" fn callback(
             window_manager_event_listener::send_notification(event);
         }
     }
+
     unsafe { event_ref.as_mut() }
 }
 

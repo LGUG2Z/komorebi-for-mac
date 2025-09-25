@@ -117,7 +117,7 @@ lazy_static! {
             matching_strategy: Option::from(MatchingStrategy::Equals),
         })]));
     static ref PERMAIGNORE_CLASSES: Arc<Mutex<Vec<String>>> =
-        Arc::new(Mutex::new(vec!["Chrome_RenderWidgetHostHWND".to_string(),]));
+        Arc::new(Mutex::new(vec!["AXDialog".to_string(),]));
     static ref TABBED_APPLICATIONS: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![
         "Finder".to_string(),
         "Ghostty".to_string()
