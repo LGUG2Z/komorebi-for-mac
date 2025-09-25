@@ -124,6 +124,7 @@ lazy_static! {
     ]));
     static ref DO_NOT_OBSERVE_APPLICATIONS: Arc<Mutex<Vec<String>>> =
         Arc::new(Mutex::new(vec!["Spotlight".to_string(),]));
+    static ref UNMANAGED_WINDOW_IDS: Arc<Mutex<Vec<u32>>> = Arc::new(Mutex::new(vec![]));
 }
 
 shadow_rs::shadow!(build);

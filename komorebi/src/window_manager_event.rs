@@ -21,6 +21,8 @@ pub enum ManualNotification {
     ShowOnInputEvent,
     ShowOnFocusChangeFirstTabDestroyed,
     ShowOnFocusChangeWindowlessAppRestored,
+    Manage,
+    Unmanage,
 }
 
 #[derive(Debug, Copy, Clone, Serialize, Deserialize, Display)]
@@ -32,6 +34,8 @@ pub enum WindowManagerEvent {
     Destroy(SystemNotification, i32),
     Minimize(SystemNotification, i32, u32),
     Restore(SystemNotification, i32, u32),
+    Manage(SystemNotification, i32, u32),
+    Unmanage(SystemNotification, i32, u32),
 }
 
 impl WindowManagerEvent {
@@ -79,6 +83,10 @@ impl WindowManagerEvent {
                 AccessibilityNotification::AXWindowDeminiaturized,
             ) => window_id
                 .map(|window_id| WindowManagerEvent::Restore(notification, process_id, window_id)),
+            SystemNotification::Manual(ManualNotification::Manage) => window_id
+                .map(|window_id| WindowManagerEvent::Manage(notification, process_id, window_id)),
+            SystemNotification::Manual(ManualNotification::Unmanage) => window_id
+                .map(|window_id| WindowManagerEvent::Unmanage(notification, process_id, window_id)),
             // kAXWindowMovedNotification => {}
             // kAXWindowResizedNotification => {}
             // kAXTitleChangedNotification => {}
@@ -93,6 +101,8 @@ impl WindowManagerEvent {
             | WindowManagerEvent::Show(_, process_id)
             | WindowManagerEvent::Destroy(_, process_id)
             | WindowManagerEvent::Minimize(_, process_id, _)
+            | WindowManagerEvent::Manage(_, process_id, _)
+            | WindowManagerEvent::Unmanage(_, process_id, _)
             | WindowManagerEvent::Restore(_, process_id, _) => *process_id,
         }
     }
@@ -103,11 +113,24 @@ impl WindowManagerEvent {
             | WindowManagerEvent::Show(n, _)
             | WindowManagerEvent::Destroy(n, _)
             | WindowManagerEvent::Minimize(n, _, _)
+            | WindowManagerEvent::Manage(n, _, _)
+            | WindowManagerEvent::Unmanage(n, _, _)
             | WindowManagerEvent::Restore(n, _, _) => match n {
                 SystemNotification::Accessibility(a) => a.to_string(),
                 SystemNotification::AppKitWorkspace(a) => a.to_string(),
                 SystemNotification::Manual(m) => m.to_string(),
             },
+        }
+    }
+
+    pub fn window_id(&self) -> Option<u32> {
+        match self {
+            WindowManagerEvent::FocusChange(_, _, window_id) => *window_id,
+            WindowManagerEvent::Show(_, _) | WindowManagerEvent::Destroy(_, _) => None,
+            WindowManagerEvent::Minimize(_, _, window_id)
+            | WindowManagerEvent::Manage(_, _, window_id)
+            | WindowManagerEvent::Unmanage(_, _, window_id)
+            | WindowManagerEvent::Restore(_, _, window_id) => Some(*window_id),
         }
     }
 }

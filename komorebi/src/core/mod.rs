@@ -266,8 +266,8 @@ pub enum SocketMessage {
     CrossMonitorMoveBehaviour(MoveBehaviour),
     UnmanagedWindowOperationBehaviour(OperationBehaviour),
     // Current Workspace Commands
-    // ManageFocusedWindow,
-    // UnmanageFocusedWindow,
+    ManageFocusedWindow,
+    UnmanageFocusedWindow,
     AdjustContainerPadding(Sizing, i32),
     AdjustWorkspacePadding(Sizing, i32),
     ChangeLayout(DefaultLayout),

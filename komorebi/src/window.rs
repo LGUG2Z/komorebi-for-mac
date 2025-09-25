@@ -731,6 +731,20 @@ impl Window {
 pub struct AdhocWindow;
 
 impl AdhocWindow {
+    pub fn process_id(element: &CFRetained<AXUIElement>) -> Option<i32> {
+        let mut process_id = 0;
+
+        unsafe {
+            element.pid(NonNull::from_mut(&mut process_id));
+        }
+
+        if process_id != 0 {
+            Some(process_id)
+        } else {
+            None
+        }
+    }
+
     pub fn exe(element: &CFRetained<AXUIElement>) -> Option<String> {
         let parent =
             AccessibilityApi::copy_attribute_value::<AXUIElement>(element, kAXParentAttribute)?;
@@ -836,6 +850,13 @@ impl AdhocWindow {
         }
 
         Ok(())
+    }
+
+    pub fn raise(element: &CFRetained<AXUIElement>) -> Result<(), AccessibilityError> {
+        let cf_boolean = CFBoolean::new(true);
+        let value = &**cf_boolean;
+        AccessibilityApi::set_attribute_cf_value(element, kAXMainAttribute, value)?;
+        AccessibilityApi::set_attribute_cf_value(element, kAXFocusedAttribute, value)
     }
 }
 

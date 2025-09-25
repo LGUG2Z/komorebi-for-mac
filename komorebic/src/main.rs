@@ -929,10 +929,10 @@ enum SubCommand {
     ToggleLock,
     // /// Restore all hidden windows (debugging command)
     // RestoreWindows,
-    // /// Force komorebi to manage the focused window
-    // Manage,
-    // /// Unmanage a window that was forcibly managed
-    // Unmanage,
+    /// Force komorebi to manage the focused window
+    Manage,
+    /// Unmanage a window that was forcibly managed
+    Unmanage,
     // /// Replace the configuration of a running instance of komorebi from a static configuration file
     // #[clap(arg_required_else_help = true)]
     // ReplaceConfiguration(ReplaceConfiguration),
@@ -1312,6 +1312,12 @@ fn main() -> eyre::Result<()> {
         }
         SubCommand::Minimize => {
             send_message(&SocketMessage::Minimize)?;
+        }
+        SubCommand::Manage => {
+            send_message(&SocketMessage::ManageFocusedWindow)?;
+        }
+        SubCommand::Unmanage => {
+            send_message(&SocketMessage::UnmanageFocusedWindow)?;
         }
         SubCommand::Promote => {
             send_message(&SocketMessage::Promote)?;

@@ -3,6 +3,7 @@ use crate::Notification;
 use crate::NotificationEvent;
 use crate::REGEX_IDENTIFIERS;
 use crate::TABBED_APPLICATIONS;
+use crate::UNMANAGED_WINDOW_IDS;
 use crate::WORKSPACE_MATCHING_RULES;
 use crate::accessibility::AccessibilityApi;
 use crate::accessibility::error::AccessibilityApiError;
@@ -69,8 +70,13 @@ impl WindowManager {
             if let Some(window_element) = application.main_window()
                 && let Ok(window) = Window::new(window_element, application.clone())
             {
+                let window_id = window.id;
                 let print_window = window.clone();
                 should_manage = window.should_manage(Some(event))?;
+
+                if UNMANAGED_WINDOW_IDS.lock().contains(&window_id) {
+                    should_manage = false;
+                }
 
                 if !should_manage {
                     tracing::debug!(
@@ -306,7 +312,8 @@ impl WindowManager {
                 }
             }
             // TODO: update this to work with floating applications / rules
-            WindowManagerEvent::Show(_, process_id) => {
+            WindowManagerEvent::Show(_, process_id)
+            | WindowManagerEvent::Manage(_, process_id, _) => {
                 let focused_monitor_idx = self.focused_monitor_idx();
                 let focused_workspace_idx =
                     self.focused_workspace_idx_for_monitor_idx(focused_monitor_idx)?;
@@ -432,9 +439,8 @@ impl WindowManager {
                     }
 
                     if behaviour.float_override
-                            || behaviour.floating_layer_override
-                            // TODO: look into if we want to have a Manage command here too
-                            || (should_float /*&& !matches!(event, WindowManagerEvent::Manage(_))*/ )
+                        || behaviour.floating_layer_override
+                        || (should_float && !matches!(event, WindowManagerEvent::Manage(_, _, _)))
                     {
                         let placement = if behaviour.floating_layer_override {
                             // Floating layer override placement
@@ -519,6 +525,34 @@ impl WindowManager {
             }
             WindowManagerEvent::Destroy(_, process_id) => {
                 self.reap_invalid_windows_for_application(process_id)?;
+                self.update_focused_workspace(false, false)?;
+            }
+            WindowManagerEvent::Unmanage(_, _, window_id) => {
+                let behaviour = self.window_management_behaviour(
+                    self.focused_monitor_idx(),
+                    self.focused_workspace_idx()?,
+                );
+
+                let workspace = self.focused_workspace_mut()?;
+                let mut window = workspace.remove_window(window_id)?;
+
+                // If we unmanaged a window, it shouldn't be immediately hidden behind managed windows
+                let placement = if behaviour.floating_layer_override {
+                    // Floating layer override placement
+                    behaviour.floating_layer_placement
+                } else if behaviour.float_override {
+                    // Float override placement
+                    behaviour.float_override_placement
+                } else {
+                    // Float rule placement
+                    behaviour.float_rule_placement
+                };
+
+                window.center(&workspace.globals.work_area, placement.should_resize())?;
+
+                // we only want to add the window ID after the window has been removed
+                UNMANAGED_WINDOW_IDS.lock().push(window_id);
+
                 self.update_focused_workspace(false, false)?;
             }
             WindowManagerEvent::Minimize(_, _, window_id) => {
