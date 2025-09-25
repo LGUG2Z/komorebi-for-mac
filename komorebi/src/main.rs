@@ -293,5 +293,5 @@ fn main() -> eyre::Result<()> {
     let socket = DATA_DIR.join("komorebi.sock");
     let _ = std::fs::remove_file(socket);
 
-    Ok(())
+    std::process::exit(130);
 }

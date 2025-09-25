@@ -2,6 +2,7 @@ use crate::CoreFoundationRunLoop;
 use crate::DATA_DIR;
 use crate::LibraryError;
 use crate::REGEX_IDENTIFIERS;
+use crate::SUBSCRIPTION_SOCKETS;
 use crate::WORKSPACE_MATCHING_RULES;
 use crate::accessibility::AccessibilityApi;
 use crate::application::Application;
@@ -43,8 +44,10 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::collections::hash_map::Entry;
 use std::io::ErrorKind;
+use std::net::Shutdown;
 use std::num::NonZeroUsize;
 use std::os::unix::net::UnixListener;
+use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -851,6 +854,35 @@ impl WindowManager {
         workspace.new_container_for_focused_window()?;
         self.update_focused_workspace(self.mouse_follows_focus, false)
     }
+
+    #[tracing::instrument(skip(self))]
+    pub fn stop(&mut self, ignore_restore: bool) -> eyre::Result<()> {
+        tracing::info!(
+            "received stop command, restoring all hidden windows and terminating process"
+        );
+
+        // TODO: figure out if we wanna do state restores in macOS
+        // let state = &State::from(&*self);
+        // std::fs::write(
+        //     DATA_DIR.join("komorebi.state.json"),
+        //     serde_json::to_string_pretty(&state)?,
+        // )?;
+
+        self.restore_all_windows(ignore_restore)?;
+
+        let sockets = SUBSCRIPTION_SOCKETS.lock();
+        for path in (*sockets).values() {
+            if let Ok(stream) = UnixStream::connect(path) {
+                stream.shutdown(Shutdown::Both)?;
+            }
+        }
+
+        let socket = DATA_DIR.join("komorebi.sock");
+        let _ = std::fs::remove_file(socket);
+
+        std::process::exit(0)
+    }
+
     #[tracing::instrument(skip(self))]
     pub fn restore_all_windows(&mut self, ignore_restore: bool) -> eyre::Result<()> {
         tracing::info!("restoring all hidden windows");

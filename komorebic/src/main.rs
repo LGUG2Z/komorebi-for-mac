@@ -33,7 +33,6 @@ use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 use sysinfo::ProcessesToUpdate;
-use sysinfo::Signal;
 
 lazy_static! {
     static ref HAS_CUSTOM_CONFIG_HOME: AtomicBool = AtomicBool::new(false);
@@ -555,6 +554,13 @@ struct Start {
 }
 
 #[derive(Parser)]
+struct Stop {
+    /// Do not restore windows after stopping komorebi
+    #[clap(long, hide = true)]
+    ignore_restore: bool,
+}
+
+#[derive(Parser)]
 struct EagerFocus {
     /// Case-sensitive exe identifier
     exe: String,
@@ -584,7 +590,7 @@ enum SubCommand {
     /// Stop the komorebi.exe process and restore all hidden windows
     // komorebi for Windows signature
     // Stop(Stop),
-    Stop,
+    Stop(Stop),
     // /// Kill background processes started by komorebic
     // Kill(Kill),
     // /// Check komorebi configuration and related files for common errors
@@ -1195,15 +1201,22 @@ fn main() -> eyre::Result<()> {
                 "* Read the docs https://lgug2z.github.io/komorebi - Quickly search through all komorebic commands"
             );
         }
-        SubCommand::Stop => {
-            let mut system = sysinfo::System::new_all();
-            system.refresh_processes(ProcessesToUpdate::All, true);
-
-            let running = system.processes_by_exact_name("komorebi".as_ref()).next();
-
-            if let Some(process) = running {
-                process.kill_with(Signal::Interrupt);
+        SubCommand::Stop(arg) => {
+            if arg.ignore_restore {
+                send_message(&SocketMessage::StopIgnoreRestore)?;
+            } else {
+                send_message(&SocketMessage::Stop)?;
             }
+
+            // TODO: see if we need a force quit sometimes like we do on Windows
+            // let mut system = sysinfo::System::new_all();
+            // system.refresh_processes(ProcessesToUpdate::All, true);
+            //
+            // let running = system.processes_by_exact_name("komorebi".as_ref()).next();
+            //
+            // if let Some(process) = running {
+            //     process.kill_with(Signal::Interrupt);
+            // }
         }
         SubCommand::Configuration => {
             let static_config = HOME_DIR.join("komorebi.json");

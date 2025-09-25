@@ -1511,6 +1511,12 @@ impl WindowManager {
                 let mut sockets = SUBSCRIPTION_SOCKETS.lock();
                 sockets.remove(socket);
             }
+            SocketMessage::Stop => {
+                self.stop(false)?;
+            }
+            SocketMessage::StopIgnoreRestore => {
+                self.stop(true)?;
+            }
         }
 
         notify_subscribers(
