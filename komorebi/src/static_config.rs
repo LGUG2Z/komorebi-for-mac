@@ -2,6 +2,7 @@ use crate::CoreFoundationRunLoop;
 use crate::DATA_DIR;
 use crate::DEFAULT_CONTAINER_PADDING;
 use crate::DEFAULT_WORKSPACE_PADDING;
+use crate::DISPLAY_INDEX_PREFERENCES;
 use crate::FLOATING_APPLICATIONS;
 use crate::FLOATING_WINDOW_TOGGLE_ASPECT_RATIO;
 use crate::IGNORE_IDENTIFIERS;
@@ -480,9 +481,9 @@ pub struct StaticConfig {
     // /// Set monitor index preferences
     // #[serde(skip_serializing_if = "Option::is_none")]
     // pub monitor_index_preferences: Option<HashMap<usize, Rect>>,
-    // /// Set display index preferences
-    // #[serde(skip_serializing_if = "Option::is_none")]
-    // pub display_index_preferences: Option<HashMap<usize, String>>,
+    /// Set display index preferences
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub display_index_preferences: Option<HashMap<usize, String>>,
     // /// Stackbar configuration options
     // #[serde(skip_serializing_if = "Option::is_none")]
     // pub stackbar: Option<StackbarConfig>,
@@ -772,7 +773,7 @@ impl From<&WindowManager> for StaticConfig {
             object_name_change_applications: None,
             object_name_change_title_ignore_list: None,
             // monitor_index_preferences: Option::from(MONITOR_INDEX_PREFERENCES.lock().clone()),
-            // display_index_preferences: Option::from(DISPLAY_INDEX_PREFERENCES.read().clone()),
+            display_index_preferences: Option::from(DISPLAY_INDEX_PREFERENCES.read().clone()),
             // stackbar: None,
             // animation: None,
             // theme: None,
@@ -800,10 +801,10 @@ impl StaticConfig {
         //     preferences.clone_from(monitor_index_preferences);
         // }
         //
-        // if let Some(display_index_preferences) = &self.display_index_preferences {
-        //     let mut preferences = DISPLAY_INDEX_PREFERENCES.write();
-        //     preferences.clone_from(display_index_preferences);
-        // }
+        if let Some(display_index_preferences) = &self.display_index_preferences {
+            let mut preferences = DISPLAY_INDEX_PREFERENCES.write();
+            preferences.clone_from(display_index_preferences);
+        }
 
         // if let Some(behaviour) = self.window_hiding_behaviour {
         //     let mut window_hiding_behaviour = HIDING_BEHAVIOUR.lock();
@@ -1197,9 +1198,8 @@ impl StaticConfig {
         let mut value = Self::read(path)?;
         let mut wm = wm.lock();
 
-        // let configs_with_preference: Vec<_> =
-        //     DISPLAY_INDEX_PREFERENCES.read().keys().copied().collect();
-        let configs_with_preference = [];
+        let configs_with_preference: Vec<_> =
+            DISPLAY_INDEX_PREFERENCES.read().keys().copied().collect();
         let mut configs_used = Vec::new();
 
         let mut workspace_matching_rules = WORKSPACE_MATCHING_RULES.lock();
@@ -1210,16 +1210,17 @@ impl StaticConfig {
 
         let offset = wm.work_area_offset;
         for (i, monitor) in wm.monitors_mut().iter_mut().enumerate() {
-            let preferred_config_idx = None;
-            // let preferred_config_idx = {
-            //     let display_index_preferences = DISPLAY_INDEX_PREFERENCES.read();
-            //     let c_idx = display_index_preferences.iter().find_map(|(c_idx, id)| {
-            //         (monitor.serial_number_id.as_ref().is_some_and(|sn| sn == id)
-            //             || monitor.device_id.eq(id))
-            //         .then_some(*c_idx)
-            //     });
-            //     c_idx
-            // };
+            let preferred_config_idx = {
+                let display_index_preferences = DISPLAY_INDEX_PREFERENCES.read();
+
+                display_index_preferences.iter().find_map(|(c_idx, id)| {
+                    if monitor.serial_number_id.eq(id) {
+                        Some(*c_idx)
+                    } else {
+                        None
+                    }
+                })
+            };
 
             let idx = preferred_config_idx.or({
                 // Monitor without preferred config idx.
@@ -1374,9 +1375,8 @@ impl StaticConfig {
 
         value.apply_globals()?;
 
-        // let configs_with_preference: Vec<_> =
-        //     DISPLAY_INDEX_PREFERENCES.read().keys().copied().collect();
-        let configs_with_preference = [];
+        let configs_with_preference: Vec<_> =
+            DISPLAY_INDEX_PREFERENCES.read().keys().copied().collect();
         let mut configs_used = Vec::new();
 
         let mut workspace_matching_rules = WORKSPACE_MATCHING_RULES.lock();
@@ -1385,17 +1385,17 @@ impl StaticConfig {
 
         let offset = wm.work_area_offset;
         for (i, monitor) in wm.monitors_mut().iter_mut().enumerate() {
-            // let preferred_config_idx = {
-            //     let display_index_preferences = DISPLAY_INDEX_PREFERENCES.read();
-            //     let c_idx = display_index_preferences.iter().find_map(|(c_idx, id)| {
-            //         (monitor.serial_number_id.as_ref().is_some_and(|sn| sn == id)
-            //             || monitor.device_id.eq(id))
-            //         .then_some(*c_idx)
-            //     });
-            //     c_idx
-            // };
+            let preferred_config_idx = {
+                let display_index_preferences = DISPLAY_INDEX_PREFERENCES.read();
 
-            let preferred_config_idx = None;
+                display_index_preferences.iter().find_map(|(c_idx, id)| {
+                    if monitor.serial_number_id.eq(id) {
+                        Some(*c_idx)
+                    } else {
+                        None
+                    }
+                })
+            };
 
             let idx = preferred_config_idx.or({
                 // Monitor without preferred config idx.

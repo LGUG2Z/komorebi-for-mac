@@ -29,6 +29,7 @@ use objc2_core_foundation::CGPoint;
 use objc2_core_foundation::CGRect;
 use objc2_core_foundation::CGSize;
 use parking_lot::Mutex;
+use parking_lot::RwLock;
 use regex::Regex;
 use serde::Deserialize;
 use serde::Serialize;
@@ -94,6 +95,8 @@ lazy_static! {
     static ref FLOATING_WINDOW_TOGGLE_ASPECT_RATIO: Arc<Mutex<AspectRatio>> = Arc::new(Mutex::new(
         AspectRatio::Predefined(PredefinedAspectRatio::Widescreen)
     ));
+    static ref DISPLAY_INDEX_PREFERENCES: Arc<RwLock<HashMap<usize, String>>> =
+        Arc::new(RwLock::new(HashMap::new()));
     static ref WINDOW_RESTORE_POSITIONS: Arc<Mutex<HashMap<u32, CGRect>>> =
         Arc::new(Mutex::new(HashMap::new()));
     pub static ref UPDATE_MONITOR_WORK_AREAS: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));

@@ -526,6 +526,14 @@ pub struct NamedWorkspaceLayoutRule {
 }
 
 #[derive(Parser)]
+struct DisplayIndexPreference {
+    /// Preferred monitor index (zero-indexed)
+    index_preference: usize,
+    /// Display name as identified in komorebic state
+    display: String,
+}
+
+#[derive(Parser)]
 struct EnsureWorkspaces {
     /// Monitor index (zero-indexed)
     monitor: usize,
@@ -851,9 +859,9 @@ enum SubCommand {
     // /// Set the monitor index preference for a monitor identified using its size
     // #[clap(arg_required_else_help = true)]
     // MonitorIndexPreference(MonitorIndexPreference),
-    // /// Set the display index preference for a monitor identified using its display name
-    // #[clap(arg_required_else_help = true)]
-    // DisplayIndexPreference(DisplayIndexPreference),
+    /// Set the display index preference for a monitor identified using its display name
+    #[clap(arg_required_else_help = true)]
+    DisplayIndexPreference(DisplayIndexPreference),
     /// Create at least this many workspaces for the specified monitor
     #[clap(arg_required_else_help = true)]
     EnsureWorkspaces(EnsureWorkspaces),
@@ -1801,6 +1809,12 @@ fn main() -> eyre::Result<()> {
         }
         SubCommand::LoadResize(arg) => {
             send_message(&SocketMessage::Load(arg.path))?;
+        }
+        SubCommand::DisplayIndexPreference(arg) => {
+            send_message(&SocketMessage::DisplayIndexPreference(
+                arg.index_preference,
+                arg.display,
+            ))?;
         }
     }
 
