@@ -245,6 +245,11 @@ impl WindowManager {
                     MacosApi::foreground_window().ok_or_eyre("there is no foreground window")?;
                 AdhocWindow::minimize(&foreground_window)?;
             }
+            SocketMessage::Close => {
+                let foreground_window =
+                    MacosApi::foreground_window().ok_or_eyre("there is no foreground window")?;
+                AdhocWindow::close(&foreground_window)?;
+            }
             SocketMessage::LockMonitorWorkspaceContainer(
                 monitor_idx,
                 workspace_idx,

@@ -9,6 +9,8 @@ use crate::PERMAIGNORE_CLASSES;
 use crate::REGEX_IDENTIFIERS;
 use crate::WINDOW_RESTORE_POSITIONS;
 use crate::accessibility::AccessibilityApi;
+use crate::accessibility::action_constants::kAXPressAction;
+use crate::accessibility::attribute_constants::kAXCloseButtonAttribute;
 use crate::accessibility::attribute_constants::kAXFocusedAttribute;
 use crate::accessibility::attribute_constants::kAXMainAttribute;
 use crate::accessibility::attribute_constants::kAXMinimizedAttribute;
@@ -756,6 +758,16 @@ impl AdhocWindow {
         let cf_boolean = CFBoolean::new(true);
         let value = &**cf_boolean;
         AccessibilityApi::set_attribute_cf_value(element, kAXMinimizedAttribute, value)
+    }
+
+    pub fn close(element: &CFRetained<AXUIElement>) -> Result<(), AccessibilityError> {
+        if let Some(close_button) =
+            AccessibilityApi::copy_attribute_value::<AXUIElement>(element, kAXCloseButtonAttribute)
+        {
+            AccessibilityApi::perform_action(&close_button, kAXPressAction)
+        } else {
+            Ok(())
+        }
     }
 
     #[tracing::instrument(skip_all)]

@@ -17,6 +17,7 @@ use objc2_core_foundation::kCFRunLoopDefaultMode;
 use objc2_core_graphics::CGWindowID;
 use std::ptr::NonNull;
 
+pub mod action_constants;
 pub mod attribute_constants;
 pub mod error;
 pub mod notification_constants;
@@ -93,6 +94,20 @@ impl AccessibilityApi {
         unsafe {
             match AccessibilityError::from(
                 element.set_attribute_value(&CFString::from_static_str(attribute), value),
+            ) {
+                AccessibilityError::Api(AccessibilityApiError::Success) => Ok(()),
+                error => Err(error),
+            }
+        }
+    }
+
+    pub fn perform_action(
+        element: &AXUIElement,
+        action: &'static str,
+    ) -> Result<(), AccessibilityError> {
+        unsafe {
+            match AccessibilityError::from(
+                element.perform_action(&CFString::from_static_str(action)),
             ) {
                 AccessibilityError::Api(AccessibilityApiError::Success) => Ok(()),
                 error => Err(error),

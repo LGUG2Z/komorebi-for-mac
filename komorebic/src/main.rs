@@ -662,8 +662,8 @@ enum SubCommand {
     Move(Move),
     /// Minimize the focused window
     Minimize,
-    // /// Close the focused window
-    // Close,
+    /// Close the focused window
+    Close,
     // /// Forcibly focus the window at the cursor with a left mouse click
     // ForceFocus,
     /// Change focus to the window in the specified cycle direction
@@ -1306,6 +1306,9 @@ fn main() -> eyre::Result<()> {
         }
         SubCommand::Retile => {
             send_message(&SocketMessage::Retile)?;
+        }
+        SubCommand::Close => {
+            send_message(&SocketMessage::Close)?;
         }
         SubCommand::Minimize => {
             send_message(&SocketMessage::Minimize)?;
