@@ -119,6 +119,16 @@ impl WindowManager {
         self.enforce_workspace_rules()?;
 
         match event {
+            WindowManagerEvent::FocusChange(
+                SystemNotification::Manual(ManualNotification::FocusOnCmdTab),
+                _,
+                Some(window_id),
+            ) => {
+                let focused_workspace = self.focused_workspace_mut()?;
+                let container_idx = focused_workspace.container_idx_for_window(window_id);
+                focused_workspace.focus_container(container_idx.unwrap_or_default());
+                self.update_focused_workspace(self.mouse_follows_focus, true)?;
+            }
             WindowManagerEvent::FocusChange(notification, process_id, _) => {
                 let application = self.application(process_id)?;
                 let application_name = application.name().unwrap_or_default().clone();
@@ -133,175 +143,183 @@ impl WindowManager {
                             AppKitWorkspaceNotification::NSWorkspaceDidActivateApplicationNotification
                         )
                     ) && let Some(element) = application.main_window()
-                    {
-                        let workspace = self.focused_workspace_mut()?;
+                {
+                    let workspace = self.focused_workspace_mut()?;
 
-                        let tabbed_applications = TABBED_APPLICATIONS.lock();
-                        if tabbed_applications.contains(&application_name) {
-                            let mut first_tab_destroyed = false;
+                    let tabbed_applications = TABBED_APPLICATIONS.lock();
+                    if tabbed_applications.contains(&application_name) {
+                        let mut first_tab_destroyed = false;
 
-                            for window in workspace.visible_windows() {
-                                if let Some(window) = window
-                                    && window.application.name().unwrap_or_default()
-                                        == application_name
-                                {
-                                    let tab_rect = MacosApi::window_rect(&element)?;
-                                    let main_rect = match MacosApi::window_rect(&window.element) {
-                                        Ok(rect) => rect,
-                                        Err(AccessibilityError::Api(
+                        for window in workspace.visible_windows() {
+                            if let Some(window) = window
+                                && window.application.name().unwrap_or_default()
+                                == application_name
+                            {
+                                let tab_rect = MacosApi::window_rect(&element)?;
+                                let main_rect = match MacosApi::window_rect(&window.element) {
+                                    Ok(rect) => rect,
+                                    Err(AccessibilityError::Api(
                                             AccessibilityApiError::InvalidUIElement,
                                         )) => {
-                                            // this means we have closed the 1st tab, so we need this window object to be reaped
-                                            // and for the new 1st tab to be the key element of the window struct
-                                            if let Some(event) =
-                                                WindowManagerEvent::from_system_notification(
-                                                    SystemNotification::Manual(
-                                                        ManualNotification::ShowOnFocusChangeFirstTabDestroyed,
-                                                    ),
-                                                    event.process_id(),
-                                                    Some(window_id),
-                                                )
-                                            {
-                                                window_manager_event_listener::send_notification(
-                                                    event,
-                                                );
-                                            }
+                                        // this means we have closed the 1st tab, so we need this window object to be reaped
+                                        // and for the new 1st tab to be the key element of the window struct
+                                        if let Some(event) =
+                                            WindowManagerEvent::from_system_notification(
+                                                SystemNotification::Manual(
+                                                    ManualNotification::ShowOnFocusChangeFirstTabDestroyed,
+                                                ),
+                                                event.process_id(),
+                                                Some(window_id),
+                                            )
+                                        {
+                                            window_manager_event_listener::send_notification(
+                                                event,
+                                            );
+                                        }
 
-                                            first_tab_destroyed = true;
+                                        first_tab_destroyed = true;
 
-                                            tracing::debug!(
+                                        tracing::debug!(
                                                 "first tab of a native tabbed app was destroyed; reaping window and sending a new show event"
                                             );
 
-                                            tab_rect
-                                        }
-                                        Err(error) => return Err(error.into()),
-                                    };
-
-                                    if tab_rect == main_rect {
-                                        tracing::debug!("ignoring focus change for tabbed window");
-                                        tabbed_window = true;
+                                        tab_rect
                                     }
-                                }
-                            }
+                                    Err(error) => return Err(error.into()),
+                                };
 
-                            if first_tab_destroyed {
-                                self.reap_invalid_windows_for_application(process_id)?;
+                                if tab_rect == main_rect {
+                                    tracing::debug!("ignoring focus change for tabbed window");
+                                    tabbed_window = true;
+                                }
                             }
                         }
 
-                        drop(tabbed_applications);
+                        if first_tab_destroyed {
+                            self.reap_invalid_windows_for_application(process_id)?;
+                        }
+                    }
 
-                        if !tabbed_window {
-                            let is_known = self.known_window_ids.get(&window_id).cloned();
-                            let mut is_on_current_workspace = false;
+                    drop(tabbed_applications);
 
-                            // TODO: figure out if this applies on macOS too
-                            // don't want to trigger the full workspace updates when there are no managed
-                            // containers - this makes floating windows on empty workspaces go into very
-                            // annoying focus change loops which prevents users from interacting with them
-                            if !matches!(
+                    if !tabbed_window {
+                        let is_known = self.known_window_ids.get(&window_id).cloned();
+                        let mut is_on_current_workspace = false;
+
+                        // TODO: figure out if this applies on macOS too
+                        // don't want to trigger the full workspace updates when there are no managed
+                        // containers - this makes floating windows on empty workspaces go into very
+                        // annoying focus change loops which prevents users from interacting with them
+                        if !matches!(
                                 self.focused_workspace()?.layout,
                                 Layout::Default(DefaultLayout::Scrolling)
                             ) && !self.focused_workspace()?.containers().is_empty() {
-                                self.update_focused_workspace(self.mouse_follows_focus, false)?;
-                            }
+                            self.update_focused_workspace(self.mouse_follows_focus, false)?;
+                        }
 
-                            let workspace = self.focused_workspace_mut()?;
-                            if workspace.contains_window(window_id) {
-                                is_on_current_workspace = true;
-                            }
+                        let workspace = self.focused_workspace_mut()?;
+                        if workspace.contains_window(window_id) {
+                            is_on_current_workspace = true;
+                        }
 
-                            let floating_window_idx = workspace
-                                .floating_windows()
-                                .iter()
-                                .position(|w| w.id == window_id);
+                        let floating_window_idx = workspace
+                            .floating_windows()
+                            .iter()
+                            .position(|w| w.id == window_id);
 
-                            match floating_window_idx {
-                                None => {
-                                    // if let Some(w) = workspace.maximized_window() {
-                                    //     if w.hwnd == window_id {
-                                    //         return Ok(());
-                                    //     }
-                                    // }
+                        match floating_window_idx {
+                            None => {
+                                // if let Some(w) = workspace.maximized_window() {
+                                //     if w.hwnd == window_id {
+                                //         return Ok(());
+                                //     }
+                                // }
 
-                                    if let Some(monocle) = &workspace.monocle_container {
-                                        if let Some(window) = monocle.focused_window() {
-                                            window.focus(false)?;
-                                        }
-                                    } else if !is_on_current_workspace && is_known.is_none() {
-                                        // thanks, I hate it - need to do this so that we don't mess up
-                                        // the workspace rules, but also don't miss events from dumb
-                                        // apps like notes, mail etc.
-                                        let mut has_matching_workspace_rule = false;
-                                        let workspace_rules = WORKSPACE_MATCHING_RULES.lock();
-                                        for rule in &*workspace_rules {
-                                            match &rule.matching_rule {
-                                                MatchingRule::Simple(r) => {
-                                                    if r.id.trim_end_matches(".exe") == application_name
+                                if let Some(monocle) = &workspace.monocle_container {
+                                    if let Some(window) = monocle.focused_window() {
+                                        window.focus(false)?;
+                                    }
+                                } else if !is_on_current_workspace && is_known.is_none() {
+                                    // thanks, I hate it - need to do this so that we don't mess up
+                                    // the workspace rules, but also don't miss events from dumb
+                                    // apps like notes, mail etc.
+                                    let mut has_matching_workspace_rule = false;
+                                    let workspace_rules = WORKSPACE_MATCHING_RULES.lock();
+                                    for rule in &*workspace_rules {
+                                        match &rule.matching_rule {
+                                            MatchingRule::Simple(r) => {
+                                                if r.id.trim_end_matches(".exe") == application_name
+                                                {
+                                                    has_matching_workspace_rule = true;
+                                                }
+                                            }
+                                            // TODO: this is pretty coarse
+                                            MatchingRule::Composite(rules) => {
+                                                for r in rules {
+                                                    if r.id.trim_end_matches(".exe")
+                                                        == application_name
                                                     {
                                                         has_matching_workspace_rule = true;
                                                     }
                                                 }
-                                                // TODO: this is pretty coarse
-                                                MatchingRule::Composite(rules) => {
-                                                    for r in rules {
-                                                        if r.id.trim_end_matches(".exe")
-                                                            == application_name
-                                                        {
-                                                            has_matching_workspace_rule = true;
-                                                        }
-                                                    }
-                                                }
                                             }
                                         }
+                                    }
 
-                                        if !has_matching_workspace_rule
-                                            && workspace.focus_container_by_window(window_id).is_err()
+                                    if !has_matching_workspace_rule
+                                        && workspace.focus_container_by_window(window_id).is_err()
+                                    {
+                                        // if this fails, the app was probably open but windowless when komorebi
+                                        // launched, so the window hasn't been registered - we should treat it
+                                        // as a "Show" event
+                                        if let Some(event) =
+                                            WindowManagerEvent::from_system_notification(
+                                                SystemNotification::Manual(
+                                                    ManualNotification::ShowOnFocusChangeWindowlessAppRestored,
+                                                ),
+                                                event.process_id(),
+                                                Some(window_id),
+                                            )
                                         {
-                                            // if this fails, the app was probably open but windowless when komorebi
-                                            // launched, so the window hasn't been registered - we should treat it
-                                            // as a "Show" event
-                                            if let Some(event) =
-                                                WindowManagerEvent::from_system_notification(
-                                                    SystemNotification::Manual(
-                                                        ManualNotification::ShowOnFocusChangeWindowlessAppRestored,
-                                                    ),
-                                                    event.process_id(),
-                                                    Some(window_id),
-                                                )
-                                            {
-                                                window_manager_event_listener::send_notification(
-                                                    event,
-                                                );
-                                            }
+                                            window_manager_event_listener::send_notification(
+                                                event,
+                                            );
                                         }
-                                    } else {
-                                        workspace.focus_container_by_window(window_id)?;
                                     }
-
-                                    workspace.layer = WorkspaceLayer::Tiling;
-
-                                    if matches!(self.focused_workspace()?.layout, Layout::Default(DefaultLayout::Scrolling))
-                                        && !self.focused_workspace()?.containers().is_empty() {
-                                        self.update_focused_workspace(self.mouse_follows_focus, false)?;
-                                    }
+                                } else if is_on_current_workspace {
+                                    workspace.focus_container_by_window(window_id)?;
                                 }
-                                Some(idx) => {
-                                    if let Some(_window) = workspace.floating_windows().get(idx) {
-                                        workspace.layer = WorkspaceLayer::Floating;
-                                    }
+
+                                workspace.layer = WorkspaceLayer::Tiling;
+
+                                if matches!(self.focused_workspace()?.layout, Layout::Default(DefaultLayout::Scrolling))
+                                    && !self.focused_workspace()?.containers().is_empty() {
+                                    self.update_focused_workspace(self.mouse_follows_focus, false)?;
                                 }
                             }
-
-                            // maybe we don't need a separate reconciliator module?? this works pretty well!
-                            if !is_on_current_workspace && let Some((m_idx, w_idx)) = is_known {
-                                self.focus_monitor(m_idx)?;
-                                self.focus_workspace(w_idx)?;
+                            Some(idx) => {
+                                if let Some(_window) = workspace.floating_windows().get(idx) {
+                                    workspace.layer = WorkspaceLayer::Floating;
+                                }
                             }
                         }
 
+                        // maybe we don't need a separate reconciliator module?? this works pretty well!
+                        if !is_on_current_workspace && let Some((m_idx, w_idx)) = is_known {
+                            self.focus_monitor(m_idx)?;
+                            self.focus_workspace(w_idx)?;
+                            let event = WindowManagerEvent::from_system_notification(
+                                SystemNotification::Manual(ManualNotification::FocusOnCmdTab),
+                                process_id,
+                                Some(window_id)
+                            );
+
+                            if let Some(manual_event) = event {
+                                window_manager_event_listener::send_notification(manual_event);
+                            }
+                        }
                     }
+                }
 
                 if matches!(
                     notification,
