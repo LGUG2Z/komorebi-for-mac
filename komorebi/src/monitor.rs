@@ -117,12 +117,7 @@ impl Monitor {
             size,
             work_area_offset: None,
             work_area_size,
-            window_based_work_area_offset: Some(Rect {
-                left: 500,
-                top: 0,
-                right: 1000,
-                bottom: 0,
-            }),
+            window_based_work_area_offset: None,
             window_based_work_area_offset_limit: 1,
             container_padding: None,
             workspace_padding: None,

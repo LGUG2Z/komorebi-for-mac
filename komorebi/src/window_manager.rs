@@ -442,20 +442,147 @@ impl WindowManager {
         &mut self,
         direction: OperationDirection,
     ) -> eyre::Result<()> {
+        self.handle_unmanaged_window_behaviour()?;
+        let mouse_follows_focus = self.mouse_follows_focus;
+
         let workspace = self.focused_workspace()?;
+        let workspace_idx = self.focused_workspace_idx()?;
 
         tracing::info!("focusing container");
 
-        match workspace.new_idx_for_direction(direction) {
-            None => {}
+        let new_idx =
+            if workspace.maximized_window.is_some() || workspace.monocle_container.is_some() {
+                None
+            } else {
+                workspace.new_idx_for_direction(direction)
+            };
+
+        let mut cross_monitor_monocle_or_max = false;
+
+        // this is for when we are scrolling across workspaces like PaperWM
+        if new_idx.is_none()
+            && matches!(
+                self.cross_boundary_behaviour,
+                CrossBoundaryBehaviour::Workspace
+            )
+            && matches!(
+                direction,
+                OperationDirection::Left | OperationDirection::Right
+            )
+        {
+            let workspace_count = if let Some(monitor) = self.focused_monitor() {
+                monitor.workspaces().len()
+            } else {
+                1
+            };
+
+            let next_idx = match direction {
+                OperationDirection::Left => match workspace_idx {
+                    0 => workspace_count - 1,
+                    n => n - 1,
+                },
+                OperationDirection::Right => match workspace_idx {
+                    n if n == workspace_count - 1 => 0,
+                    n => n + 1,
+                },
+                _ => workspace_idx,
+            };
+
+            self.focus_workspace(next_idx)?;
+
+            if let Ok(focused_workspace) = self.focused_workspace_mut()
+                && focused_workspace.monocle_container.is_none()
+            {
+                match direction {
+                    OperationDirection::Left => match focused_workspace.layout {
+                        Layout::Default(layout) => {
+                            let target_index =
+                                layout.rightmost_index(focused_workspace.containers().len());
+                            focused_workspace.focus_container(target_index);
+                        }
+                    },
+                    OperationDirection::Right => match focused_workspace.layout {
+                        Layout::Default(layout) => {
+                            let target_index =
+                                layout.leftmost_index(focused_workspace.containers().len());
+                            focused_workspace.focus_container(target_index);
+                        }
+                    },
+                    _ => {}
+                };
+            }
+
+            return Ok(());
+        }
+
+        // if there is no container in that direction for this workspace
+        match new_idx {
+            None => {
+                let monitor_idx = self
+                    .monitor_idx_in_direction(direction)
+                    .ok_or_eyre("there is no container or monitor in this direction")?;
+
+                self.focus_monitor(monitor_idx)?;
+
+                if let Ok(focused_workspace) = self.focused_workspace_mut() {
+                    if let Some(window) = &focused_workspace.maximized_window {
+                        window.focus(mouse_follows_focus)?;
+                        cross_monitor_monocle_or_max = true;
+                    } else if let Some(monocle) = &focused_workspace.monocle_container {
+                        if let Some(window) = monocle.focused_window() {
+                            window.focus(mouse_follows_focus)?;
+                            cross_monitor_monocle_or_max = true;
+                        }
+                    } else if focused_workspace.layer == WorkspaceLayer::Tiling {
+                        match direction {
+                            OperationDirection::Left => match focused_workspace.layout {
+                                Layout::Default(layout) => {
+                                    let target_index = layout
+                                        .rightmost_index(focused_workspace.containers().len());
+                                    focused_workspace.focus_container(target_index);
+                                }
+                            },
+                            OperationDirection::Right => match focused_workspace.layout {
+                                Layout::Default(layout) => {
+                                    let target_index =
+                                        layout.leftmost_index(focused_workspace.containers().len());
+                                    focused_workspace.focus_container(target_index);
+                                }
+                            },
+                            _ => {}
+                        };
+                    }
+                }
+            }
             Some(idx) => {
                 let workspace = self.focused_workspace_mut()?;
                 workspace.focus_container(idx);
             }
         }
 
-        if let Ok(focused_window) = self.focused_window() {
-            focused_window.focus(self.mouse_follows_focus)?;
+        if !cross_monitor_monocle_or_max {
+            let ws = self.focused_workspace_mut()?;
+            if ws.is_empty() {
+                // TODO: figure out if we need to do this on macOS
+                // This is to remove focus from the previous monitor
+                // let desktop_window = Window::from(WindowsApi::desktop_window()?);
+                //
+                // match WindowsApi::raise_and_focus_window(desktop_window.hwnd) {
+                //     Ok(()) => {}
+                //     Err(error) => {
+                //         tracing::warn!("{} {}:{}", error, file!(), line!());
+                //     }
+                // }
+            } else if ws.layer == WorkspaceLayer::Floating && !ws.floating_windows().is_empty() {
+                if let Some(window) = ws.focused_floating_window() {
+                    window.focus(mouse_follows_focus)?;
+                }
+            } else {
+                ws.layer = WorkspaceLayer::Tiling;
+                if let Ok(focused_window) = self.focused_window() {
+                    focused_window.focus(mouse_follows_focus)?;
+                }
+            }
         }
 
         Ok(())
@@ -545,15 +672,167 @@ impl WindowManager {
         &mut self,
         direction: OperationDirection,
     ) -> eyre::Result<()> {
+        self.handle_unmanaged_window_behaviour()?;
+
         let workspace = self.focused_workspace()?;
+        let workspace_idx = self.focused_workspace_idx()?;
+
+        // removing this messes up the monitor / container / window index somewhere
+        // and results in the wrong window getting moved across the monitor boundary
+        if workspace.is_focused_window_monocle_or_maximized()? {
+            bail!("ignoring command while active window is in monocle mode or maximized");
+        }
 
         tracing::info!("moving container");
 
         let origin_container_idx = workspace.focused_container_idx();
+        let origin_monitor_idx = self.focused_monitor_idx();
         let target_container_idx = workspace.new_idx_for_direction(direction);
 
+        // this is for when we are scrolling across workspaces like PaperWM
+        if target_container_idx.is_none()
+            && matches!(
+                self.cross_boundary_behaviour,
+                CrossBoundaryBehaviour::Workspace
+            )
+            && matches!(
+                direction,
+                OperationDirection::Left | OperationDirection::Right
+            )
+        {
+            let workspace_count = if let Some(monitor) = self.focused_monitor() {
+                monitor.workspaces().len()
+            } else {
+                1
+            };
+
+            let next_idx = match direction {
+                OperationDirection::Left => match workspace_idx {
+                    0 => workspace_count - 1,
+                    n => n - 1,
+                },
+                OperationDirection::Right => match workspace_idx {
+                    n if n == workspace_count - 1 => 0,
+                    n => n + 1,
+                },
+                _ => workspace_idx,
+            };
+
+            // passing the direction here is how we handle whether to insert at the front
+            // or the back of the container vecdeque in the target workspace
+            self.move_container_to_workspace(next_idx, true, Some(direction))?;
+            self.update_focused_workspace(self.mouse_follows_focus, true)?;
+
+            return Ok(());
+        }
+
         match target_container_idx {
-            None => {}
+            // If there is nowhere to move on the current workspace, try to move it onto the monitor
+            // in that direction if there is one
+            None => {
+                // Don't do anything if the user has set the MoveBehaviour to NoOp
+                if matches!(self.cross_monitor_move_behaviour, MoveBehaviour::NoOp) {
+                    return Ok(());
+                }
+
+                let target_monitor_idx = self
+                    .monitor_idx_in_direction(direction)
+                    .ok_or_eyre("there is no container or monitor in this direction")?;
+
+                {
+                    // actually move the container to target monitor using the direction
+                    self.move_container_to_monitor(
+                        target_monitor_idx,
+                        None,
+                        true,
+                        Some(direction),
+                    )?;
+
+                    // focus the target monitor
+                    self.focus_monitor(target_monitor_idx)?;
+
+                    // unset monocle container on target workspace if there is one
+                    let mut target_workspace_has_monocle = false;
+                    if let Ok(target_workspace) = self.focused_workspace()
+                        && target_workspace.monocle_container.is_some()
+                    {
+                        target_workspace_has_monocle = true;
+                    }
+
+                    if target_workspace_has_monocle {
+                        self.toggle_monocle()?;
+                    }
+
+                    // get a mutable ref to the focused workspace on the target monitor
+                    let target_workspace = self.focused_workspace_mut()?;
+
+                    // if there is only one container on the target workspace after the insertion
+                    // it means that there won't be one swapped back, so we have to decrement the
+                    // focused position
+                    if target_workspace.containers().len() == 1 {
+                        let origin_workspace =
+                            self.focused_workspace_for_monitor_idx_mut(origin_monitor_idx)?;
+
+                        origin_workspace.focus_container(
+                            origin_workspace.focused_container_idx().saturating_sub(1),
+                        );
+                    }
+                }
+
+                // if our MoveBehaviour is Swap, let's try to send back the window container
+                // whose position which just took over
+                if matches!(self.cross_monitor_move_behaviour, MoveBehaviour::Swap) {
+                    {
+                        let target_workspace = self.focused_workspace_mut()?;
+
+                        // if the target workspace doesn't have more than one container, this means it
+                        // was previously empty, by only doing the second part of the swap when there is
+                        // more than one container, we can fall back to a "move" if there is nothing to
+                        // swap with on the target monitor
+                        if target_workspace.containers().len() > 1 {
+                            // remove the container from the target monitor workspace
+                            let target_container = target_workspace
+                                // this is now focused_container_idx + 1 because we have inserted our origin container
+                                .remove_container_by_idx(
+                                    target_workspace.focused_container_idx() + 1,
+                                )
+                                .ok_or_eyre("could not remove container at given target index")?;
+
+                            let origin_workspace =
+                                self.focused_workspace_for_monitor_idx_mut(origin_monitor_idx)?;
+
+                            // insert the container from the target monitor workspace into the origin monitor workspace
+                            // at the same position from which our origin container was removed
+                            origin_workspace
+                                .insert_container_at_idx(origin_container_idx, target_container);
+                        }
+                    }
+                }
+
+                // make sure to update the origin monitor workspace layout because it is no
+                // longer focused so it won't get updated at the end of this fn
+                let offset = self.work_area_offset;
+
+                self.monitors_mut()
+                    .get_mut(origin_monitor_idx)
+                    .ok_or_eyre("there is no monitor at this index")?
+                    .update_focused_workspace(offset)?;
+
+                // TODO: figure out monitor DPI differences on macOS
+                // let a = self
+                //     .focused_monitor()
+                //     .ok_or_eyre("there is no monitor focused monitor")?
+                //     .id;
+                // let b = self
+                //     .monitors_mut()
+                //     .get_mut(origin_monitor_idx)
+                //     .ok_or_eyre("there is no monitor at this index")?
+                //     .id;
+
+                // if !WindowsApi::monitors_have_same_dpi(a, b)? {
+                //     self.update_focused_workspace(self.mouse_follows_focus, true)?;
+                // }
+            }
             Some(new_idx) => {
                 let workspace = self.focused_workspace_mut()?;
                 workspace.swap_containers(origin_container_idx, new_idx);
