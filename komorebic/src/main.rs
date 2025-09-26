@@ -591,6 +591,14 @@ struct ReplaceConfiguration {
 }
 
 #[derive(Parser)]
+struct EnableAutostart {
+    /// Path to a static configuration JSON file
+    #[clap(action, short, long)]
+    #[clap(value_parser = replace_env_in_path)]
+    config: Option<PathBuf>,
+}
+
+#[derive(Parser)]
 struct EagerFocus {
     /// Case-sensitive exe identifier
     exe: String,
@@ -1128,10 +1136,10 @@ enum SubCommand {
     StaticConfigSchema,
     /// Generates a static configuration JSON file based on the current window manager state
     GenerateStaticConfig,
-    // /// Generates the komorebi.lnk shortcut in shell:startup to autostart komorebi
-    // EnableAutostart(EnableAutostart),
-    // /// Deletes the komorebi.lnk shortcut in shell:startup to disable autostart
-    // DisableAutostart,
+    /// Generates and loads the com.lgug2z.komorebi.plist file in $HOME/Library/LaunchAgents
+    EnableAutostart(EnableAutostart),
+    /// Unloads and deletes the com.lgug2z.komorebi.plist file in $HOME/Library/LaunchAgents
+    DisableAutostart,
 }
 
 fn print_query(message: &SocketMessage) {
@@ -1242,7 +1250,99 @@ fn main() -> eyre::Result<()> {
                 skhdrc_path.display()
             );
         }
+        SubCommand::EnableAutostart(args) => {
+            let mut current_exe = std::env::current_exe().expect("unable to get exec path");
+            current_exe.pop();
+            let komorebic_exe = current_exe.join("komorebi");
 
+            let plist = match args.config {
+                None => {
+                    format!(
+                        r#"
+           <?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+        <key>EnvironmentVariables</key>
+        <dict>
+                <key>PATH</key>
+                <string>$HOME/.nix-profile/bin:/etc/profiles/per-user/$USER/bin:/run/current-system/sw/bin:/nix/var/nix/profiles/default/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        </dict>
+        <key>KeepAlive</key>
+        <true/>
+        <key>Label</key>
+        <string>com.lgug2z.komorebi</string>
+        <key>ProcessType</key>
+        <string>Interactive</string>
+        <key>ProgramArguments</key>
+        <array>
+                <string>{}</string>
+        </array>
+</dict>
+</plist>"#,
+                        komorebic_exe.to_string_lossy()
+                    )
+                }
+                Some(config) => {
+                    format!(
+                        r#"
+           <?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+        <key>EnvironmentVariables</key>
+        <dict>
+                <key>PATH</key>
+                <string>$HOME/.nix-profile/bin:/etc/profiles/per-user/$USER/bin:/run/current-system/sw/bin:/nix/var/nix/profiles/default/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        </dict>
+        <key>KeepAlive</key>
+        <true/>
+        <key>Label</key>
+        <string>com.lgug2z.komorebi</string>
+        <key>ProcessType</key>
+        <string>Interactive</string>
+        <key>ProgramArguments</key>
+        <array>
+                <string>{}</string>
+                <string>--config</string>
+                <string>{}</string>
+        </array>
+</dict>
+</plist>"#,
+                        komorebic_exe.to_string_lossy(),
+                        config.to_string_lossy()
+                    )
+                }
+            };
+
+            let target = dirs::home_dir()
+                .expect("no $HOME dir")
+                .join("Library")
+                .join("LaunchAgents")
+                .join("com.lgug2z.komorebi.plist");
+
+            std::fs::write(&target, &plist)?;
+
+            println!("Created com.lgug2z.komorebi.plist at {}", target.display());
+            Command::new("launchctl")
+                .args(["load", &*target.to_string_lossy()])
+                .output()?;
+            println!("Ran 'launchctl load {}'", target.display());
+        }
+        SubCommand::DisableAutostart => {
+            let target = dirs::home_dir()
+                .expect("no $HOME dir")
+                .join("Library")
+                .join("LaunchAgents")
+                .join("com.lgug2z.komorebi.plist");
+
+            Command::new("launchctl")
+                .args(["unload", &*target.to_string_lossy()])
+                .output()?;
+            println!("Ran 'launchctl unload {}'", target.display());
+            std::fs::remove_file(&target)?;
+            println!("Deleted {}", target.display());
+        }
         SubCommand::Start(arg) => {
             let mut command = &mut Command::new("komorebi");
 
