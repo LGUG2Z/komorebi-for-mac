@@ -1,0 +1,1384 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "StaticConfig",
+  "description": "The `komorebi.json` static configuration file reference for `v0.1.39`",
+  "type": "object",
+  "properties": {
+    "app_specific_configuration_path": {
+      "description": "Path to applications.json from komorebi-application-specific-configurations (default: None)",
+      "anyOf": [
+        {
+          "description": "A single applications.json file",
+          "type": "string"
+        },
+        {
+          "description": "Multiple applications.json files",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "border_overflow_applications": {
+      "description": "Identify border overflow applications",
+      "type": "array",
+      "items": {
+        "anyOf": [
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "kind"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "Exe",
+                  "Class",
+                  "Title",
+                  "Path"
+                ]
+              },
+              "matching_strategy": {
+                "type": "string",
+                "enum": [
+                  "Legacy",
+                  "Equals",
+                  "StartsWith",
+                  "EndsWith",
+                  "Contains",
+                  "Regex",
+                  "DoesNotEndWith",
+                  "DoesNotStartWith",
+                  "DoesNotEqual",
+                  "DoesNotContain"
+                ]
+              }
+            }
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "kind"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "Exe",
+                    "Class",
+                    "Title",
+                    "Path"
+                  ]
+                },
+                "matching_strategy": {
+                  "type": "string",
+                  "enum": [
+                    "Legacy",
+                    "Equals",
+                    "StartsWith",
+                    "EndsWith",
+                    "Contains",
+                    "Regex",
+                    "DoesNotEndWith",
+                    "DoesNotStartWith",
+                    "DoesNotEqual",
+                    "DoesNotContain"
+                  ]
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    "cross_boundary_behaviour": {
+      "description": "Determine what happens when an action is called on a window at a monitor boundary (default: Monitor)",
+      "oneOf": [
+        {
+          "description": "Attempt to perform actions across a workspace boundary",
+          "type": "string",
+          "enum": [
+            "Workspace"
+          ]
+        },
+        {
+          "description": "Attempt to perform actions across a monitor boundary",
+          "type": "string",
+          "enum": [
+            "Monitor"
+          ]
+        }
+      ]
+    },
+    "cross_monitor_move_behaviour": {
+      "description": "Determine what happens when a window is moved across a monitor boundary (default: Swap)",
+      "oneOf": [
+        {
+          "description": "Swap the window container with the window container at the edge of the adjacent monitor",
+          "type": "string",
+          "enum": [
+            "Swap"
+          ]
+        },
+        {
+          "description": "Insert the window container into the focused workspace on the adjacent monitor",
+          "type": "string",
+          "enum": [
+            "Insert"
+          ]
+        },
+        {
+          "description": "Do nothing if trying to move a window container in the direction of an adjacent monitor",
+          "type": "string",
+          "enum": [
+            "NoOp"
+          ]
+        }
+      ]
+    },
+    "default_container_padding": {
+      "description": "Global default container padding (default: 10)",
+      "type": "integer",
+      "format": "int32"
+    },
+    "default_workspace_padding": {
+      "description": "Add transparency to unfocused windows (default: false) Global default workspace padding (default: 10)",
+      "type": "integer",
+      "format": "int32"
+    },
+    "display_index_preferences": {
+      "description": "Set display index preferences",
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "float_override": {
+      "description": "Enable or disable float override, which makes it so every new window opens in floating mode (default: false)",
+      "type": "boolean"
+    },
+    "float_override_placement": {
+      "description": "Determines the `Placement` to be used when spawning a window with float override active (default: None)",
+      "oneOf": [
+        {
+          "description": "Does not change the size or position of the window",
+          "type": "string",
+          "enum": [
+            "None"
+          ]
+        },
+        {
+          "description": "Center the window without changing the size",
+          "type": "string",
+          "enum": [
+            "Center"
+          ]
+        },
+        {
+          "description": "Center the window and resize it according to the `AspectRatio`",
+          "type": "string",
+          "enum": [
+            "CenterAndResize"
+          ]
+        }
+      ]
+    },
+    "float_rule_placement": {
+      "description": "Determines the `Placement` to be used when spawning a window that matches a 'floating_applications' rule (default: None)",
+      "oneOf": [
+        {
+          "description": "Does not change the size or position of the window",
+          "type": "string",
+          "enum": [
+            "None"
+          ]
+        },
+        {
+          "description": "Center the window without changing the size",
+          "type": "string",
+          "enum": [
+            "Center"
+          ]
+        },
+        {
+          "description": "Center the window and resize it according to the `AspectRatio`",
+          "type": "string",
+          "enum": [
+            "CenterAndResize"
+          ]
+        }
+      ]
+    },
+    "floating_applications": {
+      "description": "Identify applications which should be managed as floating windows",
+      "type": "array",
+      "items": {
+        "anyOf": [
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "kind"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "Exe",
+                  "Class",
+                  "Title",
+                  "Path"
+                ]
+              },
+              "matching_strategy": {
+                "type": "string",
+                "enum": [
+                  "Legacy",
+                  "Equals",
+                  "StartsWith",
+                  "EndsWith",
+                  "Contains",
+                  "Regex",
+                  "DoesNotEndWith",
+                  "DoesNotStartWith",
+                  "DoesNotEqual",
+                  "DoesNotContain"
+                ]
+              }
+            }
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "kind"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "Exe",
+                    "Class",
+                    "Title",
+                    "Path"
+                  ]
+                },
+                "matching_strategy": {
+                  "type": "string",
+                  "enum": [
+                    "Legacy",
+                    "Equals",
+                    "StartsWith",
+                    "EndsWith",
+                    "Contains",
+                    "Regex",
+                    "DoesNotEndWith",
+                    "DoesNotStartWith",
+                    "DoesNotEqual",
+                    "DoesNotContain"
+                  ]
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    "floating_layer_behaviour": {
+      "description": "Determines what happens on a new window when on the `FloatingLayer` (default: Tile)",
+      "oneOf": [
+        {
+          "description": "Tile new windows (unless they match a float rule or float override is active)",
+          "type": "string",
+          "enum": [
+            "Tile"
+          ]
+        },
+        {
+          "description": "Float new windows",
+          "type": "string",
+          "enum": [
+            "Float"
+          ]
+        }
+      ]
+    },
+    "floating_layer_placement": {
+      "description": "Determines the `Placement` to be used when spawning a window on the floating layer with the `FloatingLayerBehaviour` set to `FloatingLayerBehaviour::Float` (default: Center)",
+      "oneOf": [
+        {
+          "description": "Does not change the size or position of the window",
+          "type": "string",
+          "enum": [
+            "None"
+          ]
+        },
+        {
+          "description": "Center the window without changing the size",
+          "type": "string",
+          "enum": [
+            "Center"
+          ]
+        },
+        {
+          "description": "Center the window and resize it according to the `AspectRatio`",
+          "type": "string",
+          "enum": [
+            "CenterAndResize"
+          ]
+        }
+      ]
+    },
+    "floating_window_aspect_ratio": {
+      "description": "Identify applications which are slow to send initial event notifications Aspect ratio to resize with when toggling floating mode for a window",
+      "anyOf": [
+        {
+          "description": "A predefined aspect ratio",
+          "oneOf": [
+            {
+              "description": "21:9",
+              "type": "string",
+              "enum": [
+                "Ultrawide"
+              ]
+            },
+            {
+              "description": "16:9",
+              "type": "string",
+              "enum": [
+                "Widescreen"
+              ]
+            },
+            {
+              "description": "4:3",
+              "type": "string",
+              "enum": [
+                "Standard"
+              ]
+            }
+          ]
+        },
+        {
+          "description": "A custom W:H aspect ratio",
+          "type": "array",
+          "items": [
+            {
+              "type": "integer",
+              "format": "int32"
+            },
+            {
+              "type": "integer",
+              "format": "int32"
+            }
+          ],
+          "maxItems": 2,
+          "minItems": 2
+        }
+      ]
+    },
+    "global_work_area_offset": {
+      "description": "Global work area (space used for tiling) offset (default: None)",
+      "type": "object",
+      "required": [
+        "bottom",
+        "left",
+        "right",
+        "top"
+      ],
+      "properties": {
+        "bottom": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "left": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "right": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "top": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "ignore_rules": {
+      "description": "Individual window floating rules",
+      "type": "array",
+      "items": {
+        "anyOf": [
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "kind"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "Exe",
+                  "Class",
+                  "Title",
+                  "Path"
+                ]
+              },
+              "matching_strategy": {
+                "type": "string",
+                "enum": [
+                  "Legacy",
+                  "Equals",
+                  "StartsWith",
+                  "EndsWith",
+                  "Contains",
+                  "Regex",
+                  "DoesNotEndWith",
+                  "DoesNotStartWith",
+                  "DoesNotEqual",
+                  "DoesNotContain"
+                ]
+              }
+            }
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "kind"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "Exe",
+                    "Class",
+                    "Title",
+                    "Path"
+                  ]
+                },
+                "matching_strategy": {
+                  "type": "string",
+                  "enum": [
+                    "Legacy",
+                    "Equals",
+                    "StartsWith",
+                    "EndsWith",
+                    "Contains",
+                    "Regex",
+                    "DoesNotEndWith",
+                    "DoesNotStartWith",
+                    "DoesNotEqual",
+                    "DoesNotContain"
+                  ]
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    "layered_applications": {
+      "description": "Identify applications that have the WS_EX_LAYERED extended window style",
+      "type": "array",
+      "items": {
+        "anyOf": [
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "kind"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "Exe",
+                  "Class",
+                  "Title",
+                  "Path"
+                ]
+              },
+              "matching_strategy": {
+                "type": "string",
+                "enum": [
+                  "Legacy",
+                  "Equals",
+                  "StartsWith",
+                  "EndsWith",
+                  "Contains",
+                  "Regex",
+                  "DoesNotEndWith",
+                  "DoesNotStartWith",
+                  "DoesNotEqual",
+                  "DoesNotContain"
+                ]
+              }
+            }
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "kind"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "Exe",
+                    "Class",
+                    "Title",
+                    "Path"
+                  ]
+                },
+                "matching_strategy": {
+                  "type": "string",
+                  "enum": [
+                    "Legacy",
+                    "Equals",
+                    "StartsWith",
+                    "EndsWith",
+                    "Contains",
+                    "Regex",
+                    "DoesNotEndWith",
+                    "DoesNotStartWith",
+                    "DoesNotEqual",
+                    "DoesNotContain"
+                  ]
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    "manage_rules": {
+      "description": "Individual window force-manage rules",
+      "type": "array",
+      "items": {
+        "anyOf": [
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "kind"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "Exe",
+                  "Class",
+                  "Title",
+                  "Path"
+                ]
+              },
+              "matching_strategy": {
+                "type": "string",
+                "enum": [
+                  "Legacy",
+                  "Equals",
+                  "StartsWith",
+                  "EndsWith",
+                  "Contains",
+                  "Regex",
+                  "DoesNotEndWith",
+                  "DoesNotStartWith",
+                  "DoesNotEqual",
+                  "DoesNotContain"
+                ]
+              }
+            }
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "kind"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "Exe",
+                    "Class",
+                    "Title",
+                    "Path"
+                  ]
+                },
+                "matching_strategy": {
+                  "type": "string",
+                  "enum": [
+                    "Legacy",
+                    "Equals",
+                    "StartsWith",
+                    "EndsWith",
+                    "Contains",
+                    "Regex",
+                    "DoesNotEndWith",
+                    "DoesNotStartWith",
+                    "DoesNotEqual",
+                    "DoesNotContain"
+                  ]
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    "monitors": {
+      "description": "Monitor and workspace configurations",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "workspaces"
+        ],
+        "properties": {
+          "container_padding": {
+            "description": "Container padding (default: global)",
+            "type": "integer",
+            "format": "int32"
+          },
+          "floating_layer_behaviour": {
+            "description": "Determine what happens to a new window when the Floating workspace layer is active (default: Tile)",
+            "oneOf": [
+              {
+                "description": "Tile new windows (unless they match a float rule or float override is active)",
+                "type": "string",
+                "enum": [
+                  "Tile"
+                ]
+              },
+              {
+                "description": "Float new windows",
+                "type": "string",
+                "enum": [
+                  "Float"
+                ]
+              }
+            ]
+          },
+          "window_based_work_area_offset": {
+            "description": "Window based work area offset (default: None)",
+            "type": "object",
+            "required": [
+              "bottom",
+              "left",
+              "right",
+              "top"
+            ],
+            "properties": {
+              "bottom": {
+                "type": "integer",
+                "format": "int32"
+              },
+              "left": {
+                "type": "integer",
+                "format": "int32"
+              },
+              "right": {
+                "type": "integer",
+                "format": "int32"
+              },
+              "top": {
+                "type": "integer",
+                "format": "int32"
+              }
+            }
+          },
+          "window_based_work_area_offset_limit": {
+            "description": "Open window limit after which the window based work area offset will no longer be applied (default: 1)",
+            "type": "integer",
+            "format": "int"
+          },
+          "work_area_offset": {
+            "description": "Monitor-specific work area offset (default: None)",
+            "type": "object",
+            "required": [
+              "bottom",
+              "left",
+              "right",
+              "top"
+            ],
+            "properties": {
+              "bottom": {
+                "type": "integer",
+                "format": "int32"
+              },
+              "left": {
+                "type": "integer",
+                "format": "int32"
+              },
+              "right": {
+                "type": "integer",
+                "format": "int32"
+              },
+              "top": {
+                "type": "integer",
+                "format": "int32"
+              }
+            }
+          },
+          "workspace_padding": {
+            "description": "Workspace padding (default: global)",
+            "type": "integer",
+            "format": "int32"
+          },
+          "workspaces": {
+            "description": "Workspace configurations",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "name"
+              ],
+              "properties": {
+                "apply_window_based_work_area_offset": {
+                  "description": "Apply this monitor's window-based work area offset (default: true)",
+                  "type": "boolean"
+                },
+                "container_padding": {
+                  "description": "Container padding (default: global)",
+                  "type": "integer",
+                  "format": "int32"
+                },
+                "custom_layout": {
+                  "description": "END OF LIFE FEATURE: Custom Layout (default: None)",
+                  "type": "string"
+                },
+                "float_override": {
+                  "description": "Enable or disable float override, which makes it so every new window opens in floating mode (default: false)",
+                  "type": "boolean"
+                },
+                "floating_layer_behaviour": {
+                  "description": "Determine what happens to a new window when the Floating workspace layer is active (default: Tile)",
+                  "oneOf": [
+                    {
+                      "description": "Tile new windows (unless they match a float rule or float override is active)",
+                      "type": "string",
+                      "enum": [
+                        "Tile"
+                      ]
+                    },
+                    {
+                      "description": "Float new windows",
+                      "type": "string",
+                      "enum": [
+                        "Float"
+                      ]
+                    }
+                  ]
+                },
+                "initial_workspace_rules": {
+                  "description": "Initial workspace application rules",
+                  "type": "array",
+                  "items": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "kind"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "Exe",
+                              "Class",
+                              "Title",
+                              "Path"
+                            ]
+                          },
+                          "matching_strategy": {
+                            "type": "string",
+                            "enum": [
+                              "Legacy",
+                              "Equals",
+                              "StartsWith",
+                              "EndsWith",
+                              "Contains",
+                              "Regex",
+                              "DoesNotEndWith",
+                              "DoesNotStartWith",
+                              "DoesNotEqual",
+                              "DoesNotContain"
+                            ]
+                          }
+                        }
+                      },
+                      {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "required": [
+                            "id",
+                            "kind"
+                          ],
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "Exe",
+                                "Class",
+                                "Title",
+                                "Path"
+                              ]
+                            },
+                            "matching_strategy": {
+                              "type": "string",
+                              "enum": [
+                                "Legacy",
+                                "Equals",
+                                "StartsWith",
+                                "EndsWith",
+                                "Contains",
+                                "Regex",
+                                "DoesNotEndWith",
+                                "DoesNotStartWith",
+                                "DoesNotEqual",
+                                "DoesNotContain"
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                "layout": {
+                  "description": "Layout (default: BSP)",
+                  "type": "string",
+                  "enum": [
+                    "BSP",
+                    "Columns",
+                    "Rows",
+                    "VerticalStack",
+                    "HorizontalStack",
+                    "UltrawideVerticalStack",
+                    "Grid",
+                    "RightMainVerticalStack",
+                    "Scrolling"
+                  ]
+                },
+                "layout_flip": {
+                  "description": "Specify an axis on which to flip the selected layout (default: None)",
+                  "type": "string",
+                  "enum": [
+                    "Horizontal",
+                    "Vertical",
+                    "HorizontalAndVertical"
+                  ]
+                },
+                "layout_options": {
+                  "description": "Layout-specific options (default: None)",
+                  "type": "object",
+                  "properties": {
+                    "scrolling": {
+                      "description": "Options related to the Scrolling layout",
+                      "type": "object",
+                      "required": [
+                        "columns"
+                      ],
+                      "properties": {
+                        "columns": {
+                          "description": "Desired number of visible columns (default: 3)",
+                          "type": "integer",
+                          "format": "uint",
+                          "minimum": 0.0
+                        }
+                      }
+                    }
+                  }
+                },
+                "layout_rules": {
+                  "description": "Layout rules in the format of threshold => layout (default: None)",
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string",
+                    "enum": [
+                      "BSP",
+                      "Columns",
+                      "Rows",
+                      "VerticalStack",
+                      "HorizontalStack",
+                      "UltrawideVerticalStack",
+                      "Grid",
+                      "RightMainVerticalStack",
+                      "Scrolling"
+                    ]
+                  }
+                },
+                "name": {
+                  "description": "Name",
+                  "type": "string"
+                },
+                "tile": {
+                  "description": "Enable or disable tiling for the workspace (default: true)",
+                  "type": "boolean"
+                },
+                "window_container_behaviour": {
+                  "description": "Determine what happens when a new window is opened (default: Create)",
+                  "oneOf": [
+                    {
+                      "description": "Create a new container for each new window",
+                      "type": "string",
+                      "enum": [
+                        "Create"
+                      ]
+                    },
+                    {
+                      "description": "Append new windows to the focused window container",
+                      "type": "string",
+                      "enum": [
+                        "Append"
+                      ]
+                    }
+                  ]
+                },
+                "window_container_behaviour_rules": {
+                  "description": "Window container behaviour rules in the format of threshold => behaviour (default: None)",
+                  "type": "object",
+                  "additionalProperties": {
+                    "oneOf": [
+                      {
+                        "description": "Create a new container for each new window",
+                        "type": "string",
+                        "enum": [
+                          "Create"
+                        ]
+                      },
+                      {
+                        "description": "Append new windows to the focused window container",
+                        "type": "string",
+                        "enum": [
+                          "Append"
+                        ]
+                      }
+                    ]
+                  }
+                },
+                "work_area_offset": {
+                  "description": "Workspace specific work area offset (default: None)",
+                  "type": "object",
+                  "required": [
+                    "bottom",
+                    "left",
+                    "right",
+                    "top"
+                  ],
+                  "properties": {
+                    "bottom": {
+                      "type": "integer",
+                      "format": "int32"
+                    },
+                    "left": {
+                      "type": "integer",
+                      "format": "int32"
+                    },
+                    "right": {
+                      "type": "integer",
+                      "format": "int32"
+                    },
+                    "top": {
+                      "type": "integer",
+                      "format": "int32"
+                    }
+                  }
+                },
+                "workspace_padding": {
+                  "description": "Workspace padding (default: global)",
+                  "type": "integer",
+                  "format": "int32"
+                },
+                "workspace_rules": {
+                  "description": "Permanent workspace application rules",
+                  "type": "array",
+                  "items": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "required": [
+                          "id",
+                          "kind"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "Exe",
+                              "Class",
+                              "Title",
+                              "Path"
+                            ]
+                          },
+                          "matching_strategy": {
+                            "type": "string",
+                            "enum": [
+                              "Legacy",
+                              "Equals",
+                              "StartsWith",
+                              "EndsWith",
+                              "Contains",
+                              "Regex",
+                              "DoesNotEndWith",
+                              "DoesNotStartWith",
+                              "DoesNotEqual",
+                              "DoesNotContain"
+                            ]
+                          }
+                        }
+                      },
+                      {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "required": [
+                            "id",
+                            "kind"
+                          ],
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "Exe",
+                                "Class",
+                                "Title",
+                                "Path"
+                              ]
+                            },
+                            "matching_strategy": {
+                              "type": "string",
+                              "enum": [
+                                "Legacy",
+                                "Equals",
+                                "StartsWith",
+                                "EndsWith",
+                                "Contains",
+                                "Regex",
+                                "DoesNotEndWith",
+                                "DoesNotStartWith",
+                                "DoesNotEqual",
+                                "DoesNotContain"
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "mouse_follows_focus": {
+      "description": "Enable or disable mouse follows focus (default: true)",
+      "type": "boolean"
+    },
+    "object_name_change_applications": {
+      "description": "Identify applications that send EVENT_OBJECT_NAMECHANGE on launch (very rare)",
+      "type": "array",
+      "items": {
+        "anyOf": [
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "kind"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "Exe",
+                  "Class",
+                  "Title",
+                  "Path"
+                ]
+              },
+              "matching_strategy": {
+                "type": "string",
+                "enum": [
+                  "Legacy",
+                  "Equals",
+                  "StartsWith",
+                  "EndsWith",
+                  "Contains",
+                  "Regex",
+                  "DoesNotEndWith",
+                  "DoesNotStartWith",
+                  "DoesNotEqual",
+                  "DoesNotContain"
+                ]
+              }
+            }
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "kind"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "Exe",
+                    "Class",
+                    "Title",
+                    "Path"
+                  ]
+                },
+                "matching_strategy": {
+                  "type": "string",
+                  "enum": [
+                    "Legacy",
+                    "Equals",
+                    "StartsWith",
+                    "EndsWith",
+                    "Contains",
+                    "Regex",
+                    "DoesNotEndWith",
+                    "DoesNotStartWith",
+                    "DoesNotEqual",
+                    "DoesNotContain"
+                  ]
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    "object_name_change_title_ignore_list": {
+      "description": "Do not process EVENT_OBJECT_NAMECHANGE events as Show events for identified applications matching these title regexes",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "resize_delta": {
+      "description": "Delta to resize windows by (default 50)",
+      "type": "integer",
+      "format": "int32"
+    },
+    "toggle_float_placement": {
+      "description": "Determines the placement of a new window when toggling to float (default: CenterAndResize)",
+      "oneOf": [
+        {
+          "description": "Does not change the size or position of the window",
+          "type": "string",
+          "enum": [
+            "None"
+          ]
+        },
+        {
+          "description": "Center the window without changing the size",
+          "type": "string",
+          "enum": [
+            "Center"
+          ]
+        },
+        {
+          "description": "Center the window and resize it according to the `AspectRatio`",
+          "type": "string",
+          "enum": [
+            "CenterAndResize"
+          ]
+        }
+      ]
+    },
+    "tray_and_multi_window_applications": {
+      "description": "Identify tray and multi-window applications",
+      "type": "array",
+      "items": {
+        "anyOf": [
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "kind"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "Exe",
+                  "Class",
+                  "Title",
+                  "Path"
+                ]
+              },
+              "matching_strategy": {
+                "type": "string",
+                "enum": [
+                  "Legacy",
+                  "Equals",
+                  "StartsWith",
+                  "EndsWith",
+                  "Contains",
+                  "Regex",
+                  "DoesNotEndWith",
+                  "DoesNotStartWith",
+                  "DoesNotEqual",
+                  "DoesNotContain"
+                ]
+              }
+            }
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "kind"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "Exe",
+                    "Class",
+                    "Title",
+                    "Path"
+                  ]
+                },
+                "matching_strategy": {
+                  "type": "string",
+                  "enum": [
+                    "Legacy",
+                    "Equals",
+                    "StartsWith",
+                    "EndsWith",
+                    "Contains",
+                    "Regex",
+                    "DoesNotEndWith",
+                    "DoesNotStartWith",
+                    "DoesNotEqual",
+                    "DoesNotContain"
+                  ]
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    "unmanaged_window_operation_behaviour": {
+      "description": "Determine what happens when commands are sent while an unmanaged window is in the foreground (default: Op)",
+      "oneOf": [
+        {
+          "description": "Process komorebic commands on temporarily unmanaged/floated windows",
+          "type": "string",
+          "enum": [
+            "Op"
+          ]
+        },
+        {
+          "description": "Ignore komorebic commands on temporarily unmanaged/floated windows",
+          "type": "string",
+          "enum": [
+            "NoOp"
+          ]
+        }
+      ]
+    },
+    "window_container_behaviour": {
+      "description": "Determine what happens when a new window is opened (default: Create)",
+      "oneOf": [
+        {
+          "description": "Create a new container for each new window",
+          "type": "string",
+          "enum": [
+            "Create"
+          ]
+        },
+        {
+          "description": "Append new windows to the focused window container",
+          "type": "string",
+          "enum": [
+            "Append"
+          ]
+        }
+      ]
+    }
+  }
+}
