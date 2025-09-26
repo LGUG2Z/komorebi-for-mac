@@ -89,7 +89,7 @@ impl Default for Workspace {
             workspace_padding: None,
             container_padding: None,
             resize_dimensions: vec![],
-            layout: Layout::Default(DefaultLayout::UltrawideVerticalStack),
+            layout: Layout::Default(DefaultLayout::BSP),
             work_area_offset: None,
             latest_layout: vec![],
             layout_flip: None,

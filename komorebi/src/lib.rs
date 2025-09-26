@@ -74,17 +74,24 @@ pub mod workspace;
 
 lazy_static! {
     pub static ref HOME_DIR: PathBuf = {
-        std::env::var("KOMOREBI_CONFIG_HOME").map_or_else(|_| dirs::home_dir().expect("there is no home directory"), |home_path| {
-            let home = home_path.replace_env();
+        std::env::var("KOMOREBI_CONFIG_HOME").map_or_else(
+            |_| {
+                dirs::home_dir()
+                    .expect("there is no home directory")
+                    .join(".config")
+                    .join("komorebi")
+            },
+            |home_path| {
+                let home = home_path.replace_env();
 
-            assert!(
-                home.is_dir(),
-                "$Env:KOMOREBI_CONFIG_HOME is set to '{home_path}', which is not a valid directory"
-            );
+                assert!(
+                    home.is_dir(),
+                    "$KOMOREBI_CONFIG_HOME is set to '{home_path}', which is not a valid directory"
+                );
 
-
-            home
-        })
+                home
+            },
+        )
     };
     pub static ref DATA_DIR: PathBuf = dirs::data_local_dir()
         .expect("there is no local data directory")

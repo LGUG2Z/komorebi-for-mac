@@ -39,7 +39,7 @@ lazy_static! {
     static ref HAS_CUSTOM_CONFIG_HOME: AtomicBool = AtomicBool::new(false);
     static ref HOME_DIR: PathBuf = {
         std::env::var("KOMOREBI_CONFIG_HOME").map_or_else(
-            |_| dirs::home_dir().expect("there is no home directory"),
+            |_| dirs::home_dir().expect("there is no home directory").join(".config").join("komorebi"),
             |home_path| {
                 let home = home_path.replace_env();
                 if home.as_path().is_dir() {
@@ -47,7 +47,7 @@ lazy_static! {
                     home
                 } else {
                     panic!(
-                        "$Env:KOMOREBI_CONFIG_HOME is set to '{home_path}', which is not a valid directory",
+                        "$KOMOREBI_CONFIG_HOME is set to '{home_path}', which is not a valid directory",
                     );
                 }
             },
@@ -613,13 +613,11 @@ struct Opts {
 enum SubCommand {
     #[clap(hide = true)]
     Docgen,
-    // /// Gather example configurations for a new-user quickstart
-    // Quickstart,
+    /// Gather example configurations for a new-user quickstart
+    Quickstart,
     /// Start komorebi.exe as a background process
     Start(Start),
     /// Stop the komorebi.exe process and restore all hidden windows
-    // komorebi for Windows signature
-    // Stop(Stop),
     Stop(Stop),
     // /// Kill background processes started by komorebic
     // Kill(Kill),
@@ -1177,6 +1175,74 @@ fn main() -> eyre::Result<()> {
                 }
             }
         }
+        SubCommand::Quickstart => {
+            fn write_file_with_prompt(
+                path: &PathBuf,
+                content: &str,
+                created_files: &mut Vec<String>,
+            ) -> eyre::Result<()> {
+                if path.exists() {
+                    print!(
+                        "{} will be overwritten, do you want to continue? (y/N): ",
+                        path.display()
+                    );
+                    std::io::stdout().flush()?;
+                    let mut input = String::new();
+                    std::io::stdin().read_line(&mut input)?;
+                    let trimmed = input.trim().to_lowercase();
+                    if trimmed == "y" || trimmed == "yes" {
+                        std::fs::write(path, content)?;
+                        created_files.push(path.display().to_string());
+                    } else {
+                        println!("Skipping {}", path.display());
+                    }
+                } else {
+                    std::fs::write(path, content)?;
+                    created_files.push(path.display().to_string());
+                }
+                Ok(())
+            }
+
+            let local_appdata_dir = dirs::data_local_dir().expect("could not find localdata dir");
+            let data_dir = local_appdata_dir.join("komorebi");
+            std::fs::create_dir_all(&*HOME_DIR)?;
+            std::fs::create_dir_all(data_dir)?;
+
+            let mut komorebi_json = include_str!("../../docs/komorebi.example.json").to_string();
+
+            if std::env::var("KOMOREBI_CONFIG_HOME").is_ok() {
+                komorebi_json =
+                    komorebi_json.replace("Env:USERPROFILE", "Env:KOMOREBI_CONFIG_HOME");
+            }
+
+            let komorebi_path = HOME_DIR.join("komorebi.json");
+            let applications_path = HOME_DIR.join("applications.json");
+            let skhdrc_path = HOME_DIR.join("skhdrc");
+
+            let mut written_files = Vec::new();
+
+            write_file_with_prompt(&komorebi_path, &komorebi_json, &mut written_files)?;
+
+            let applications_json = include_str!("../applications.json");
+            write_file_with_prompt(&applications_path, applications_json, &mut written_files)?;
+
+            let whkdrc = include_str!("../../docs/skhdrc.sample");
+            write_file_with_prompt(&skhdrc_path, whkdrc, &mut written_files)?;
+            if written_files.is_empty() {
+                println!("\nNo files were written.")
+            } else {
+                println!(
+                    "\nThe following example files were written:\n{}",
+                    written_files.join("\n")
+                );
+            }
+            println!("\nYou can now run: komorebic start");
+            println!(
+                "\nIf you have skhd hotkey daemon installed, you can also run: skhd --config {}",
+                skhdrc_path.display()
+            );
+        }
+
         SubCommand::Start(arg) => {
             let mut command = &mut Command::new("komorebi");
 
