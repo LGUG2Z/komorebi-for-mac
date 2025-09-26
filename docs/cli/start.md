@@ -1,7 +1,7 @@
 # start
 
 ```
-Start komorebi.exe as a background process
+Start komorebi as a background process
 
 Usage: komorebic start [OPTIONS]
 

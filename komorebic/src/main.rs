@@ -623,9 +623,9 @@ enum SubCommand {
     Docgen,
     /// Gather example configurations for a new-user quickstart
     Quickstart,
-    /// Start komorebi.exe as a background process
+    /// Start komorebi as a background process
     Start(Start),
-    /// Stop the komorebi.exe process and restore all hidden windows
+    /// Stop the komorebi process and restore all hidden windows
     Stop(Stop),
     // /// Kill background processes started by komorebic
     // Kill(Kill),
@@ -641,7 +641,7 @@ enum SubCommand {
     // /// Show the path to whkdrc
     // #[clap(alias = "whkd")]
     // Whkdrc,
-    /// Show the path to komorebi's data directory in %LOCALAPPDATA%
+    /// Show the path to komorebi's data directory in $HOME/Library/Application Support
     #[clap(alias = "datadir")]
     DataDirectory,
     /// Show a JSON representation of the current window manager state
@@ -674,7 +674,7 @@ enum SubCommand {
     // #[clap(arg_required_else_help = true)]
     // #[clap(alias = "unsubscribe")]
     // UnsubscribePipe(UnsubscribePipe),
-    /// Tail komorebi.exe's process logs (cancel with Ctrl-C)
+    /// Tail komorebi's process logs (cancel with Ctrl-C)
     Log,
     /// Quicksave the current resize layout dimensions
     #[clap(alias = "quick-save")]
@@ -708,7 +708,7 @@ enum SubCommand {
     /// Move the focused window in the specified cycle direction
     #[clap(arg_required_else_help = true)]
     CycleMove(CycleMove),
-    /// Focus the first managed window matching the given exe
+    /// Focus the first managed window matching the given executable
     #[clap(arg_required_else_help = true)]
     EagerFocus(EagerFocus),
     /// Stack the focused window in the specified direction

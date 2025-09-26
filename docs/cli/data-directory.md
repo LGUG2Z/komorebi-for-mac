@@ -1,7 +1,7 @@
 # data-directory
 
 ```
-Show the path to komorebi's data directory in %LOCALAPPDATA%
+Show the path to komorebi's data directory in $HOME/Library/Application Support
 
 Usage: komorebic data-directory
 

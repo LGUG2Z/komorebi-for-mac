@@ -1,7 +1,7 @@
 # stop
 
 ```
-Stop the komorebi.exe process and restore all hidden windows
+Stop the komorebi process and restore all hidden windows
 
 Usage: komorebic stop
 

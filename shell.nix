@@ -6,13 +6,18 @@ with pkgs;
     RUST_BACKTRACE = "full";
 
     buildInputs = [
-      just
-      gcc
-      libiconv
-      cargo-deny
-      jq
-      prettier
-      cargo-udeps
       alejandra
+      cargo-deny
+      cargo-udeps
+      gcc
+      jq
+      just
+      libiconv
+      prettier
+
+      python311Packages.mkdocs-material
+      python311Packages.mkdocs-macros
+      python311Packages.setuptools
+      python311Packages.json-schema-for-humans
     ];
   }

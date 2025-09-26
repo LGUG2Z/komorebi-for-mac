@@ -1,7 +1,7 @@
 # log
 
 ```
-Tail komorebi.exe's process logs (cancel with Ctrl-C)
+Tail komorebi's process logs (cancel with Ctrl-C)
 
 Usage: komorebic log
 
