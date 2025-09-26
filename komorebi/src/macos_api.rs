@@ -15,6 +15,7 @@ use crate::core_graphics::CoreGraphicsApi;
 use crate::ioreg::IoReg;
 use crate::monitor::Monitor;
 use crate::monitor::MonitorInfo;
+use crate::window::RuleDebug;
 use crate::window::WindowInfo;
 use crate::window_manager::WindowManager;
 use color_eyre::eyre;
@@ -285,9 +286,12 @@ impl MacosApi {
                             };
 
                             if let Some(window) = application.window_by_title(&info.name) {
-                                window.observe(&wm.run_loop)?;
-                                entry.push(window);
-                                valid_window_count += 1
+                                let mut rule_debug = RuleDebug::default();
+                                if window.should_manage(None, &mut rule_debug)? {
+                                    window.observe(&wm.run_loop)?;
+                                    entry.push(window);
+                                    valid_window_count += 1
+                                }
                             }
                         }
                     }

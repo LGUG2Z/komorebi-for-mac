@@ -643,7 +643,7 @@ impl Window {
 
     #[tracing::instrument(skip_all)]
     pub fn should_manage(
-        self,
+        &self,
         event: Option<WindowManagerEvent>,
         debug: &mut RuleDebug,
     ) -> eyre::Result<bool> {
