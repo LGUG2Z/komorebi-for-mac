@@ -6,6 +6,8 @@ use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
 use komorebi::DATA_DIR;
 use komorebi::HOME_DIR;
+use komorebi::LATEST_MONITOR_INFORMATION;
+use komorebi::UPDATE_LATEST_MONITOR_INFORMATION;
 use komorebi::UPDATE_MONITOR_WORK_AREAS;
 use komorebi::core::pathext::replace_env_in_path;
 use komorebi::display_reconfiguration_listener::DisplayReconfigurationListener;
@@ -275,6 +277,12 @@ fn main() -> eyre::Result<()> {
             }
 
             UPDATE_MONITOR_WORK_AREAS.store(false, Ordering::Relaxed);
+        }
+
+        if UPDATE_LATEST_MONITOR_INFORMATION.load(Ordering::Relaxed) {
+            let mut latest_monitor_information = LATEST_MONITOR_INFORMATION.write();
+            // this can only be called on the main thread
+            *latest_monitor_information = Some(MacosApi::latest_monitor_information()?);
         }
 
         // this gets our observer notification callbacks firing

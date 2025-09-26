@@ -741,6 +741,13 @@ impl Workspace {
         container
     }
 
+    pub fn remove_container(&mut self, idx: usize) -> Option<Container> {
+        let container = self.remove_container_by_idx(idx);
+        self.focus_previous_container();
+
+        container
+    }
+
     pub fn promote_container(&mut self) -> eyre::Result<()> {
         let resize = self.resize_dimensions.remove(0);
         let container = self

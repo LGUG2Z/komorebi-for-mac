@@ -59,6 +59,7 @@ use std::sync::Arc;
 #[derive(Debug)]
 pub struct WindowManager {
     pub monitors: Ring<Monitor>,
+    pub monitor_usr_idx_map: HashMap<usize, usize>,
     pub applications: HashMap<i32, Application>,
     pub run_loop: CoreFoundationRunLoop,
     pub command_listener: UnixListener,
@@ -138,6 +139,7 @@ impl WindowManager {
 
         Ok(Self {
             monitors: Ring::default(),
+            monitor_usr_idx_map: HashMap::new(),
             applications: Default::default(),
             run_loop: CoreFoundationRunLoop(run_loop.clone()),
             command_listener: listener,

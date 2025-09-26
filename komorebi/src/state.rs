@@ -1,4 +1,5 @@
 use crate::DATA_DIR;
+use crate::DISPLAY_INDEX_PREFERENCES;
 use crate::HOME_DIR;
 use crate::IGNORE_IDENTIFIERS;
 use crate::MANAGE_IDENTIFIERS;
@@ -15,6 +16,7 @@ use crate::window_manager::WindowManager;
 use crate::workspace::Workspace;
 use serde::Deserialize;
 use serde::Serialize;
+use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::path::PathBuf;
 
@@ -44,7 +46,7 @@ pub struct GlobalState {
     // pub tray_and_multi_window_identifiers: Vec<MatchingRule>,
     // pub name_change_on_launch_identifiers: Vec<MatchingRule>,
     // pub monitor_index_preferences: HashMap<usize, Rect>,
-    // pub display_index_preferences: HashMap<usize, String>,
+    pub display_index_preferences: HashMap<usize, String>,
     // pub ignored_duplicate_monitor_serial_ids: Vec<String>,
     pub workspace_rules: Vec<WorkspaceMatchingRule>,
     // pub window_hiding_behaviour: HidingBehaviour,
@@ -58,6 +60,7 @@ impl Default for GlobalState {
         Self {
             ignore_identifiers: IGNORE_IDENTIFIERS.lock().clone(),
             manage_identifiers: MANAGE_IDENTIFIERS.lock().clone(),
+            display_index_preferences: DISPLAY_INDEX_PREFERENCES.read().clone(),
             workspace_rules: WORKSPACE_MATCHING_RULES.lock().clone(),
             configuration_dir: HOME_DIR.clone(),
             data_dir: DATA_DIR.clone(),
@@ -70,7 +73,7 @@ impl Default for GlobalState {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct State {
     pub monitors: Ring<Monitor>,
-    // pub monitor_usr_idx_map: HashMap<usize, usize>,
+    pub monitor_usr_idx_map: HashMap<usize, usize>,
     pub is_paused: bool,
     pub resize_delta: i32,
     pub new_window_behaviour: WindowContainerBehaviour,
@@ -154,7 +157,7 @@ impl From<&WindowManager> for State {
 
         Self {
             monitors: stripped_monitors,
-            // monitor_usr_idx_map: wm.monitor_usr_idx_map.clone(),
+            monitor_usr_idx_map: wm.monitor_usr_idx_map.clone(),
             is_paused: wm.is_paused,
             work_area_offset: wm.work_area_offset,
             resize_delta: wm.resize_delta,

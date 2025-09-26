@@ -70,6 +70,33 @@ pub struct Monitor {
     pub floating_layer_behaviour: Option<FloatingLayerBehaviour>,
 }
 
+pub fn new(
+    id: u32,
+    size: Rect,
+    work_area_size: Rect,
+    device: String,
+    serial_number_id: String,
+) -> Monitor {
+    let mut workspaces = Ring::default();
+    workspaces.elements_mut().push_back(Workspace::default());
+
+    Monitor {
+        id,
+        device,
+        serial_number_id,
+        size,
+        work_area_size,
+        work_area_offset: None,
+        window_based_work_area_offset: None,
+        window_based_work_area_offset_limit: 1,
+        workspaces,
+        last_focused_workspace: None,
+        container_padding: None,
+        workspace_padding: None,
+        floating_layer_behaviour: None,
+    }
+}
+
 impl Monitor {
     #[allow(clippy::field_reassign_with_default)]
     pub fn new(
@@ -100,6 +127,25 @@ impl Monitor {
             container_padding: None,
             workspace_padding: None,
             last_focused_workspace: None,
+            floating_layer_behaviour: None,
+        }
+    }
+
+    pub fn placeholder() -> Self {
+        Self {
+            // temp
+            id: 2051316,
+            device: "".to_string(),
+            serial_number_id: "PLACEHOLDER".to_string(),
+            size: Default::default(),
+            work_area_size: Default::default(),
+            work_area_offset: None,
+            window_based_work_area_offset: None,
+            window_based_work_area_offset_limit: 0,
+            workspaces: Default::default(),
+            last_focused_workspace: None,
+            container_padding: None,
+            workspace_padding: None,
             floating_layer_behaviour: None,
         }
     }

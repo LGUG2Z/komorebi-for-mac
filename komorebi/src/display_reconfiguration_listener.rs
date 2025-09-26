@@ -18,17 +18,43 @@ unsafe extern "C-unwind" fn callback(
         tracing::debug!("display: {display_id} resized");
         monitor_reconciliator::send_notification(MonitorNotification::Resize(display_id));
     }
+    if flags.contains(CGDisplayChangeSummaryFlags::AddFlag) {
+        tracing::debug!("display: {display_id} added");
+        monitor_reconciliator::send_notification(MonitorNotification::DisplayConnectionChange(
+            display_id,
+        ));
+    }
+
+    if flags.contains(CGDisplayChangeSummaryFlags::RemoveFlag) {
+        tracing::debug!("display: {display_id} removed");
+        monitor_reconciliator::send_notification(MonitorNotification::DisplayConnectionChange(
+            display_id,
+        ));
+    }
+
+    if flags.contains(CGDisplayChangeSummaryFlags::EnabledFlag) {
+        tracing::debug!("display: {display_id} enabled");
+        monitor_reconciliator::send_notification(MonitorNotification::DisplayConnectionChange(
+            display_id,
+        ));
+    }
+
+    if flags.contains(CGDisplayChangeSummaryFlags::DisabledFlag) {
+        tracing::debug!("display: {display_id} disabled");
+        monitor_reconciliator::send_notification(MonitorNotification::DisplayConnectionChange(
+            display_id,
+        ));
+    }
+
+    if flags.contains(CGDisplayChangeSummaryFlags::MovedFlag) {
+        tracing::debug!("display: {display_id} moved");
+        monitor_reconciliator::send_notification(MonitorNotification::DisplayConnectionChange(
+            display_id,
+        ));
+    }
 
     // if flags.contains(CGDisplayChangeSummaryFlags::BeginConfigurationFlag) {
     //     tracing::debug!("display: {display_id} configured");
-    // }
-    //
-    // if flags.contains(CGDisplayChangeSummaryFlags::AddFlag) {
-    //     tracing::debug!("display: {display_id} added");
-    // }
-    //
-    // if flags.contains(CGDisplayChangeSummaryFlags::RemoveFlag) {
-    //     tracing::debug!("display: {display_id} removed");
     // }
     //
     // if flags.contains(CGDisplayChangeSummaryFlags::MirrorFlag) {
@@ -37,18 +63,6 @@ unsafe extern "C-unwind" fn callback(
     //
     // if flags.contains(CGDisplayChangeSummaryFlags::UnMirrorFlag) {
     //     tracing::debug!("display: {display_id} unmirrored");
-    // }
-    //
-    // if flags.contains(CGDisplayChangeSummaryFlags::EnabledFlag) {
-    //     tracing::debug!("display: {display_id} enabled");
-    // }
-    //
-    // if flags.contains(CGDisplayChangeSummaryFlags::DisabledFlag) {
-    //     tracing::debug!("display: {display_id} disabled");
-    // }
-    //
-    // if flags.contains(CGDisplayChangeSummaryFlags::DisabledFlag) {
-    //     tracing::debug!("display: {display_id} disabled");
     // }
     //
     // tracing::trace!("display: {display_id}, flags: {flags:?}");
