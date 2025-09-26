@@ -39,6 +39,9 @@ debug target $RUST_LOG="debug":
 trace target $RUST_LOG="trace":
     just run {{ target }}
 
+deadlock $RUST_LOG="trace":
+    cargo +stable run --bin komorebi --locked --no-default-features --features deadlock_detection
+
 depgen:
     cargo deny check
     cargo deny list --format json | jq 'del(.unlicensed)' > dependencies.json

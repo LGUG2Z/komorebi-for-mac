@@ -7,6 +7,7 @@ use color_eyre::eyre::OptionExt;
 use komorebi::DATA_DIR;
 use komorebi::HOME_DIR;
 use komorebi::LATEST_MONITOR_INFORMATION;
+use komorebi::LOAD_LATEST_MONITOR_INFORMATION;
 use komorebi::UPDATE_LATEST_MONITOR_INFORMATION;
 use komorebi::UPDATE_MONITOR_WORK_AREAS;
 use komorebi::core::pathext::replace_env_in_path;
@@ -138,6 +139,31 @@ fn setup(log_level: LogLevel) -> eyre::Result<(WorkerGuard, WorkerGuard)> {
     Ok((guard, color_guard))
 }
 
+#[cfg(feature = "deadlock_detection")]
+#[tracing::instrument]
+fn detect_deadlocks() {
+    // Create a background thread which checks for deadlocks every 10s
+    std::thread::spawn(move || {
+        loop {
+            tracing::info!("running deadlock detector");
+            std::thread::sleep(std::time::Duration::from_secs(5));
+            let deadlocks = parking_lot::deadlock::check_deadlock();
+            if deadlocks.is_empty() {
+                continue;
+            }
+
+            tracing::error!("{} deadlocks detected", deadlocks.len());
+            for (i, threads) in deadlocks.iter().enumerate() {
+                tracing::error!("deadlock #{}", i);
+                for t in threads {
+                    tracing::error!("thread id: {:#?}", t.thread_id());
+                    tracing::error!("{:#?}", t.backtrace());
+                }
+            }
+        }
+    });
+}
+
 #[derive(Default, Deserialize, ValueEnum, Clone)]
 #[serde(rename_all = "snake_case")]
 enum LogLevel {
@@ -196,6 +222,9 @@ fn main() -> eyre::Result<()> {
 
     let run_loop = CFRunLoop::current().ok_or_eyre("couldn't get CFRunLoop::current")?;
     let _input_listener = InputEventListener::init(&run_loop);
+
+    #[cfg(feature = "deadlock_detection")]
+    detect_deadlocks();
 
     let static_config = opts.config.map_or_else(
         || {
@@ -272,17 +301,30 @@ fn main() -> eyre::Result<()> {
 
         if UPDATE_MONITOR_WORK_AREAS.load(Ordering::Relaxed) {
             // this can only be called on the main thread
-            if let Err(error) = MacosApi::update_monitor_work_areas(wm.clone()) {
-                tracing::error!("failed to update montior work areas: {error}");
-            }
+            if let Some(mut wm) = wm.try_lock() {
+                if let Err(error) = MacosApi::update_monitor_work_areas(&mut wm) {
+                    tracing::error!("failed to update monitor work areas: {error}");
+                }
 
-            UPDATE_MONITOR_WORK_AREAS.store(false, Ordering::Relaxed);
+                UPDATE_MONITOR_WORK_AREAS.store(false, Ordering::Relaxed);
+            }
         }
 
         if UPDATE_LATEST_MONITOR_INFORMATION.load(Ordering::Relaxed) {
             let mut latest_monitor_information = LATEST_MONITOR_INFORMATION.write();
             // this can only be called on the main thread
             *latest_monitor_information = Some(MacosApi::latest_monitor_information()?);
+        }
+
+        if LOAD_LATEST_MONITOR_INFORMATION.load(Ordering::Relaxed) {
+            // this can only be called on the main thread
+            if let Some(mut wm) = wm.try_lock() {
+                if let Err(error) = MacosApi::load_monitor_information(&mut wm) {
+                    tracing::error!("failed to update load monitor information: {error}");
+                }
+
+                LOAD_LATEST_MONITOR_INFORMATION.store(false, Ordering::Relaxed);
+            }
         }
 
         // this gets our observer notification callbacks firing

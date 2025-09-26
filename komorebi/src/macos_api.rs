@@ -14,10 +14,12 @@ use crate::core::rect::Rect;
 use crate::core_graphics::CoreGraphicsApi;
 use crate::ioreg::IoReg;
 use crate::monitor::Monitor;
+use crate::monitor::MonitorInfo;
 use crate::window::WindowInfo;
 use crate::window_manager::WindowManager;
 use color_eyre::eyre;
 use objc2::MainThreadMarker;
+use objc2_app_kit::NSDeviceDescriptionKey;
 use objc2_app_kit::NSEvent;
 use objc2_app_kit::NSScreen;
 use objc2_application_services::AXUIElement;
@@ -28,6 +30,9 @@ use objc2_core_foundation::CFRetained;
 use objc2_core_foundation::CFString;
 use objc2_core_foundation::CGPoint;
 use objc2_core_foundation::CGRect;
+use objc2_core_foundation::CGSize;
+use objc2_core_graphics::CGMainDisplayID;
+use objc2_foundation::NSNumber;
 use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
@@ -40,49 +45,10 @@ pub struct MacosApi;
 impl MacosApi {
     #[tracing::instrument(skip_all)]
     pub fn load_monitor_information(wm: &mut WindowManager) -> Result<(), LibraryError> {
+        let all_devices = Self::latest_monitor_information()?;
+
         let monitors = &mut wm.monitors;
         let monitor_usr_idx_map = &mut wm.monitor_usr_idx_map;
-
-        let monitor_info = IoReg::query_monitors()?;
-
-        let mut monitor_info_map = HashMap::new();
-        for m in monitor_info {
-            monitor_info_map.insert(m.serial_number, m);
-        }
-
-        let mut all_devices = vec![];
-
-        let screens = NSScreen::screens(MainThreadMarker::new().unwrap());
-
-        for display_id in CoreGraphicsApi::connected_display_ids()? {
-            let display_bounds = CoreGraphicsApi::display_bounds(display_id);
-            let serial_number = CoreGraphicsApi::display_serial_number(display_id);
-
-            if let Some(info) = monitor_info_map.get(&serial_number) {
-                for screen in &screens {
-                    let menu_bar_height = screen.frame().size.height
-                        - screen.visibleFrame().size.height
-                        - screen.visibleFrame().origin.y;
-
-                    if screen.frame() == display_bounds {
-                        let size = Rect::from(display_bounds);
-                        let mut work_area_size = Rect::from(display_bounds);
-                        work_area_size.top += menu_bar_height as i32;
-                        work_area_size.bottom = screen.visibleFrame().size.height as i32;
-
-                        let monitor = Monitor::new(
-                            display_id,
-                            size,
-                            work_area_size,
-                            &info.product_name,
-                            &info.alphanumeric_serial_number,
-                        );
-
-                        all_devices.push(monitor);
-                    }
-                }
-            }
-        }
 
         'read: for device in all_devices {
             for monitor in monitors.elements() {
@@ -164,36 +130,19 @@ impl MacosApi {
         Ok(())
     }
 
-    pub fn update_monitor_work_areas(wm: Arc<Mutex<WindowManager>>) -> eyre::Result<()> {
-        let screens = NSScreen::screens(MainThreadMarker::new().unwrap());
-
-        for display_id in CoreGraphicsApi::connected_display_ids()? {
-            let display_bounds = CoreGraphicsApi::display_bounds(display_id);
-
-            let mut wm = wm.lock();
-
-            for screen in &screens {
-                let menu_bar_height = screen.frame().size.height
-                    - screen.visibleFrame().size.height
-                    - screen.visibleFrame().origin.y;
-
-                if screen.frame() == display_bounds {
-                    let size = Rect::from(display_bounds);
-                    let mut work_area_size = Rect::from(display_bounds);
-                    work_area_size.top += menu_bar_height as i32;
-                    work_area_size.bottom = screen.visibleFrame().size.height as i32;
-
-                    for monitor in wm.monitors_mut() {
-                        if monitor.id == display_id {
-                            monitor.size = size;
-                            monitor.work_area_size = work_area_size;
-                        }
-
-                        tracing::info!(
-                            "updated monitor size and work area for monitor {display_id}"
-                        )
-                    }
+    pub fn update_monitor_work_areas(wm: &mut WindowManager) -> eyre::Result<()> {
+        let all_devices = Self::latest_monitor_information()?;
+        for device in all_devices {
+            for monitor in wm.monitors_mut() {
+                if monitor.id == device.id {
+                    monitor.size = device.size;
+                    monitor.work_area_size = device.work_area_size;
                 }
+
+                tracing::info!(
+                    "updated monitor size and work area for monitor {}",
+                    monitor.serial_number_id
+                );
             }
 
             let focus_follows_mouse = wm.mouse_follows_focus;
@@ -204,47 +153,102 @@ impl MacosApi {
     }
 
     pub fn latest_monitor_information() -> Result<Vec<Monitor>, LibraryError> {
-        let mut monitors = vec![];
+        let screens = NSScreen::screens(MainThreadMarker::new().unwrap());
+        let mut network_attached_screens = vec![];
+
+        for display_id in CoreGraphicsApi::connected_display_ids()? {
+            let serial_number = CoreGraphicsApi::display_serial_number(display_id);
+            network_attached_screens.push((serial_number, display_id));
+        }
 
         let monitor_info = IoReg::query_monitors()?;
+
         let mut monitor_info_map = HashMap::new();
         for m in monitor_info {
             monitor_info_map.insert(m.serial_number, m);
         }
 
-        let screens = NSScreen::screens(MainThreadMarker::new().unwrap());
+        // total hackery for iPad second screen stuff over the network
+        for info in monitor_info_map.values() {
+            network_attached_screens
+                .retain(|(serial_number, _)| serial_number != &info.serial_number);
+        }
+
+        for (serial_number, display_id) in network_attached_screens {
+            for screen in &screens {
+                if let Some(did) = screen
+                    .deviceDescription()
+                    .objectForKey(&NSDeviceDescriptionKey::from_str("NSScreenNumber"))
+                    && let Ok(did) = did.downcast::<NSNumber>()
+                    && did.as_u32() == display_id
+                {
+                    monitor_info_map.insert(
+                        serial_number,
+                        MonitorInfo {
+                            alphanumeric_serial_number: serial_number.to_string(),
+                            manufacturer_id: "".to_string(),
+                            product_name: unsafe { screen.localizedName() }.to_string(),
+                            legacy_manufacturer_id: "".to_string(),
+                            product_id: "".to_string(),
+                            serial_number,
+                            week_of_manufacture: "".to_string(),
+                            year_of_manufacture: "".to_string(),
+                        },
+                    );
+                }
+            }
+        }
+
+        let mut all_devices = vec![];
 
         for display_id in CoreGraphicsApi::connected_display_ids()? {
-            let display_bounds = CoreGraphicsApi::display_bounds(display_id);
             let serial_number = CoreGraphicsApi::display_serial_number(display_id);
-
             if let Some(info) = monitor_info_map.get(&serial_number) {
                 for screen in &screens {
-                    let menu_bar_height = screen.frame().size.height
-                        - screen.visibleFrame().size.height
-                        - screen.visibleFrame().origin.y;
+                    if let Some(did) = screen
+                        .deviceDescription()
+                        .objectForKey(&NSDeviceDescriptionKey::from_str("NSScreenNumber"))
+                    {
+                        let display_bounds = CoreGraphicsApi::display_bounds(display_id);
+                        if let Ok(did) = did.downcast::<NSNumber>()
+                            && did.as_u32() == display_id
+                        {
+                            let size = Rect::from(display_bounds);
 
-                    if screen.frame() == display_bounds {
-                        let size = Rect::from(display_bounds);
-                        let mut work_area_size = Rect::from(display_bounds);
-                        work_area_size.top += menu_bar_height as i32;
-                        work_area_size.bottom = screen.visibleFrame().size.height as i32;
+                            let visible_frame = screen.visibleFrame();
+                            let primary_display_height =
+                                CoreGraphicsApi::display_bounds(unsafe { CGMainDisplayID() })
+                                    .size
+                                    .height;
 
-                        let monitor = Monitor::new(
-                            display_id,
-                            size,
-                            work_area_size,
-                            &info.product_name,
-                            &info.alphanumeric_serial_number,
-                        );
+                            let quartz_visible_frame = CGRect::new(
+                                CGPoint::new(
+                                    visible_frame.origin.x,
+                                    primary_display_height
+                                        - visible_frame.origin.y
+                                        - visible_frame.size.height,
+                                ),
+                                CGSize::new(visible_frame.size.width, visible_frame.size.height),
+                            );
 
-                        monitors.push(monitor);
+                            let work_area_size = Rect::from(quartz_visible_frame);
+
+                            let monitor = Monitor::new(
+                                display_id,
+                                size,
+                                work_area_size,
+                                &info.product_name,
+                                &info.alphanumeric_serial_number,
+                            );
+
+                            all_devices.push(monitor);
+                        }
                     }
                 }
             }
         }
 
-        Ok(monitors)
+        Ok(all_devices)
     }
 
     pub fn reconile_monitors(wm: Arc<Mutex<WindowManager>>) -> eyre::Result<()> {
@@ -252,7 +256,6 @@ impl MacosApi {
 
         for display_id in CoreGraphicsApi::connected_display_ids()? {
             let display_bounds = CoreGraphicsApi::display_bounds(display_id);
-
             let mut wm = wm.lock();
 
             for screen in &screens {

@@ -103,6 +103,8 @@ lazy_static! {
     pub static ref UPDATE_MONITOR_WORK_AREAS: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
     pub static ref UPDATE_LATEST_MONITOR_INFORMATION: Arc<AtomicBool> =
         Arc::new(AtomicBool::new(false));
+    pub static ref LOAD_LATEST_MONITOR_INFORMATION: Arc<AtomicBool> =
+        Arc::new(AtomicBool::new(false));
     pub static ref LATEST_MONITOR_INFORMATION: Arc<RwLock<Option<Vec<Monitor>>>> =
         Arc::new(RwLock::new(None));
     static ref WORKSPACE_MATCHING_RULES: Arc<Mutex<Vec<WorkspaceMatchingRule>>> =

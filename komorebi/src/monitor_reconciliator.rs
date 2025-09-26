@@ -1,11 +1,12 @@
 use crate::DISPLAY_INDEX_PREFERENCES;
 use crate::LATEST_MONITOR_INFORMATION;
+use crate::LOAD_LATEST_MONITOR_INFORMATION;
 use crate::Notification;
 use crate::NotificationEvent;
+use crate::UPDATE_LATEST_MONITOR_INFORMATION;
 use crate::UPDATE_MONITOR_WORK_AREAS;
 use crate::WORKSPACE_MATCHING_RULES;
 use crate::core::config_generation::WorkspaceMatchingRule;
-use crate::macos_api::MacosApi;
 use crate::monitor::Monitor;
 use crate::notify_subscribers;
 use crate::state::State;
@@ -91,13 +92,15 @@ pub fn listen_for_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Re
 
 pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result<()> {
     tracing::info!("listening");
+    let arc = wm.clone();
 
     let receiver = event_rx();
 
     'receiver: for notification in receiver {
-        let mut wm = wm.lock();
-
-        let initial_state = State::from(wm.as_ref());
+        let initial_state = {
+            let wm = wm.lock();
+            State::from(wm.as_ref())
+        };
 
         match notification {
             MonitorNotification::Resize(_display_id) => {
@@ -105,6 +108,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                 UPDATE_MONITOR_WORK_AREAS.store(true, Ordering::Relaxed);
             }
             MonitorNotification::DisplayConnectionChange(_) => {
+                let mut wm = wm.lock();
                 tracing::debug!("handling display connection change notification");
                 let mut monitor_cache = MONITOR_CACHE
                     .get_or_init(|| Mutex::new(HashMap::new()))
@@ -116,10 +120,12 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                 // TODO: I think because of the way the threading model works on macOS we'll
                 // need to run this on the main thread to get access to info from NSScreen
                 // let attached_devices = attached_display_devices(display_provider)?;
-                let mut latest_monitor_information = LATEST_MONITOR_INFORMATION.write();
-                *latest_monitor_information = None;
+                {
+                    let mut latest_monitor_information = LATEST_MONITOR_INFORMATION.write();
+                    *latest_monitor_information = None;
+                }
 
-                UPDATE_MONITOR_WORK_AREAS.store(true, Ordering::Relaxed);
+                UPDATE_LATEST_MONITOR_INFORMATION.store(true, Ordering::Relaxed);
 
                 let mut attached_devices = vec![];
                 while attached_devices.is_empty() {
@@ -130,9 +136,9 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                     std::thread::sleep(std::time::Duration::from_millis(100));
                 }
 
-                UPDATE_MONITOR_WORK_AREAS.store(false, Ordering::Relaxed);
+                UPDATE_LATEST_MONITOR_INFORMATION.store(false, Ordering::Relaxed);
 
-                // Make sure that in our state any attached displays have the latest Win32 data
+                // Make sure that in our state any attached displays have the latest macOS API data
                 for monitor in wm.monitors_mut() {
                     for attached in &attached_devices {
                         // let serial_number_ids_match = if let (Some(attached_snid), Some(m_snid)) =
@@ -326,7 +332,18 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
 
                 // // Check for and add any new monitors that may have been plugged in
                 // // Monitor and display index preferences get applied in this function
-                MacosApi::load_monitor_information(&mut wm)?;
+                // MacosApi::load_monitor_information(&mut wm)?;
+
+                // need to drop here because the main thread needs the lock to load the latest
+                // monitor info into the wm state
+                drop(wm);
+                LOAD_LATEST_MONITOR_INFORMATION.store(true, Ordering::Relaxed);
+                while LOAD_LATEST_MONITOR_INFORMATION.load(Ordering::Relaxed) {
+                    std::thread::sleep(std::time::Duration::from_millis(100));
+                    tracing::trace!("waiting for latest monitor info to be loaded {}", line!());
+                }
+
+                let mut wm = arc.lock();
 
                 let post_addition_monitor_count = wm.monitors().len();
 
@@ -548,13 +565,16 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
             }
         }
 
-        notify_subscribers(
-            Notification {
-                event: NotificationEvent::Monitor(notification),
-                state: wm.as_ref().into(),
-            },
-            initial_state.has_been_modified(&wm),
-        )?;
+        {
+            let wm = wm.lock();
+            notify_subscribers(
+                Notification {
+                    event: NotificationEvent::Monitor(notification),
+                    state: wm.as_ref().into(),
+                },
+                initial_state.has_been_modified(&wm),
+            )?;
+        }
     }
 
     Ok(())

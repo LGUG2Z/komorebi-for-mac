@@ -42,4 +42,5 @@ shadow-rs = { workspace = true }
 
 [features]
 default = ["schemars"]
+deadlock_detection = ["parking_lot/deadlock_detection"]
 schemars = ["dep:schemars"]
