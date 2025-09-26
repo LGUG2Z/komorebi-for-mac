@@ -352,27 +352,30 @@ impl Window {
 
     #[tracing::instrument(skip_all)]
     pub fn hide(&mut self) -> Result<(), AccessibilityError> {
+        let rect = MacosApi::window_rect(&self.element)?;
+
         let mut window_restore_positions = WINDOW_RESTORE_POSITIONS.lock();
-        if let Entry::Vacant(entry) = window_restore_positions.entry(self.id) {
-            let rect = MacosApi::window_rect(&self.element)?;
-            if let Some(monitor_size) = CoreGraphicsApi::display_bounds_for_window_rect(rect) {
-                entry.insert(rect);
-                drop(window_restore_positions);
+        if let Entry::Vacant(entry) = window_restore_positions.entry(self.id)
+            && CoreGraphicsApi::display_bounds_for_window_rect(rect).is_none()
+        {
+            entry.insert(rect);
+            drop(window_restore_positions);
+        }
 
-                // I don't love this, but it's basically what Aerospace does in lieu of an actual "Hide" API
-                let hidden_rect = hidden_frame_bottom_left(monitor_size, rect.size);
+        if let Some(monitor_size) = CoreGraphicsApi::display_bounds_for_window_rect(rect) {
+            // I don't love this, but it's basically what Aerospace does in lieu of an actual "Hide" API
+            let hidden_rect = hidden_frame_bottom_left(monitor_size, rect.size);
 
-                tracing::debug!(
-                    "hiding {} and setting restore point to {},{}",
-                    self.title()
-                        .unwrap_or_else(|| String::from("<NO TITLE FOUND>")),
-                    rect.origin.x,
-                    rect.origin.y,
-                );
+            tracing::debug!(
+                "hiding {} and setting restore point to {},{}",
+                self.title()
+                    .unwrap_or_else(|| String::from("<NO TITLE FOUND>")),
+                rect.origin.x,
+                rect.origin.y,
+            );
 
-                self.set_point(hidden_rect.origin, true)?;
-                self.set_size(hidden_rect.size, true)?;
-            }
+            self.set_point(hidden_rect.origin, true)?;
+            self.set_size(hidden_rect.size, true)?;
         }
 
         Ok(())

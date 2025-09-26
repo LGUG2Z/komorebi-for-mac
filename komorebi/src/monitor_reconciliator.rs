@@ -116,16 +116,11 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
 
                 let initial_monitor_count = wm.monitors().len();
 
-                // Get the currently attached display devices
-                // TODO: I think because of the way the threading model works on macOS we'll
-                // need to run this on the main thread to get access to info from NSScreen
-                // let attached_devices = attached_display_devices(display_provider)?;
                 {
                     let mut latest_monitor_information = LATEST_MONITOR_INFORMATION.write();
                     *latest_monitor_information = None;
+                    UPDATE_LATEST_MONITOR_INFORMATION.store(true, Ordering::Relaxed);
                 }
-
-                UPDATE_LATEST_MONITOR_INFORMATION.store(true, Ordering::Relaxed);
 
                 let mut attached_devices = vec![];
                 while attached_devices.is_empty() {
@@ -141,23 +136,13 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                 // Make sure that in our state any attached displays have the latest macOS API data
                 for monitor in wm.monitors_mut() {
                     for attached in &attached_devices {
-                        // let serial_number_ids_match = if let (Some(attached_snid), Some(m_snid)) =
-                        //     (&attached.serial_number_id, &monitor.serial_number_id)
-                        // {
-                        //     attached_snid.eq(m_snid)
-                        // } else {
-                        //     false
-                        // };
-
                         let serial_number_ids_match =
                             attached.serial_number_id == monitor.serial_number_id;
 
                         if serial_number_ids_match {
                             monitor.id = attached.id;
                             monitor.device = attached.device.clone();
-                            // monitor.device_id = attached.device_id.clone();
                             monitor.serial_number_id = attached.serial_number_id.clone();
-                            // monitor.name = attached.name.clone();
                             monitor.size = attached.size;
                             monitor.work_area_size = attached.work_area_size;
                         }
@@ -267,6 +252,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                                     rules_to_remove.push(i);
                                 }
                             }
+
                             for i in rules_to_remove {
                                 workspace_rules.remove(i);
                             }
@@ -286,7 +272,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                         }
                     }
 
-                    // Update known_hwnds
+                    // Update known_window_ids
                     wm.known_window_ids
                         .retain(|i, _| !windows_to_remove.contains(i));
 
@@ -317,32 +303,32 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
 
                 let post_removal_monitor_count = wm.monitors().len();
 
-                // // This is the list of device ids after we have removed detached displays. We can
-                // // keep this with just the device_ids without the serial numbers since this is used
-                // // only to check which one is the newly added monitor below if there is a new
-                // // monitor. Everything done after with said new monitor will again consider both
-                // // serial number and device ids.
-                // let post_removal_device_ids = wm
-                //     .monitors()
-                //     .iter()
-                //     .map(|m| &m.device_id)
-                //     .cloned()
-                //     .collect::<Vec<_>>();
-                let post_removal_serial_ids = [];
+                // This is the list of device ids after we have removed detached displays. We can
+                // keep this with just the device_ids without the serial numbers since this is used
+                // only to check which one is the newly added monitor below if there is a new
+                // monitor. Everything done after with said new monitor will again consider both
+                // serial number and device ids.
+                let post_removal_serial_ids = wm
+                    .monitors()
+                    .iter()
+                    .map(|m| &m.serial_number_id)
+                    .cloned()
+                    .collect::<Vec<_>>();
 
-                // // Check for and add any new monitors that may have been plugged in
-                // // Monitor and display index preferences get applied in this function
-                // MacosApi::load_monitor_information(&mut wm)?;
-
-                // need to drop here because the main thread needs the lock to load the latest
-                // monitor info into the wm state
-                drop(wm);
-                LOAD_LATEST_MONITOR_INFORMATION.store(true, Ordering::Relaxed);
-                while LOAD_LATEST_MONITOR_INFORMATION.load(Ordering::Relaxed) {
-                    std::thread::sleep(std::time::Duration::from_millis(100));
-                    tracing::trace!("waiting for latest monitor info to be loaded {}", line!());
+                // Check for and add any new monitors that may have been plugged in
+                // Monitor and display index preferences get applied in this function
+                {
+                    // need to drop here because the main thread needs the lock to load the latest
+                    // monitor info into the wm state
+                    drop(wm);
+                    LOAD_LATEST_MONITOR_INFORMATION.store(true, Ordering::Relaxed);
+                    while LOAD_LATEST_MONITOR_INFORMATION.load(Ordering::Relaxed) {
+                        std::thread::sleep(std::time::Duration::from_millis(50));
+                        tracing::trace!("waiting for latest monitor info to be loaded {}", line!());
+                    }
                 }
 
+                // regain the lock here once the monitor information has been updated
                 let mut wm = arc.lock();
 
                 let post_addition_monitor_count = wm.monitors().len();
@@ -561,6 +547,16 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                     // wm.retile_all(true)?;
                     // Border updates to fix DPI/resolution related jank
                     // border_manager::send_notification(None);
+                }
+
+                let mouse_follows_focus = wm.mouse_follows_focus;
+                // when a monitor is added/removed some of our "hidden" windows
+                // get brought back onto the screen, so we wanna make sure unfocused
+                // workspaces get hidden again
+                if initial_monitor_count != final_count {
+                    for monitor in wm.monitors_mut() {
+                        monitor.load_focused_workspace(mouse_follows_focus)?;
+                    }
                 }
             }
         }
