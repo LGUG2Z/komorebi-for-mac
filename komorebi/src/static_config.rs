@@ -1135,7 +1135,7 @@ impl StaticConfig {
                     .unwrap_or(WindowContainerBehaviour::Create),
                 float_override: value.float_override.unwrap_or_default(),
                 floating_layer_override: false, // this value is always automatically calculated
-                floating_layer_behaviour: FloatingLayerBehaviour::default(),
+                floating_layer_behaviour: value.floating_layer_behaviour.unwrap_or_default(),
                 toggle_float_placement: value
                     .toggle_float_placement
                     .unwrap_or(Placement::CenterAndResize),
@@ -1155,27 +1155,13 @@ impl StaticConfig {
                 .unmanaged_window_operation_behaviour
                 .unwrap_or(OperationBehaviour::Op),
             resize_delta: value.resize_delta.unwrap_or(50),
-            // focus_follows_mouse: value.focus_follows_mouse,
             mouse_follows_focus: value.mouse_follows_focus.unwrap_or(true),
             hotwatch: Hotwatch::new()?,
-            // has_pending_raise_op: false,
-            // pending_move_op: Arc::new(None),
-            // already_moved_window_handles: Arc::new(Mutex::new(HashSet::new())),
-            // uncloack_to_ignore: 0,
-            // known_hwnds: HashMap::new(),
             run_loop: CoreFoundationRunLoop(run_loop.clone()),
-            minimized_windows: Default::default(),
+            minimized_windows: HashMap::new(),
             already_moved_window_handles: Default::default(),
-            known_window_ids: Default::default(),
+            known_window_ids: HashMap::new(),
         };
-
-        // match value.focus_follows_mouse {
-        //     None => WindowsApi::disable_focus_follows_mouse()?,
-        //     Some(FocusFollowsMouseImplementation::Windows) => {
-        //         WindowsApi::enable_focus_follows_mouse()?;
-        //     }
-        //     Some(FocusFollowsMouseImplementation::Komorebi) => {}
-        // };
 
         let bytes = SocketMessage::ReloadStaticConfiguration(path.clone()).as_bytes()?;
 
@@ -1473,53 +1459,46 @@ impl StaticConfig {
         // Check for configs that should be tied to a specific display that isn't loaded right now
         // and cache a monitor with those configs with the specific `serial_number_id` so that when
         // those devices are connected later we can use the correct config from the cache.
-        // if configs_with_preference.len() > configs_used.len() {
-        //     for i in configs_with_preference
-        //         .iter()
-        //         .filter(|i| !configs_used.contains(i))
-        //     {
-        //         let id = {
-        //             let display_index_preferences = DISPLAY_INDEX_PREFERENCES.read();
-        //             display_index_preferences.get(i).cloned()
-        //         };
-        //         if let (Some(id), Some(monitor_config)) =
-        //             (id, value.monitors.as_ref().and_then(|ms| ms.get(*i)))
-        //         {
-        //             // The name, device, device_id and serial_number_id can be empty here since
-        //             // once the monitor with this preferred index actually connects the
-        //             // `load_monitor_information` function will update these fields.
-        //             let mut m = monitor::new(
-        //                 0,
-        //                 Rect::default(),
-        //                 Rect::default(),
-        //                 "".into(),
-        //                 "".into(),
-        //                 "".into(),
-        //                 None,
-        //             );
-        //
-        //             m.ensure_workspace_count(monitor_config.workspaces.len());
-        //             m.work_area_offset = monitor_config.work_area_offset;
-        //             m.window_based_work_area_offset = monitor_config.window_based_work_area_offset;
-        //             m.window_based_work_area_offset_limit = monitor_config
-        //                 .window_based_work_area_offset_limit
-        //                 .unwrap_or(1);
-        //             m.container_padding = monitor_config.container_padding;
-        //             m.workspace_padding = monitor_config.workspace_padding;
-        //             m.floating_layer_behaviour = monitor_config.floating_layer_behaviour;
-        //
-        //             m.update_workspaces_globals(offset);
-        //
-        //             for (j, ws) in m.workspaces_mut().iter_mut().enumerate() {
-        //                 if let Some(workspace_config) = monitor_config.workspaces.get(j) {
-        //                     ws.load_static_config(workspace_config)?;
-        //                 }
-        //             }
-        //
-        //             monitor_reconciliator::insert_in_monitor_cache(&id, m);
-        //         }
-        //     }
-        // }
+        if configs_with_preference.len() > configs_used.len() {
+            for i in configs_with_preference
+                .iter()
+                .filter(|i| !configs_used.contains(i))
+            {
+                let id = {
+                    let display_index_preferences = DISPLAY_INDEX_PREFERENCES.read();
+                    display_index_preferences.get(i).cloned()
+                };
+                if let (Some(id), Some(monitor_config)) =
+                    (id, value.monitors.as_ref().and_then(|ms| ms.get(*i)))
+                {
+                    // The name, device, device_id and serial_number_id can be empty here since
+                    // once the monitor with this preferred index actually connects the
+                    // `load_monitor_information` function will update these fields.
+                    let mut m =
+                        monitor::new(0, Rect::default(), Rect::default(), "".into(), "".into());
+
+                    m.ensure_workspace_count(monitor_config.workspaces.len());
+                    m.work_area_offset = monitor_config.work_area_offset;
+                    m.window_based_work_area_offset = monitor_config.window_based_work_area_offset;
+                    m.window_based_work_area_offset_limit = monitor_config
+                        .window_based_work_area_offset_limit
+                        .unwrap_or(1);
+                    m.container_padding = monitor_config.container_padding;
+                    m.workspace_padding = monitor_config.workspace_padding;
+                    m.floating_layer_behaviour = monitor_config.floating_layer_behaviour;
+
+                    m.update_workspaces_globals(offset);
+
+                    for (j, ws) in m.workspaces_mut().iter_mut().enumerate() {
+                        if let Some(workspace_config) = monitor_config.workspaces.get(j) {
+                            ws.load_static_config(workspace_config)?;
+                        }
+                    }
+
+                    monitor_reconciliator::insert_in_monitor_cache(&id, m);
+                }
+            }
+        }
 
         wm.enforce_workspace_rules()?;
 

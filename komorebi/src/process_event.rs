@@ -132,6 +132,7 @@ impl WindowManager {
             WindowManagerEvent::FocusChange(notification, process_id, _) => {
                 let application = self.application(process_id)?;
                 let application_name = application.name().unwrap_or_default().clone();
+                let mut should_switch_workspace_layer_to_tiling = true;
                 let mut tabbed_window = false;
 
                 if let Some(window_id) = application.main_window_id()
@@ -284,13 +285,16 @@ impl WindowManager {
                                             window_manager_event_listener::send_notification(
                                                 event,
                                             );
+                                            should_switch_workspace_layer_to_tiling = false;
                                         }
                                     }
                                 } else if is_on_current_workspace {
                                     workspace.focus_container_by_window(window_id)?;
                                 }
 
-                                workspace.layer = WorkspaceLayer::Tiling;
+                                if should_switch_workspace_layer_to_tiling {
+                                    workspace.layer = WorkspaceLayer::Tiling;
+                                }
 
                                 if matches!(self.focused_workspace()?.layout, Layout::Default(DefaultLayout::Scrolling))
                                     && !self.focused_workspace()?.containers().is_empty() {
