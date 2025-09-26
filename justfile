@@ -42,6 +42,14 @@ trace target $RUST_LOG="trace":
 deadlock $RUST_LOG="trace":
     cargo +stable run --bin komorebi --locked --no-default-features --features deadlock_detection
 
+docgen:
+    cargo run --package komorebic -- docgen
+    find docs/cli -type f -exec sed -i.bak 's/Usage: /Usage: komorebic /g' {} \; && find docs/cli -name "*.bak" -delete
+
+jsonschema:
+    cargo run --package komorebic -- static-config-schema > schema.json
+    cargo run --package komorebic -- application-specific-configuration-schema > schema.asc.json
+
 depgen:
     cargo deny check
     cargo deny list --format json | jq 'del(.unlicensed)' > dependencies.json

@@ -1,6 +1,7 @@
 #![warn(clippy::all)]
 
 use chrono::Utc;
+use clap::CommandFactory;
 use clap::Parser;
 use clap::ValueEnum;
 use color_eyre::eyre;
@@ -610,8 +611,8 @@ struct Opts {
 
 #[derive(Parser)]
 enum SubCommand {
-    // #[clap(hide = true)]
-    // Docgen,
+    #[clap(hide = true)]
+    Docgen,
     // /// Gather example configurations for a new-user quickstart
     // Quickstart,
     /// Start komorebi.exe as a background process
@@ -1146,6 +1147,36 @@ fn main() -> eyre::Result<()> {
     let opts: Opts = Opts::parse();
 
     match opts.subcmd {
+        SubCommand::Docgen => {
+            let mut cli = Opts::command();
+            let subcommands = cli.get_subcommands_mut();
+            std::fs::create_dir_all("docs/cli")?;
+
+            let ignore = [
+                "docgen",
+                "alt-focus-hack",
+                "identify-border-overflow-application",
+                "load-custom-layout",
+                "workspace-custom-layout",
+                "named-workspace-custom-layout",
+                "workspace-custom-layout-rule",
+                "named-workspace-custom-layout-rule",
+                "focus-follows-mouse",
+                "toggle-focus-follows-mouse",
+                "format-app-specific-configuration",
+            ];
+
+            for cmd in subcommands {
+                let name = cmd.get_name().to_string();
+                if !ignore.contains(&name.as_str()) {
+                    let help_text = cmd.render_long_help().to_string();
+                    let outpath = format!("docs/cli/{name}.md");
+                    let markdown = format!("# {name}\n\n```\n{help_text}\n```");
+                    std::fs::write(outpath, markdown)?;
+                    println!("    - cli/{name}.md");
+                }
+            }
+        }
         SubCommand::Start(arg) => {
             let mut command = &mut Command::new("komorebi");
 
