@@ -355,9 +355,7 @@ impl Window {
         let rect = MacosApi::window_rect(&self.element)?;
 
         let mut window_restore_positions = WINDOW_RESTORE_POSITIONS.lock();
-        if let Entry::Vacant(entry) = window_restore_positions.entry(self.id)
-            && CoreGraphicsApi::display_bounds_for_window_rect(rect).is_none()
-        {
+        if let Entry::Vacant(entry) = window_restore_positions.entry(self.id) {
             entry.insert(rect);
             drop(window_restore_positions);
         }
