@@ -47,7 +47,7 @@ lazy_static! {
                     home
                 } else {
                     panic!(
-                        "$KOMOREBI_CONFIG_HOME is set to '{home_path}', which is not a valid directory",
+                        "$KOMOREBI_CONFIG_HOME is set to \"{home_path}\", which is not a valid directory",
                     );
                 }
             },
@@ -1244,7 +1244,30 @@ fn main() -> eyre::Result<()> {
                     written_files.join("\n")
                 );
             }
-            println!("\nYou can now run: komorebic start");
+
+            let mut current_exe = std::env::current_exe().expect("unable to get exec path");
+            current_exe.pop();
+            let komorebi_exe = current_exe.join("komorebi");
+
+            println!("\nPlease grant Accessibility permissions to \"{}\"", komorebi_exe.display());
+            println!("Accessibility permissions are required for komorebi to to manage windows");
+            Command::new("open").arg("x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility").spawn()?;
+
+            println!("\nHit return when done...");
+            std::io::stdout().flush()?;
+            let mut input = String::new();
+            std::io::stdin().read_line(&mut input)?;
+
+            println!("Please grant Screen Recording permissions to \"{}\"", komorebi_exe.display());
+            println!("Screen Recording permissions are required to for komorebi to read window titles");
+            Command::new("open").arg("x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture").spawn()?;
+
+            println!("\nHit return when done...");
+            std::io::stdout().flush()?;
+            let mut input = String::new();
+            std::io::stdin().read_line(&mut input)?;
+
+            println!("You can now run: komorebic start");
             println!(
                 "\nIf you have skhd hotkey daemon installed, you can also run: skhd --config {}",
                 skhdrc_path.display()

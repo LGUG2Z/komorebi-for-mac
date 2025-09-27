@@ -16,7 +16,17 @@ the example files have been downloaded. For most new users this will be in the
 komorebic quickstart
 ```
 
-With the example configurations downloaded, you can now start `komorebi`
+
+### Granting Permissions
+
+The `quickstart` command will also prompt you to grant komorebi the permissions
+it requires to run, and will open the following System Settings tabs for you:
+
+* Settings -> Privacy & Security -> Accessibility
+* Settings -> Privacy & Security -> Screen & System Audio Recording
+
+With the example configurations downloaded and permissions granted, you can now
+start `komorebi`
 
 ```powershell
 komorebic start

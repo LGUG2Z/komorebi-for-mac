@@ -33,16 +33,8 @@ cargo +stable install --path komorebic --locked --target-dir ~/.cargo/bin
 If the binaries have been built and added to your `$PATH` correctly, you should
 see some output when running `komorebi --help` and `komorebic --help`
 
-## Granting Permissions
-
-Users will need to manually add `~/.cargo/bin/komorebi` to:
-
-* Settings -> Privacy & Security -> Accessibility
-* Settings -> Privacy & Security -> Screen & System Audio Recording
-
-Once komorebi is installed, and these permissions have been granted, proceed to
-get the [example
-configurations](example-configurations.md).
+Once komorebi is installed, proceed to get
+the [example configurations](example-configurations.md).
 
 ## Uninstallation
 
