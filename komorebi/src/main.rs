@@ -26,8 +26,6 @@ use objc2::rc::autoreleasepool;
 use objc2_application_services::AXIsProcessTrusted;
 use objc2_core_foundation::CFRunLoop;
 use objc2_core_foundation::kCFRunLoopDefaultMode;
-use objc2_core_graphics::CGDisplayBounds;
-use objc2_core_graphics::CGMainDisplayID;
 use objc2_core_graphics::CGPreflightScreenCaptureAccess;
 use objc2_core_graphics::CGRequestScreenCaptureAccess;
 use parking_lot::Mutex;
@@ -216,9 +214,6 @@ fn main() -> eyre::Result<()> {
 
     let _notification_center_listener = NotificationCenterListener::init();
     let _display_reconfiguration_listener = DisplayReconfigurationListener::init();
-
-    let display_size = unsafe { CGDisplayBounds(CGMainDisplayID()) };
-    tracing::info!("display size for main display is: {:?}", display_size);
 
     let run_loop = CFRunLoop::current().ok_or_eyre("couldn't get CFRunLoop::current")?;
     let _input_listener = InputEventListener::init(&run_loop);

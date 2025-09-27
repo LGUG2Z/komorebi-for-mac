@@ -1249,18 +1249,34 @@ fn main() -> eyre::Result<()> {
             current_exe.pop();
             let komorebi_exe = current_exe.join("komorebi");
 
-            println!("\nPlease grant Accessibility permissions to \"{}\"", komorebi_exe.display());
+            println!(
+                "\nPlease grant Accessibility permissions to \"{}\"",
+                komorebi_exe.display()
+            );
             println!("Accessibility permissions are required for komorebi to to manage windows");
-            Command::new("open").arg("x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility").spawn()?;
+            Command::new("open")
+                .arg(
+                    "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility",
+                )
+                .spawn()?;
 
             println!("\nHit return when done...");
             std::io::stdout().flush()?;
             let mut input = String::new();
             std::io::stdin().read_line(&mut input)?;
 
-            println!("Please grant Screen Recording permissions to \"{}\"", komorebi_exe.display());
-            println!("Screen Recording permissions are required to for komorebi to read window titles");
-            Command::new("open").arg("x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture").spawn()?;
+            println!(
+                "Please grant Screen Recording permissions to \"{}\"",
+                komorebi_exe.display()
+            );
+            println!(
+                "Screen Recording permissions are required to for komorebi to read window titles"
+            );
+            Command::new("open")
+                .arg(
+                    "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture",
+                )
+                .spawn()?;
 
             println!("\nHit return when done...");
             std::io::stdout().flush()?;

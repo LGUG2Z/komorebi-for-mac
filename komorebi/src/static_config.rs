@@ -28,6 +28,7 @@ use crate::core::default_layout::LayoutOptions;
 use crate::core::layout::Layout;
 use crate::core::pathext::ResolvedPathBuf;
 use crate::core::rect::Rect;
+use crate::current_space_id;
 use crate::monitor;
 use crate::monitor::Monitor;
 use crate::monitor_reconciliator;
@@ -1126,6 +1127,7 @@ impl StaticConfig {
             applications: Default::default(),
             incoming_events: incoming,
             command_listener: listener,
+            space_id: current_space_id(),
             is_paused: false,
             // virtual_desktop_id: current_virtual_desktop(),
             work_area_offset: value.global_work_area_offset,

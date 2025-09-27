@@ -29,6 +29,7 @@ use crate::core::layout::Layout;
 use crate::core::operation_direction::OperationDirection;
 use crate::core::rect::Rect;
 use crate::core_graphics::CoreGraphicsApi;
+use crate::current_space_id;
 use crate::macos_api::MacosApi;
 use crate::monitor::MonitorInformation;
 use crate::notify_subscribers;
@@ -107,6 +108,14 @@ impl WindowManager {
         message: SocketMessage,
         mut reply: impl std::io::Write,
     ) -> eyre::Result<()> {
+        if let Some(space_id) = &self.space_id
+            && let Some(current_space_id) = current_space_id()
+            && *space_id != current_space_id
+        {
+            tracing::trace!("ignoring events and commands while not on space {space_id}");
+            return Ok(());
+        }
+
         tracing::info!("processing command: {message}");
 
         #[allow(clippy::useless_asref)]

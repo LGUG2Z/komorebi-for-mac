@@ -17,6 +17,7 @@ use crate::core::default_layout::DefaultLayout;
 use crate::core::layout::Layout;
 use crate::core::operation_direction::OperationDirection;
 use crate::core::rect::Rect;
+use crate::current_space_id;
 use crate::macos_api::MacosApi;
 use crate::notify_subscribers;
 use crate::state::State;
@@ -65,6 +66,14 @@ impl WindowManager {
     pub fn process_event(&mut self, event: WindowManagerEvent) -> eyre::Result<()> {
         if self.is_paused {
             tracing::trace!("ignoring while paused");
+            return Ok(());
+        }
+
+        if let Some(space_id) = &self.space_id
+            && let Some(current_space_id) = current_space_id()
+            && *space_id != current_space_id
+        {
+            tracing::trace!("ignoring events and commands while not on space {space_id}");
             return Ok(());
         }
 

@@ -23,6 +23,7 @@ use crate::core::default_layout::DefaultLayout;
 use crate::core::layout::Layout;
 use crate::core::operation_direction::OperationDirection;
 use crate::core::rect::Rect;
+use crate::current_space_id;
 use crate::lockable_sequence::Lockable;
 use crate::macos_api::MacosApi;
 use crate::monitor::Monitor;
@@ -63,6 +64,7 @@ pub struct WindowManager {
     pub applications: HashMap<i32, Application>,
     pub run_loop: CoreFoundationRunLoop,
     pub command_listener: UnixListener,
+    pub space_id: Option<u64>,
     pub is_paused: bool,
     pub resize_delta: i32,
     pub hotwatch: Hotwatch,
@@ -145,6 +147,7 @@ impl WindowManager {
             applications: Default::default(),
             run_loop: CoreFoundationRunLoop(run_loop.clone()),
             command_listener: listener,
+            space_id: current_space_id(),
             is_paused: false,
             resize_delta: 50,
             hotwatch: Hotwatch::new()?,
@@ -1136,7 +1139,7 @@ impl WindowManager {
         tracing::info!("removing window");
 
         if self.focused_container()?.windows().len() == 1 {
-            eyre::bail!("a container must have at least one window");
+            bail!("a container must have at least one window");
         }
 
         let workspace = self.focused_workspace_mut()?;

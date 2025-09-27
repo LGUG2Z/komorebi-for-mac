@@ -38,6 +38,7 @@ use std::collections::HashMap;
 use std::io::Write;
 use std::ops::Deref;
 use std::os::unix::net::UnixStream;
+use std::panic;
 use std::path::PathBuf;
 use std::ptr::NonNull;
 use std::sync::Arc;
@@ -64,6 +65,7 @@ pub mod notification_center_listener;
 pub mod process_command;
 pub mod process_event;
 pub mod reaper;
+pub mod skylight;
 pub mod state;
 pub mod static_config;
 pub mod window;
@@ -148,6 +150,12 @@ shadow_rs::shadow!(build);
 
 pub static DEFAULT_WORKSPACE_PADDING: AtomicI32 = AtomicI32::new(5);
 pub static DEFAULT_CONTAINER_PADDING: AtomicI32 = AtomicI32::new(5);
+
+#[must_use]
+pub fn current_space_id() -> Option<u64> {
+    panic::catch_unwind(|| unsafe { skylight::CGSGetActiveSpace(skylight::CGSMainConnectionID()) })
+        .ok()
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]

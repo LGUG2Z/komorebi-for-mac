@@ -6,5 +6,5 @@ use objc2_core_graphics::CGWindowID;
 // https://github.com/nikitabobko/AeroSpace?tab=readme-ov-file#project-values
 unsafe extern "C" {
     /// Extract `window_id` from an AXUIElement.
-    pub(crate) fn _AXUIElementGetWindow(elem: &AXUIElement, window_id: *mut CGWindowID) -> AXError;
+    pub fn _AXUIElementGetWindow(elem: &AXUIElement, window_id: *mut CGWindowID) -> AXError;
 }
