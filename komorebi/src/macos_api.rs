@@ -32,6 +32,9 @@ use objc2_core_foundation::CFString;
 use objc2_core_foundation::CGPoint;
 use objc2_core_foundation::CGRect;
 use objc2_core_foundation::CGSize;
+use objc2_core_graphics::CGEvent;
+use objc2_core_graphics::CGEventSource;
+use objc2_core_graphics::CGEventSourceStateID;
 use objc2_core_graphics::CGMainDisplayID;
 use objc2_foundation::NSNumber;
 use std::collections::HashMap;
@@ -398,12 +401,17 @@ impl MacosApi {
 
     pub fn cursor_pos() -> CGPoint {
         unsafe {
-            let point = NSEvent::mouseLocation();
-            CGPoint::new(point.x, point.y)
+            let source = CGEventSource::new(CGEventSourceStateID::HIDSystemState);
+            let event = CGEvent::new(source.as_deref());
+            CGEvent::location(event.as_deref())
         }
     }
 
     pub fn monitor_from_point(point: CGPoint) -> Option<u32> {
         CoreGraphicsApi::display_with_point(point)
+    }
+
+    pub fn left_mouse_button_is_pressed() -> bool {
+        (unsafe { NSEvent::pressedMouseButtons() } & 0x1 != 0)
     }
 }

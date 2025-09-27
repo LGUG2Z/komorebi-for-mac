@@ -2,6 +2,7 @@
 
 use crate::accessibility::notification_constants::AccessibilityNotification;
 use crate::app_kit_notification_constants::AppKitWorkspaceNotification;
+use crate::macos_api::MacosApi;
 use serde::Deserialize;
 use serde::Serialize;
 use strum::Display;
@@ -37,6 +38,10 @@ pub enum WindowManagerEvent {
     Restore(SystemNotification, i32, u32),
     Manage(SystemNotification, i32, u32),
     Unmanage(SystemNotification, i32, u32),
+    MoveStart(SystemNotification, i32, u32),
+    MoveEnd(SystemNotification, i32, u32),
+    ResizeStart(SystemNotification, i32, u32),
+    ResizeEnd(SystemNotification, i32, u32),
 }
 
 impl WindowManagerEvent {
@@ -87,11 +92,40 @@ impl WindowManagerEvent {
                 .map(|window_id| WindowManagerEvent::Manage(notification, process_id, window_id)),
             SystemNotification::Manual(ManualNotification::Unmanage) => window_id
                 .map(|window_id| WindowManagerEvent::Unmanage(notification, process_id, window_id)),
-            // kAXWindowMovedNotification => {}
-            // kAXWindowResizedNotification => {}
-            // kAXTitleChangedNotification => {}
-            // kAXApplicationDeactivatedNotification => {}
-            _ => None,
+            SystemNotification::Accessibility(AccessibilityNotification::AXWindowMoved) => {
+                if MacosApi::left_mouse_button_is_pressed() {
+                    window_id.map(|window_id| {
+                        WindowManagerEvent::MoveStart(notification, process_id, window_id)
+                    })
+                } else {
+                    window_id.map(|window_id| {
+                        WindowManagerEvent::MoveEnd(notification, process_id, window_id)
+                    })
+                }
+            }
+            SystemNotification::Accessibility(AccessibilityNotification::AXWindowResized) => {
+                if MacosApi::left_mouse_button_is_pressed() {
+                    window_id.map(|window_id| {
+                        WindowManagerEvent::ResizeStart(notification, process_id, window_id)
+                    })
+                } else {
+                    window_id.map(|window_id| {
+                        WindowManagerEvent::ResizeEnd(notification, process_id, window_id)
+                    })
+                }
+            }
+            notification => {
+                let notification_string = match notification {
+                    SystemNotification::Accessibility(n) => n.to_string(),
+                    SystemNotification::AppKitWorkspace(n) => n.to_string(),
+                    SystemNotification::Manual(n) => n.to_string(),
+                };
+
+                tracing::trace!(
+                    "ignoring system notification: {notification_string} (pid: {process_id}, window id: {window_id:?})"
+                );
+                None
+            }
         }
     }
 
@@ -103,6 +137,10 @@ impl WindowManagerEvent {
             | WindowManagerEvent::Minimize(_, process_id, _)
             | WindowManagerEvent::Manage(_, process_id, _)
             | WindowManagerEvent::Unmanage(_, process_id, _)
+            | WindowManagerEvent::MoveStart(_, process_id, _)
+            | WindowManagerEvent::MoveEnd(_, process_id, _)
+            | WindowManagerEvent::ResizeStart(_, process_id, _)
+            | WindowManagerEvent::ResizeEnd(_, process_id, _)
             | WindowManagerEvent::Restore(_, process_id, _) => *process_id,
         }
     }
@@ -114,6 +152,10 @@ impl WindowManagerEvent {
             | WindowManagerEvent::Destroy(n, _)
             | WindowManagerEvent::Minimize(n, _, _)
             | WindowManagerEvent::Manage(n, _, _)
+            | WindowManagerEvent::MoveStart(n, _, _)
+            | WindowManagerEvent::MoveEnd(n, _, _)
+            | WindowManagerEvent::ResizeStart(n, _, _)
+            | WindowManagerEvent::ResizeEnd(n, _, _)
             | WindowManagerEvent::Unmanage(n, _, _)
             | WindowManagerEvent::Restore(n, _, _) => match n {
                 SystemNotification::Accessibility(a) => a.to_string(),
@@ -130,6 +172,10 @@ impl WindowManagerEvent {
             WindowManagerEvent::Minimize(_, _, window_id)
             | WindowManagerEvent::Manage(_, _, window_id)
             | WindowManagerEvent::Unmanage(_, _, window_id)
+            | WindowManagerEvent::MoveStart(_, _, window_id)
+            | WindowManagerEvent::MoveEnd(_, _, window_id)
+            | WindowManagerEvent::ResizeStart(_, _, window_id)
+            | WindowManagerEvent::ResizeEnd(_, _, window_id)
             | WindowManagerEvent::Restore(_, _, window_id) => Some(*window_id),
         }
     }

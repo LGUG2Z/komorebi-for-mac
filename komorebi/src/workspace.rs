@@ -1128,6 +1128,27 @@ impl Workspace {
 
         Ok(())
     }
+
+    pub fn container_idx_from_current_point(&self) -> Option<usize> {
+        let mut idx = None;
+
+        let point = MacosApi::cursor_pos();
+
+        for (i, _container) in self.containers().iter().enumerate() {
+            if let Some(rect) = self.latest_layout.get(i)
+                && rect.contains_point((point.x as i32, point.y as i32))
+            {
+                idx = Option::from(i);
+            }
+        }
+
+        idx
+    }
+
+    pub fn container_for_window(&self, window_id: u32) -> Option<&Container> {
+        self.containers()
+            .get(self.container_idx_for_window(window_id)?)
+    }
 }
 
 impl Workspace {
