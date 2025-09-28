@@ -405,12 +405,8 @@ impl WindowManager {
                     }
 
                     if let Some((m_idx, w_idx)) = self.known_window_ids.get(&window_id)
-                        && let Some(focused_workspace_idx) = self
-                            .monitors()
-                            .get(*m_idx)
-                            .map(|m| m.focused_workspace_idx())
-                        && *m_idx != self.focused_monitor_idx()
-                        && *w_idx != focused_workspace_idx
+                        && let Ok(focused_workspace_idx) = self.focused_workspace_idx()
+                        && (*m_idx != self.focused_monitor_idx() || *w_idx != focused_workspace_idx)
                     {
                         tracing::debug!(
                             "ignoring show event for window already associated with another workspace"
