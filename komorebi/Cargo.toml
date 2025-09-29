@@ -9,6 +9,7 @@ clap = { workspace = true }
 color-eyre = { workspace = true }
 crossbeam-channel = "0.5"
 ctrlc = { version = "3", features = ["termination"] }
+dispatch2 = "0.3"
 dirs = { workspace = true }
 hotwatch = "0.5"
 lazy_static = { workspace = true }

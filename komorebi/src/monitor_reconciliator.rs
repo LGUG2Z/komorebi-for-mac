@@ -1,18 +1,16 @@
 use crate::DISPLAY_INDEX_PREFERENCES;
-use crate::LATEST_MONITOR_INFORMATION;
-use crate::LOAD_LATEST_MONITOR_INFORMATION;
 use crate::Notification;
 use crate::NotificationEvent;
-use crate::UPDATE_LATEST_MONITOR_INFORMATION;
-use crate::UPDATE_MONITOR_WORK_AREAS;
 use crate::WORKSPACE_MATCHING_RULES;
 use crate::core::config_generation::WorkspaceMatchingRule;
+use crate::macos_api::MacosApi;
 use crate::monitor::Monitor;
 use crate::notify_subscribers;
 use crate::state::State;
 use crate::window_manager::WindowManager;
 use crossbeam_channel::Receiver;
 use crossbeam_channel::Sender;
+use dispatch2::DispatchQueue;
 use objc2_core_graphics::CGDirectDisplayID;
 use parking_lot::Mutex;
 use serde::Deserialize;
@@ -20,7 +18,6 @@ use serde::Serialize;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::OnceLock;
-use std::sync::atomic::Ordering;
 use strum::Display;
 
 #[derive(Debug, Copy, Clone, Serialize, Deserialize, Display)]
@@ -105,33 +102,29 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
         match notification {
             MonitorNotification::Resize(_display_id) => {
                 tracing::debug!("handling resize notification");
-                UPDATE_MONITOR_WORK_AREAS.store(true, Ordering::Relaxed);
+                DispatchQueue::main().exec_sync(|| {
+                    let mut wm = wm.lock();
+                    if let Err(error) = MacosApi::update_monitor_work_areas(&mut wm) {
+                        tracing::error!("failed to update monitor work areas: {error}");
+                    }
+                });
             }
             MonitorNotification::DisplayConnectionChange(_) => {
-                let mut wm = wm.lock();
                 tracing::debug!("handling display connection change notification");
+
+                let mut attached_devices = vec![];
+                DispatchQueue::main().exec_sync(|| {
+                    if let Ok(latest) = MacosApi::latest_monitor_information() {
+                        attached_devices = latest.clone();
+                    }
+                });
+
+                let mut wm = wm.lock();
                 let mut monitor_cache = MONITOR_CACHE
                     .get_or_init(|| Mutex::new(HashMap::new()))
                     .lock();
 
                 let initial_monitor_count = wm.monitors().len();
-
-                {
-                    let mut latest_monitor_information = LATEST_MONITOR_INFORMATION.write();
-                    *latest_monitor_information = None;
-                    UPDATE_LATEST_MONITOR_INFORMATION.store(true, Ordering::Relaxed);
-                }
-
-                let mut attached_devices = vec![];
-                while attached_devices.is_empty() {
-                    if let Some(latest) = &*LATEST_MONITOR_INFORMATION.read() {
-                        attached_devices = latest.clone();
-                    }
-
-                    std::thread::sleep(std::time::Duration::from_millis(100));
-                }
-
-                UPDATE_LATEST_MONITOR_INFORMATION.store(false, Ordering::Relaxed);
 
                 // Make sure that in our state any attached displays have the latest macOS API data
                 for monitor in wm.monitors_mut() {
@@ -321,11 +314,13 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                     // need to drop here because the main thread needs the lock to load the latest
                     // monitor info into the wm state
                     drop(wm);
-                    LOAD_LATEST_MONITOR_INFORMATION.store(true, Ordering::Relaxed);
-                    while LOAD_LATEST_MONITOR_INFORMATION.load(Ordering::Relaxed) {
-                        std::thread::sleep(std::time::Duration::from_millis(50));
-                        tracing::trace!("waiting for latest monitor info to be loaded {}", line!());
-                    }
+
+                    DispatchQueue::main().exec_sync(|| {
+                        let mut wm = arc.lock();
+                        if let Err(error) = MacosApi::load_monitor_information(&mut wm) {
+                            tracing::error!("failed to update load monitor information: {error}");
+                        }
+                    });
                 }
 
                 // regain the lock here once the monitor information has been updated

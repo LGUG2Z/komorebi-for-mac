@@ -10,7 +10,6 @@ use crate::core::config_generation::MatchingRule;
 use crate::core::config_generation::MatchingStrategy;
 use crate::core::config_generation::WorkspaceMatchingRule;
 use crate::core_graphics::error::CoreGraphicsError;
-use crate::monitor::Monitor;
 use crate::monitor_reconciliator::MonitorNotification;
 use crate::state::State;
 use crate::window::AspectRatio;
@@ -42,7 +41,6 @@ use std::panic;
 use std::path::PathBuf;
 use std::ptr::NonNull;
 use std::sync::Arc;
-use std::sync::atomic::AtomicBool;
 use std::sync::atomic::AtomicI32;
 
 #[macro_use]
@@ -109,13 +107,6 @@ lazy_static! {
         Arc::new(RwLock::new(HashMap::new()));
     static ref WINDOW_RESTORE_POSITIONS: Arc<Mutex<HashMap<u32, CGRect>>> =
         Arc::new(Mutex::new(HashMap::new()));
-    pub static ref UPDATE_MONITOR_WORK_AREAS: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
-    pub static ref UPDATE_LATEST_MONITOR_INFORMATION: Arc<AtomicBool> =
-        Arc::new(AtomicBool::new(false));
-    pub static ref LOAD_LATEST_MONITOR_INFORMATION: Arc<AtomicBool> =
-        Arc::new(AtomicBool::new(false));
-    pub static ref LATEST_MONITOR_INFORMATION: Arc<RwLock<Option<Vec<Monitor>>>> =
-        Arc::new(RwLock::new(None));
     static ref WORKSPACE_MATCHING_RULES: Arc<Mutex<Vec<WorkspaceMatchingRule>>> =
         Arc::new(Mutex::new(Vec::new()));
     static ref REGEX_IDENTIFIERS: Arc<Mutex<HashMap<String, Regex>>> =

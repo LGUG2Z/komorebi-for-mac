@@ -6,14 +6,9 @@ use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
 use komorebi::DATA_DIR;
 use komorebi::HOME_DIR;
-use komorebi::LATEST_MONITOR_INFORMATION;
-use komorebi::LOAD_LATEST_MONITOR_INFORMATION;
-use komorebi::UPDATE_LATEST_MONITOR_INFORMATION;
-use komorebi::UPDATE_MONITOR_WORK_AREAS;
 use komorebi::core::pathext::replace_env_in_path;
 use komorebi::display_reconfiguration_listener::DisplayReconfigurationListener;
 use komorebi::input_event_listener::InputEventListener;
-use komorebi::macos_api::MacosApi;
 use komorebi::monitor_reconciliator;
 use komorebi::notification_center_listener::NotificationCenterListener;
 use komorebi::process_command::listen_for_commands;
@@ -292,34 +287,6 @@ fn main() -> eyre::Result<()> {
         if quit_thread.load(Ordering::Relaxed) {
             tracing::info!("stopping CFRunLoop");
             break;
-        }
-
-        if UPDATE_MONITOR_WORK_AREAS.load(Ordering::Relaxed) {
-            // this can only be called on the main thread
-            if let Some(mut wm) = wm.try_lock() {
-                if let Err(error) = MacosApi::update_monitor_work_areas(&mut wm) {
-                    tracing::error!("failed to update monitor work areas: {error}");
-                }
-
-                UPDATE_MONITOR_WORK_AREAS.store(false, Ordering::Relaxed);
-            }
-        }
-
-        if UPDATE_LATEST_MONITOR_INFORMATION.load(Ordering::Relaxed) {
-            let mut latest_monitor_information = LATEST_MONITOR_INFORMATION.write();
-            // this can only be called on the main thread
-            *latest_monitor_information = Some(MacosApi::latest_monitor_information()?);
-        }
-
-        if LOAD_LATEST_MONITOR_INFORMATION.load(Ordering::Relaxed) {
-            // this can only be called on the main thread
-            if let Some(mut wm) = wm.try_lock() {
-                if let Err(error) = MacosApi::load_monitor_information(&mut wm) {
-                    tracing::error!("failed to update load monitor information: {error}");
-                }
-
-                LOAD_LATEST_MONITOR_INFORMATION.store(false, Ordering::Relaxed);
-            }
         }
 
         // this gets our observer notification callbacks firing
