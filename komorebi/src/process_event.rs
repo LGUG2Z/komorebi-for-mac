@@ -1,3 +1,4 @@
+use crate::AccessibilityUiElement;
 use crate::FLOATING_APPLICATIONS;
 use crate::Notification;
 use crate::NotificationEvent;
@@ -10,6 +11,7 @@ use crate::accessibility::error::AccessibilityApiError;
 use crate::accessibility::error::AccessibilityError;
 use crate::accessibility::notification_constants::AccessibilityNotification;
 use crate::app_kit_notification_constants::AppKitWorkspaceNotification;
+use crate::border_manager;
 use crate::core::Sizing;
 use crate::core::WindowContainerBehaviour;
 use crate::core::config_generation::MatchingRule;
@@ -74,6 +76,7 @@ impl WindowManager {
             && *space_id != current_space_id
         {
             tracing::trace!("ignoring events and commands while not on space {space_id}");
+            border_manager::destroy_all_borders()?;
             return Ok(());
         }
 
@@ -103,6 +106,19 @@ impl WindowManager {
 
         if !should_manage {
             return Ok(());
+        }
+
+        let mut window_id = None;
+        let mut window_element = None;
+
+        {
+            let application = self.application(event.process_id())?;
+            if let Some(element) = application.main_window()
+                && let Ok(wid) = AccessibilityApi::window_id(&element)
+            {
+                window_id = Some(wid);
+                window_element = Some(AccessibilityUiElement(element.clone()));
+            }
         }
 
         // don't want to spam logs for manually triggered hacks triggered
@@ -432,7 +448,7 @@ impl WindowManager {
                     && let Some(element) = window_element
                     && let Ok(mut window) = Window::new(element, application.clone())
                 {
-                    window.observe(&self.run_loop)?;
+                    window.observe(&self.run_loop, None)?;
 
                     let behaviour = self
                         .window_management_behaviour(focused_monitor_idx, focused_workspace_idx);
@@ -924,6 +940,8 @@ impl WindowManager {
             },
             initial_state.has_been_modified(self.as_ref()),
         )?;
+
+        border_manager::send_notification(window_element, window_id);
 
         Ok(())
     }

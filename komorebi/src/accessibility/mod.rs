@@ -15,6 +15,7 @@ use objc2_core_foundation::CFString;
 use objc2_core_foundation::CFType;
 use objc2_core_foundation::kCFRunLoopDefaultMode;
 use objc2_core_graphics::CGWindowID;
+use std::ffi::c_void;
 use std::ptr::NonNull;
 
 pub mod action_constants;
@@ -141,6 +142,7 @@ impl AccessibilityApi {
         observer: &AXObserver,
         element: &AXUIElement,
         notifications: &[&'static str],
+        refcon: Option<*mut c_void>,
     ) -> Result<(), AccessibilityError> {
         for notification in notifications {
             unsafe {
@@ -148,7 +150,7 @@ impl AccessibilityApi {
                     observer,
                     element,
                     &CFString::from_str(notification),
-                    std::ptr::null_mut(),
+                    refcon.unwrap_or_default(),
                 )) {
                     // we don't want to return until all the notifications have been added
                     AccessibilityError::Api(AccessibilityApiError::Success) => {}
@@ -175,8 +177,9 @@ impl AccessibilityApi {
         element: &AXUIElement,
         notifications: &[&'static str],
         run_loop: &CFRunLoop,
+        refcon: Option<*mut c_void>,
     ) -> Result<(), AccessibilityError> {
-        AccessibilityApi::add_notifications_to_observer(observer, element, notifications)?;
+        AccessibilityApi::add_notifications_to_observer(observer, element, notifications, refcon)?;
 
         unsafe {
             CFRunLoop::add_source(

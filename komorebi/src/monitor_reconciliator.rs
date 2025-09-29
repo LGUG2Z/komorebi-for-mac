@@ -2,6 +2,7 @@ use crate::DISPLAY_INDEX_PREFERENCES;
 use crate::Notification;
 use crate::NotificationEvent;
 use crate::WORKSPACE_MATCHING_RULES;
+use crate::border_manager;
 use crate::core::config_generation::WorkspaceMatchingRule;
 use crate::macos_api::MacosApi;
 use crate::monitor::Monitor;
@@ -566,6 +567,8 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                 initial_state.has_been_modified(&wm),
             )?;
         }
+
+        border_manager::send_notification(None, None);
     }
 
     Ok(())

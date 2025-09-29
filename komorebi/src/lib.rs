@@ -49,6 +49,7 @@ pub mod ring;
 pub mod accessibility;
 pub mod app_kit_notification_constants;
 pub mod application;
+pub mod border_manager;
 pub mod container;
 pub mod core;
 pub mod core_graphics;
@@ -228,7 +229,7 @@ pub fn notify_subscribers(
     Ok(())
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CoreFoundationRunLoop(pub CFRetained<CFRunLoop>);
 unsafe impl Sync for CoreFoundationRunLoop {}
 unsafe impl Send for CoreFoundationRunLoop {}

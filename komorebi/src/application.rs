@@ -121,7 +121,7 @@ impl Application {
     }
 
     #[tracing::instrument(skip_all)]
-    pub fn observe(&mut self, run_loop: &CFRunLoop) {
+    pub fn observe(&mut self, run_loop: &CFRunLoop, refcon: Option<*mut c_void>) {
         tracing::info!(
             "registering observer for process: {}, name: {}",
             self.process_id,
@@ -137,6 +137,7 @@ impl Application {
                 &self.element,
                 NOTIFICATIONS,
                 run_loop,
+                refcon,
             ) {
                 Ok(_) => {
                     self.is_observable = true;

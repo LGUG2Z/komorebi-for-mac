@@ -4,8 +4,10 @@ use clap::Parser;
 use clap::ValueEnum;
 use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
+use komorebi::CoreFoundationRunLoop;
 use komorebi::DATA_DIR;
 use komorebi::HOME_DIR;
+use komorebi::border_manager;
 use komorebi::core::pathext::replace_env_in_path;
 use komorebi::display_reconfiguration_listener::DisplayReconfigurationListener;
 use komorebi::input_event_listener::InputEventListener;
@@ -256,6 +258,7 @@ fn main() -> eyre::Result<()> {
 
     wm.lock().update_focused_workspace(true, true)?;
 
+    border_manager::listen_for_notifications(wm.clone(), CoreFoundationRunLoop(run_loop));
     listen_for_commands(wm.clone());
     listen_for_events(wm.clone());
     monitor_reconciliator::listen_for_notifications(wm.clone())?;
@@ -290,7 +293,7 @@ fn main() -> eyre::Result<()> {
         }
 
         // this gets our observer notification callbacks firing
-        autoreleasepool(|_| unsafe { CFRunLoop::run_in_mode(kCFRunLoopDefaultMode, 2.0, false) });
+        autoreleasepool(|_| unsafe { CFRunLoop::run_in_mode(kCFRunLoopDefaultMode, 0.1, false) });
     }
 
     wm.lock().restore_all_windows(false)?;

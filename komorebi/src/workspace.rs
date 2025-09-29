@@ -993,7 +993,13 @@ impl Workspace {
     pub fn update(&mut self) -> eyre::Result<()> {
         // make sure we are never holding on to empty containers
         self.prune_duplicate_windows()?;
+        let focused_container_idx = self.focused_container_idx();
         self.containers_mut().retain(|c| !c.windows().is_empty());
+
+        // make sure we are never focused on a no longer existent final empty container
+        if focused_container_idx >= self.containers().len() {
+            self.focus_container(focused_container_idx.saturating_sub(1));
+        }
 
         let container_padding = self
             .container_padding

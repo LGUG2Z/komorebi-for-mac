@@ -283,7 +283,7 @@ impl MacosApi {
                                 Entry::Vacant(vacant) => {
                                     let mut application = Application::new(info.owner_pid)?;
                                     // TODO: this ain't great, fix this OBS workaround
-                                    application.observe(&wm.run_loop);
+                                    application.observe(&wm.run_loop, None);
                                     vacant.insert(application)
                                 }
                             };
@@ -291,7 +291,7 @@ impl MacosApi {
                             if let Some(window) = application.window_by_title(&info.name) {
                                 let mut rule_debug = RuleDebug::default();
                                 if window.should_manage(None, &mut rule_debug)? {
-                                    window.observe(&wm.run_loop)?;
+                                    window.observe(&wm.run_loop, None)?;
                                     entry.push(window);
                                     valid_window_count += 1
                                 }

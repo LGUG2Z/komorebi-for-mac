@@ -1,5 +1,6 @@
 use crate::TABBED_APPLICATIONS;
 use crate::accessibility::error::AccessibilityError;
+use crate::border_manager;
 use crate::window::Window;
 use crate::window_manager::WindowManager;
 use crossbeam_channel::Receiver;
@@ -86,6 +87,7 @@ fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result<()>
 
                 // If an invalid window was cleaned up, we update the workspace
                 wm.update_focused_workspace(false, false)?;
+                border_manager::send_notification(None, Some(window_id));
             }
             ReaperNotification::MouseUpKeyUp => {
                 // this first one will do a "nothing" update to check if any windows failed

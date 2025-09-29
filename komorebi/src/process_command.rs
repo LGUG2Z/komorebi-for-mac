@@ -11,6 +11,7 @@ use crate::SUBSCRIPTION_SOCKETS;
 use crate::WORKSPACE_MATCHING_RULES;
 use crate::accessibility::AccessibilityApi;
 use crate::application::Application;
+use crate::border_manager;
 use crate::build;
 use crate::cf_array_as;
 use crate::core::ApplicationIdentifier;
@@ -731,8 +732,14 @@ impl WindowManager {
 
                 self.update_focused_workspace(false, false)?;
             }
-            SocketMessage::Retile => self.retile_all(false)?,
-            SocketMessage::RetileWithResizeDimensions => self.retile_all(true)?,
+            SocketMessage::Retile => {
+                border_manager::destroy_all_borders()?;
+                self.retile_all(false)?
+            }
+            SocketMessage::RetileWithResizeDimensions => {
+                border_manager::destroy_all_borders()?;
+                self.retile_all(true)?
+            }
             SocketMessage::ToggleWorkspaceWindowContainerBehaviour => {
                 let current_global_behaviour = self.window_management_behaviour.current_behaviour;
                 if let Some(behaviour) =
@@ -1670,6 +1677,9 @@ impl WindowManager {
                 }
             }
         }
+
+        self.update_known_window_ids();
+
         notify_subscribers(
             Notification {
                 event: NotificationEvent::Socket(message.clone()),
@@ -1678,7 +1688,7 @@ impl WindowManager {
             initial_state.has_been_modified(self.as_ref()),
         )?;
 
-        self.update_known_window_ids();
+        border_manager::send_notification(None, None);
 
         tracing::info!("processed");
 

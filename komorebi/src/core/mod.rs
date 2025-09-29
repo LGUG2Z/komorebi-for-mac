@@ -189,6 +189,31 @@ pub enum ApplicationIdentifier {
     Path,
 }
 
+#[derive(
+    Copy,
+    Clone,
+    Debug,
+    Default,
+    Serialize,
+    Deserialize,
+    Display,
+    EnumString,
+    ValueEnum,
+    PartialEq,
+    Eq,
+    Hash,
+)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+pub enum WindowKind {
+    Single,
+    Stack,
+    Monocle,
+    #[default]
+    Unfocused,
+    UnfocusedLocked,
+    Floating,
+}
+
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, Display, EnumString, ValueEnum)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub enum StateQuery {

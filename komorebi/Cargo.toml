@@ -5,18 +5,25 @@ description = "A tiling window manager for macOS"
 edition = "2024"
 
 [dependencies]
+komorebi-themes = { git = "https://github.com/LGUG2Z/komorebi", version = "0.1.38"}
+
 clap = { workspace = true }
 color-eyre = { workspace = true }
 crossbeam-channel = "0.5"
+crossbeam-utils = "0.8"
 ctrlc = { version = "3", features = ["termination"] }
 dispatch2 = "0.3"
 dirs = { workspace = true }
 hotwatch = "0.5"
 lazy_static = { workspace = true }
 nanoid = "0.4"
+block2 = "0.3"
 objc2 = "0.6"
+objc2-core-services = "0.3"
 objc2-app-kit = "0.3"
 objc2-application-services = "0.3"
+objc2-quartz-core = "0.3"
+objc2-core-video = "0.3"
 objc2-core-foundation = { version = "0.3", features = ["CFDictionary", "CFString"] }
 objc2-core-graphics = { version = "0.3", features = ["CGWindow", "alloc"] }
 objc2-foundation = "0.3"

@@ -339,7 +339,11 @@ impl Window {
     }
 
     #[tracing::instrument(skip_all)]
-    pub fn observe(&self, run_loop: &CFRunLoop) -> Result<(), AccessibilityError> {
+    pub fn observe(
+        &self,
+        run_loop: &CFRunLoop,
+        refcon: Option<*mut c_void>,
+    ) -> Result<(), AccessibilityError> {
         tracing::info!("registering observer for {self}");
 
         AccessibilityApi::add_observer_to_run_loop(
@@ -347,6 +351,7 @@ impl Window {
             &self.element,
             NOTIFICATIONS,
             run_loop,
+            refcon,
         )
     }
 
