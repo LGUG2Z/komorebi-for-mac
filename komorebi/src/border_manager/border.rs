@@ -94,10 +94,10 @@ impl Border {
         monitor_idx: Option<usize>,
         run_loop: CoreFoundationRunLoop,
     ) -> eyre::Result<Box<Self>> {
-        let observer = AccessibilityObserver(AccessibilityApi::create_observer(
+        let observer = AccessibilityObserver(Some(AccessibilityApi::create_observer(
             process_id,
             Some(border_observer_callback),
-        )?);
+        )?));
 
         let rect = MacosApi::window_rect(&element).unwrap_or_default();
 

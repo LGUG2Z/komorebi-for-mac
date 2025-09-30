@@ -1,6 +1,5 @@
 #![warn(clippy::all)]
 
-use crate::accessibility::AccessibilityApi;
 use crate::accessibility::error::AccessibilityError;
 use crate::core::ApplicationIdentifier;
 use crate::core::SocketMessage;
@@ -261,20 +260,20 @@ impl Default for AccessibilityUiElement {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct AccessibilityObserver(pub CFRetained<AXObserver>);
+pub struct AccessibilityObserver(pub Option<CFRetained<AXObserver>>);
 unsafe impl Sync for AccessibilityObserver {}
 unsafe impl Send for AccessibilityObserver {}
 impl Deref for AccessibilityObserver {
     type Target = AXObserver;
 
     fn deref(&self) -> &Self::Target {
-        self.0.as_ref()
+        self.0.as_ref().expect("must have an AXObserver")
     }
 }
 
 impl Default for AccessibilityObserver {
     fn default() -> Self {
-        Self(AccessibilityApi::create_observer(1, None).unwrap())
+        Self(None)
     }
 }
 

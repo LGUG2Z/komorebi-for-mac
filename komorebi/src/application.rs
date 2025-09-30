@@ -107,10 +107,10 @@ impl Application {
         Ok(Self {
             element: AccessibilityUiElement(AccessibilityApi::create_application(process_id)),
             process_id,
-            observer: AccessibilityObserver(AccessibilityApi::create_observer(
+            observer: AccessibilityObserver(Some(AccessibilityApi::create_observer(
                 process_id,
                 Some(application_observer_callback),
-            )?),
+            )?)),
             is_observable: true,
         })
     }

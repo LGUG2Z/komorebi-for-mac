@@ -21,6 +21,7 @@ use std::io::BufReader;
 use std::io::Read;
 use std::io::Write;
 use std::net::Shutdown;
+use std::os::unix::net::UnixListener;
 use std::os::unix::net::UnixStream;
 use std::time::Duration;
 
@@ -64,4 +65,24 @@ pub fn send_query(message: &SocketMessage) -> std::io::Result<String> {
     reader.read_to_string(&mut response)?;
 
     Ok(response)
+}
+
+pub fn subscribe(name: &str) -> std::io::Result<UnixListener> {
+    let socket = DATA_DIR.join(name);
+
+    match std::fs::remove_file(&socket) {
+        Ok(()) => {}
+        Err(error) => match error.kind() {
+            std::io::ErrorKind::NotFound => {}
+            _ => {
+                return Err(error);
+            }
+        },
+    };
+
+    let listener = UnixListener::bind(&socket)?;
+
+    send_message(&SocketMessage::AddSubscriberSocket(name.to_string()))?;
+
+    Ok(listener)
 }

@@ -330,7 +330,7 @@ impl Window {
             id: AccessibilityApi::window_id(&element)?,
             element: AccessibilityUiElement(element),
             application,
-            observer: AccessibilityObserver(observer),
+            observer: AccessibilityObserver(Some(observer)),
         })
     }
 
