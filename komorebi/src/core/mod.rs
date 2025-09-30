@@ -366,14 +366,14 @@ pub enum SocketMessage {
     // AnimationDuration(u64, Option<AnimationPrefix>),
     // AnimationFps(u64),
     // AnimationStyle(AnimationStyle, Option<AnimationPrefix>),
-    // #[serde(alias = "ActiveWindowBorder")]
-    // Border(bool),
-    // #[serde(alias = "ActiveWindowBorderColour")]
-    // BorderColour(WindowKind, u32, u32, u32),
+    #[serde(alias = "ActiveWindowBorder")]
+    Border(bool),
+    #[serde(alias = "ActiveWindowBorderColour")]
+    BorderColour(WindowKind, u32, u32, u32),
     // #[serde(alias = "ActiveWindowBorderStyle")]
     // BorderStyle(BorderStyle),
-    // BorderWidth(i32),
-    // BorderOffset(i32),
+    BorderWidth(i32),
+    BorderOffset(i32),
     // BorderImplementation(BorderImplementation),
     // Transparency(bool),
     // ToggleTransparency,

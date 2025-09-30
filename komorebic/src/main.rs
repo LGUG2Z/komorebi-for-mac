@@ -18,6 +18,7 @@ use komorebi_client::Rect;
 use komorebi_client::Sizing;
 use komorebi_client::SocketMessage;
 use komorebi_client::StateQuery;
+use komorebi_client::WindowKind;
 use komorebi_client::replace_env_in_path;
 use komorebi_client::send_message;
 use komorebi_client::send_query;
@@ -611,6 +612,36 @@ struct ScrollingLayoutColumns {
 }
 
 #[derive(Parser)]
+struct Border {
+    #[clap(value_enum)]
+    boolean_state: BooleanState,
+}
+
+#[derive(Parser)]
+struct BorderColour {
+    #[clap(value_enum, short, long, default_value = "single")]
+    window_kind: WindowKind,
+    /// Red
+    r: u32,
+    /// Green
+    g: u32,
+    /// Blue
+    b: u32,
+}
+
+#[derive(Parser)]
+struct BorderWidth {
+    /// Desired width of the window border
+    width: i32,
+}
+
+#[derive(Parser)]
+struct BorderOffset {
+    /// Desired offset of the window border
+    offset: i32,
+}
+
+#[derive(Parser)]
 #[clap(author, about, version = build::CLAP_LONG_VERSION)]
 struct Opts {
     #[clap(subcommand)]
@@ -1047,22 +1078,22 @@ enum SubCommand {
     // #[clap(hide = true)]
     // #[clap(alias = "identify-border-overflow")]
     // IdentifyBorderOverflowApplication(IdentifyBorderOverflowApplication),
-    // /// Enable or disable borders
-    // #[clap(arg_required_else_help = true)]
-    // #[clap(alias = "active-window-border")]
-    // Border(Border),
-    // /// Set the colour for a window border kind
-    // #[clap(arg_required_else_help = true)]
-    // #[clap(alias = "active-window-border-colour")]
-    // BorderColour(BorderColour),
-    // /// Set the border width
-    // #[clap(arg_required_else_help = true)]
-    // #[clap(alias = "active-window-border-width")]
-    // BorderWidth(BorderWidth),
-    // /// Set the border offset
-    // #[clap(arg_required_else_help = true)]
-    // #[clap(alias = "active-window-border-offset")]
-    // BorderOffset(BorderOffset),
+    /// Enable or disable borders
+    #[clap(arg_required_else_help = true)]
+    #[clap(alias = "active-window-border")]
+    Border(Border),
+    /// Set the colour for a window border kind
+    #[clap(arg_required_else_help = true)]
+    #[clap(alias = "active-window-border-colour")]
+    BorderColour(BorderColour),
+    /// Set the border width
+    #[clap(arg_required_else_help = true)]
+    #[clap(alias = "active-window-border-width")]
+    BorderWidth(BorderWidth),
+    /// Set the border offset
+    #[clap(arg_required_else_help = true)]
+    #[clap(alias = "active-window-border-offset")]
+    BorderOffset(BorderOffset),
     // /// Set the border style
     // #[clap(arg_required_else_help = true)]
     // BorderStyle(BorderStyle),
@@ -2061,6 +2092,23 @@ fn main() -> eyre::Result<()> {
         }
         SubCommand::ReplaceConfiguration(arg) => {
             send_message(&SocketMessage::ReplaceConfiguration(arg.path))?;
+        }
+        SubCommand::Border(arg) => {
+            send_message(&SocketMessage::Border(arg.boolean_state.into()))?;
+        }
+        SubCommand::BorderColour(arg) => {
+            send_message(&SocketMessage::BorderColour(
+                arg.window_kind,
+                arg.r,
+                arg.g,
+                arg.b,
+            ))?;
+        }
+        SubCommand::BorderWidth(arg) => {
+            send_message(&SocketMessage::BorderWidth(arg.width))?;
+        }
+        SubCommand::BorderOffset(arg) => {
+            send_message(&SocketMessage::BorderOffset(arg.offset))?;
         }
     }
 

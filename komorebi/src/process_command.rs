@@ -19,6 +19,7 @@ use crate::core::MoveBehaviour;
 use crate::core::SocketMessage;
 use crate::core::StateQuery;
 use crate::core::WindowContainerBehaviour;
+use crate::core::WindowKind;
 use crate::core::arrangement::Axis;
 use crate::core::config_generation::IdWithIdentifier;
 use crate::core::config_generation::MatchingRule;
@@ -48,6 +49,7 @@ use crate::workspace::WorkspaceWindowLocation;
 use color_eyre::eyre;
 use color_eyre::eyre::Context;
 use color_eyre::eyre::OptionExt;
+use komorebi_themes::colour::Rgb;
 use objc2_core_foundation::CFDictionary;
 use parking_lot::Mutex;
 use std::collections::HashMap;
@@ -59,6 +61,7 @@ use std::num::NonZeroUsize;
 use std::os::unix::net::UnixStream;
 use std::str::FromStr;
 use std::sync::Arc;
+use std::sync::atomic::Ordering;
 use std::time::Duration;
 
 #[tracing::instrument]
@@ -1669,6 +1672,41 @@ impl WindowManager {
                     // Set self to the new wm instance
                     *self = wm;
                 }
+            }
+            SocketMessage::Border(enable) => {
+                border_manager::BORDER_ENABLED.store(enable, Ordering::SeqCst);
+                if !enable {
+                    border_manager::destroy_all_borders()?;
+                }
+            }
+            SocketMessage::BorderColour(kind, r, g, b) => match kind {
+                WindowKind::Single => {
+                    border_manager::FOCUSED.store(Rgb::new(r, g, b).into(), Ordering::SeqCst);
+                }
+                WindowKind::Stack => {
+                    border_manager::STACK.store(Rgb::new(r, g, b).into(), Ordering::SeqCst);
+                }
+                WindowKind::Monocle => {
+                    border_manager::MONOCLE.store(Rgb::new(r, g, b).into(), Ordering::SeqCst);
+                }
+                WindowKind::Unfocused => {
+                    border_manager::UNFOCUSED.store(Rgb::new(r, g, b).into(), Ordering::SeqCst);
+                }
+                WindowKind::UnfocusedLocked => {
+                    border_manager::UNFOCUSED_LOCKED
+                        .store(Rgb::new(r, g, b).into(), Ordering::SeqCst);
+                }
+                WindowKind::Floating => {
+                    border_manager::FLOATING.store(Rgb::new(r, g, b).into(), Ordering::SeqCst);
+                }
+            },
+            SocketMessage::BorderWidth(width) => {
+                border_manager::BORDER_WIDTH.store(width, Ordering::SeqCst);
+                border_manager::destroy_all_borders()?;
+            }
+            SocketMessage::BorderOffset(offset) => {
+                border_manager::BORDER_OFFSET.store(offset, Ordering::SeqCst);
+                border_manager::destroy_all_borders()?;
             }
         }
 
