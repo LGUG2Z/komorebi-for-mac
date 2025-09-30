@@ -17,6 +17,7 @@ use komorebi::process_command::listen_for_commands;
 use komorebi::process_event::listen_for_events;
 use komorebi::reaper;
 use komorebi::static_config::StaticConfig;
+use komorebi::theme_manager;
 use komorebi::window_manager::WindowManager;
 use komorebi::window_manager_event_listener;
 use objc2::rc::autoreleasepool;
@@ -259,6 +260,7 @@ fn main() -> eyre::Result<()> {
     wm.lock().update_focused_workspace(true, true)?;
 
     border_manager::listen_for_notifications(wm.clone(), CoreFoundationRunLoop(run_loop));
+    theme_manager::listen_for_notifications();
     listen_for_commands(wm.clone());
     listen_for_events(wm.clone());
     monitor_reconciliator::listen_for_notifications(wm.clone())?;

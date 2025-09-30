@@ -67,6 +67,7 @@ pub mod reaper;
 pub mod skylight;
 pub mod state;
 pub mod static_config;
+pub mod theme_manager;
 pub mod window;
 pub mod window_manager;
 pub mod window_manager_event;
