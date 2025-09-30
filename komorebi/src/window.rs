@@ -43,7 +43,6 @@ use crate::window_manager_event::SystemNotification;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::window_manager_event_listener;
 use color_eyre::eyre;
-use color_eyre::eyre::OptionExt;
 use objc2::__framework_prelude::Retained;
 use objc2_app_kit::NSApplicationActivationOptions;
 use objc2_app_kit::NSRunningApplication;
@@ -184,10 +183,11 @@ pub struct Window {
     pub application: Application,
     #[serde(skip_deserializing)]
     observer: AccessibilityObserver,
+    pub details: Option<WindowDetails>,
 }
 
 #[allow(clippy::module_name_repetitions)]
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct WindowDetails {
     pub title: String,
     pub exe: String,
@@ -195,16 +195,14 @@ pub struct WindowDetails {
     pub subrole: String,
 }
 
-impl TryFrom<&Window> for WindowDetails {
-    type Error = eyre::ErrReport;
-
-    fn try_from(value: &Window) -> std::result::Result<Self, Self::Error> {
-        Ok(Self {
-            title: value.title().ok_or_eyre("can't read title")?,
-            exe: value.exe().ok_or_eyre("can't read exee")?,
-            role: value.role().ok_or_eyre("can't read role")?,
-            subrole: value.subrole().ok_or_eyre("can't read subrole")?,
-        })
+impl From<&Window> for WindowDetails {
+    fn from(value: &Window) -> Self {
+        Self {
+            title: value.title().unwrap_or_default(),
+            exe: value.exe().unwrap_or_default(),
+            role: value.role().unwrap_or_default(),
+            subrole: value.subrole().unwrap_or_default(),
+        }
     }
 }
 
@@ -262,33 +260,10 @@ impl Serialize for Window {
         let mut state = serializer.serialize_struct("Window", 6)?;
         state.serialize_field("id", &self.id)?;
         state.serialize_field(
-            "title",
-            &self
-                .title()
-                .unwrap_or_else(|| String::from("could not get window title")),
-        )?;
-        state.serialize_field(
-            "exe",
-            &self
-                .exe()
-                .unwrap_or_else(|| String::from("could not get window exe")),
-        )?;
-        state.serialize_field(
-            "role",
-            &self
-                .role()
-                .unwrap_or_else(|| String::from("could not get window accessibility role")),
-        )?;
-        state.serialize_field(
-            "subrole",
-            &self
-                .subrole()
-                .unwrap_or_else(|| String::from("could not get window accessibility subrole")),
-        )?;
-        state.serialize_field(
             "rect",
             &Rect::from(MacosApi::window_rect(&self.element).unwrap_or_default()),
         )?;
+        state.serialize_field("details", &WindowDetails::from(self))?;
         state.end()
     }
 }
@@ -331,6 +306,7 @@ impl Window {
             element: AccessibilityUiElement(element),
             application,
             observer: AccessibilityObserver(Some(observer)),
+            details: None,
         })
     }
 

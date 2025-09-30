@@ -975,31 +975,28 @@ impl Workspace {
     pub fn visible_window_details(&self) -> Vec<WindowDetails> {
         let mut vec: Vec<WindowDetails> = vec![];
 
-        if let Some(maximized) = &self.maximized_window
-            && let Ok(details) = (maximized).try_into()
-        {
+        if let Some(maximized) = &self.maximized_window {
+            let details = maximized.into();
             vec.push(details);
         }
 
         if let Some(monocle) = &self.monocle_container
             && let Some(focused) = monocle.focused_window()
-            && let Ok(details) = focused.try_into()
         {
+            let details = focused.into();
             vec.push(details);
         }
 
         for container in self.containers() {
-            if let Some(focused) = container.focused_window()
-                && let Ok(details) = focused.try_into()
-            {
+            if let Some(focused) = container.focused_window() {
+                let details = focused.into();
                 vec.push(details);
             }
         }
 
         for window in self.floating_windows() {
-            if let Ok(details) = window.try_into() {
-                vec.push(details);
-            }
+            let details = window.into();
+            vec.push(details);
         }
 
         vec

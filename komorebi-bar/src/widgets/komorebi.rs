@@ -1004,7 +1004,7 @@ pub struct WindowInfo {
 impl From<&Window> for WindowInfo {
     fn from(value: &Window) -> Self {
         Self {
-            title: value.title(),
+            title: value.details.as_ref().map(|details| details.title.clone()),
             icon: None,
             // icon: ImageIcon::try_load(value.hwnd, || {
             //     windows_icons::get_icon_by_hwnd(value.hwnd)
