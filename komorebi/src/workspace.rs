@@ -1,5 +1,7 @@
+use crate::DATA_DIR;
 use crate::container::Container;
 use crate::core::FloatingLayerBehaviour;
+use crate::core::SocketMessage;
 use crate::core::WindowContainerBehaviour;
 use crate::core::arrangement::Axis;
 use crate::core::cycle_direction::CycleDirection;
@@ -11,17 +13,23 @@ use crate::core::rect::Rect;
 use crate::lockable_sequence::LockableSequence;
 use crate::macos_api::MacosApi;
 use crate::ring::Ring;
+use crate::static_config::KomorebiTheme;
+use crate::static_config::Wallpaper;
 use crate::static_config::WorkspaceConfig;
 use crate::window::Window;
 use crate::window::WindowDetails;
 use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
+use komorebi_themes::Base16ColourPalette;
 use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashMap;
+use std::ffi::OsStr;
 use std::fmt::Display;
 use std::fmt::Formatter;
+use std::io::Write;
 use std::num::NonZeroUsize;
+use std::os::unix::net::UnixStream;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
@@ -53,6 +61,7 @@ pub struct Workspace {
     pub globals: WorkspaceGlobals,
     pub layer: WorkspaceLayer,
     pub floating_layer_behaviour: Option<FloatingLayerBehaviour>,
+    pub wallpaper: Option<Wallpaper>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub workspace_config: Option<WorkspaceConfig>,
 }
@@ -104,6 +113,7 @@ impl Default for Workspace {
             floating_windows: Default::default(),
             float_override: None,
             floating_layer_behaviour: None,
+            wallpaper: None,
             workspace_config: None,
         }
     }
@@ -185,7 +195,7 @@ impl Workspace {
         self.float_override = config.float_override;
         self.layout_flip = config.layout_flip;
         self.floating_layer_behaviour = config.floating_layer_behaviour;
-        // self.wallpaper = config.wallpaper.clone();
+        self.wallpaper = config.wallpaper.clone();
         self.layout_options = config.layout_options;
 
         self.workspace_config = Some(config.clone());
@@ -678,13 +688,20 @@ impl Workspace {
         Ok(())
     }
 
-    pub fn restore(&mut self, mouse_follows_focus: bool) -> eyre::Result<()> {
+    pub fn restore(
+        &mut self,
+        mouse_follows_focus: bool,
+        monitor_id: u32,
+        monitor_wp: &Option<Wallpaper>,
+    ) -> eyre::Result<()> {
         if let Some(container) = &mut self.monocle_container {
             container.restore()?;
 
             if let Some(window) = container.focused_window() {
                 window.focus(mouse_follows_focus)?;
             }
+
+            return self.apply_wallpaper(monitor_id, monitor_wp);
         }
 
         let idx = self.focused_container_idx();
@@ -730,7 +747,7 @@ impl Workspace {
             floating_window.focus(mouse_follows_focus)?;
         }
 
-        Ok(())
+        self.apply_wallpaper(monitor_id, monitor_wp)
     }
 
     pub fn remove_focused_container(&mut self) -> Option<Container> {
@@ -1154,6 +1171,126 @@ impl Workspace {
     pub fn container_for_window(&self, window_id: u32) -> Option<&Container> {
         self.containers()
             .get(self.container_idx_for_window(window_id)?)
+    }
+
+    pub fn apply_wallpaper(
+        &self,
+        monitor_id: u32,
+        monitor_wp: &Option<Wallpaper>,
+    ) -> eyre::Result<()> {
+        if let Some(wallpaper) = self.wallpaper.as_ref().or(monitor_wp.as_ref()) {
+            if let Err(error) = MacosApi::set_wallpaper(&wallpaper.path, monitor_id) {
+                tracing::error!("failed to set wallpaper: {error}");
+            }
+
+            if wallpaper.generate_theme.unwrap_or(true) {
+                let variant = wallpaper
+                    .theme_options
+                    .as_ref()
+                    .and_then(|t| t.theme_variant)
+                    .unwrap_or_default();
+
+                let cached_palette = DATA_DIR.join(format!(
+                    "{}.base16.{variant}.json",
+                    wallpaper
+                        .path
+                        .file_name()
+                        .unwrap_or(OsStr::new("tmp"))
+                        .to_string_lossy()
+                ));
+
+                let mut base16_palette = None;
+
+                if cached_palette.is_file() {
+                    tracing::info!(
+                        "colour palette for wallpaper {} found in cache",
+                        cached_palette.display()
+                    );
+
+                    // this code is VERY slow on debug builds - should only be a one-time issue when loading
+                    // an uncached wallpaper
+                    if let Ok(palette) = serde_json::from_str::<Base16ColourPalette>(
+                        &std::fs::read_to_string(&cached_palette)?,
+                    ) {
+                        base16_palette = Some(palette);
+                    }
+                };
+
+                if base16_palette.is_none() {
+                    base16_palette =
+                        komorebi_themes::generate_base16_palette(&wallpaper.path, variant).ok();
+
+                    std::fs::write(
+                        &cached_palette,
+                        serde_json::to_string_pretty(&base16_palette)?,
+                    )?;
+
+                    tracing::info!(
+                        "colour palette for wallpaper {} cached",
+                        cached_palette.display()
+                    );
+                }
+
+                if let Some(palette) = base16_palette {
+                    let komorebi_theme = KomorebiTheme::Custom {
+                        colours: Box::new(palette),
+                        single_border: wallpaper
+                            .theme_options
+                            .as_ref()
+                            .and_then(|o| o.single_border),
+                        stack_border: wallpaper
+                            .theme_options
+                            .as_ref()
+                            .and_then(|o| o.stack_border),
+                        monocle_border: wallpaper
+                            .theme_options
+                            .as_ref()
+                            .and_then(|o| o.monocle_border),
+                        floating_border: wallpaper
+                            .theme_options
+                            .as_ref()
+                            .and_then(|o| o.floating_border),
+                        unfocused_border: wallpaper
+                            .theme_options
+                            .as_ref()
+                            .and_then(|o| o.unfocused_border),
+                        unfocused_locked_border: wallpaper
+                            .theme_options
+                            .as_ref()
+                            .and_then(|o| o.unfocused_locked_border),
+                        stackbar_focused_text: wallpaper
+                            .theme_options
+                            .as_ref()
+                            .and_then(|o| o.stackbar_focused_text),
+                        stackbar_unfocused_text: wallpaper
+                            .theme_options
+                            .as_ref()
+                            .and_then(|o| o.stackbar_unfocused_text),
+                        stackbar_background: wallpaper
+                            .theme_options
+                            .as_ref()
+                            .and_then(|o| o.stackbar_background),
+                        bar_accent: wallpaper.theme_options.as_ref().and_then(|o| o.bar_accent),
+                    };
+
+                    let bytes = SocketMessage::Theme(Box::new(komorebi_theme)).as_bytes()?;
+
+                    let socket = DATA_DIR.join("komorebi.sock");
+                    match UnixStream::connect(socket) {
+                        Ok(mut stream) => {
+                            if let Err(error) = stream.write_all(&bytes) {
+                                tracing::error!("failed to send theme update message: {error}")
+                            }
+                        }
+                        Err(error) => {
+                            tracing::error!("{error}")
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(())
     }
 }
 

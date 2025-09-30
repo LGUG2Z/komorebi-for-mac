@@ -381,7 +381,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                                     // workspace_names: cached.workspace_names.clone(),
                                     container_padding: cached.container_padding,
                                     workspace_padding: cached.workspace_padding,
-                                    // wallpaper: cached.wallpaper.clone(),
+                                    wallpaper: cached.wallpaper.clone(),
                                     floating_layer_behaviour: cached.floating_layer_behaviour,
                                 };
 

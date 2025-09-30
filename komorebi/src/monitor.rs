@@ -8,6 +8,7 @@ use crate::core::operation_direction::OperationDirection;
 use crate::core::rect::Rect;
 use crate::macos_api::MacosApi;
 use crate::ring::Ring;
+use crate::static_config::Wallpaper;
 use crate::workspace::Workspace;
 use crate::workspace::WorkspaceGlobals;
 use crate::workspace::WorkspaceLayer;
@@ -67,6 +68,7 @@ pub struct Monitor {
     pub workspace_padding: Option<i32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub last_focused_workspace: Option<usize>,
+    pub wallpaper: Option<Wallpaper>,
     pub floating_layer_behaviour: Option<FloatingLayerBehaviour>,
 }
 
@@ -93,6 +95,7 @@ pub fn new(
         last_focused_workspace: None,
         container_padding: None,
         workspace_padding: None,
+        wallpaper: None,
         floating_layer_behaviour: None,
     }
 }
@@ -122,6 +125,7 @@ impl Monitor {
             container_padding: None,
             workspace_padding: None,
             last_focused_workspace: None,
+            wallpaper: None,
             floating_layer_behaviour: None,
         }
     }
@@ -141,6 +145,7 @@ impl Monitor {
             last_focused_workspace: None,
             container_padding: None,
             workspace_padding: None,
+            wallpaper: None,
             floating_layer_behaviour: None,
         }
     }
@@ -211,9 +216,11 @@ impl Monitor {
 
     pub fn load_focused_workspace(&mut self, mouse_follows_focus: bool) -> eyre::Result<()> {
         let focused_idx = self.focused_workspace_idx();
+        let monitor_id = self.id;
+        let monitor_wp = self.wallpaper.clone();
         for (i, workspace) in self.workspaces_mut().iter_mut().enumerate() {
             if i == focused_idx {
-                workspace.restore(mouse_follows_focus)?;
+                workspace.restore(mouse_follows_focus, monitor_id, &monitor_wp)?;
             } else {
                 workspace.hide(None)?;
             }

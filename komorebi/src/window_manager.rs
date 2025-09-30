@@ -1558,6 +1558,8 @@ impl WindowManager {
             let focused_workspace_idx = monitor.focused_workspace_idx();
             monitor.update_workspace_globals(focused_workspace_idx, offset);
 
+            let monitor_id = monitor.id;
+            let monitor_wp = monitor.wallpaper.clone();
             let workspace = monitor
                 .focused_workspace_mut()
                 .ok_or_eyre("there is no workspace")?;
@@ -1567,6 +1569,12 @@ impl WindowManager {
                 for resize in &mut workspace.resize_dimensions {
                     *resize = None;
                 }
+            }
+
+            if (workspace.wallpaper.is_some() || monitor_wp.is_some())
+                && let Err(error) = workspace.apply_wallpaper(monitor_id, &monitor_wp)
+            {
+                tracing::error!("failed to apply wallpaper: {}", error);
             }
 
             workspace.update()?;
@@ -3134,5 +3142,27 @@ impl WindowManager {
         target_workspace.focus_container(target_container_idx);
 
         Ok(())
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn apply_wallpaper_for_monitor_workspace(
+        &mut self,
+        monitor_idx: usize,
+        workspace_idx: usize,
+    ) -> eyre::Result<()> {
+        let monitor = self
+            .monitors_mut()
+            .get_mut(monitor_idx)
+            .ok_or_eyre("there is no monitor")?;
+
+        let monitor_id = monitor.id;
+        let monitor_wp = monitor.wallpaper.clone();
+
+        let workspace = monitor
+            .workspaces()
+            .get(workspace_idx)
+            .ok_or_eyre("there is no workspace")?;
+
+        workspace.apply_wallpaper(monitor_id, &monitor_wp)
     }
 }

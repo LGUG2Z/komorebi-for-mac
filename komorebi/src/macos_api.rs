@@ -19,10 +19,13 @@ use crate::window::RuleDebug;
 use crate::window::WindowInfo;
 use crate::window_manager::WindowManager;
 use color_eyre::eyre;
+use color_eyre::eyre::OptionExt;
+use dispatch2::DispatchQueue;
 use objc2::MainThreadMarker;
 use objc2_app_kit::NSDeviceDescriptionKey;
 use objc2_app_kit::NSEvent;
 use objc2_app_kit::NSScreen;
+use objc2_app_kit::NSWorkspace;
 use objc2_application_services::AXUIElement;
 use objc2_application_services::AXValue;
 use objc2_application_services::AXValueType;
@@ -36,13 +39,53 @@ use objc2_core_graphics::CGEvent;
 use objc2_core_graphics::CGEventSource;
 use objc2_core_graphics::CGEventSourceStateID;
 use objc2_core_graphics::CGMainDisplayID;
+use objc2_foundation::NSDictionary;
 use objc2_foundation::NSNumber;
+use objc2_foundation::NSString;
+use objc2_foundation::NSURL;
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use std::ffi::c_void;
+use std::path::Path;
 use std::ptr::NonNull;
 
 pub struct MacosApi;
+
+impl MacosApi {
+    pub fn set_wallpaper(path: &Path, display_id: u32) -> eyre::Result<()> {
+        let path_str = path.to_str().ok_or_eyre("Invalid path encoding")?;
+
+        DispatchQueue::main().exec_sync(|| {
+            let ns_path = NSString::from_str(path_str);
+            let url = unsafe { NSURL::fileURLWithPath(&ns_path) };
+
+            let mtm = unsafe { MainThreadMarker::new_unchecked() };
+            let screens = NSScreen::screens(mtm);
+
+            for screen in &screens {
+                if let Some(did) = screen
+                    .deviceDescription()
+                    .objectForKey(&NSDeviceDescriptionKey::from_str("NSScreenNumber"))
+                    && let Ok(did) = did.downcast::<NSNumber>()
+                    && did.as_u32() == display_id
+                {
+                    let workspace = unsafe { NSWorkspace::sharedWorkspace() };
+                    unsafe {
+                        if let Err(error) = workspace.setDesktopImageURL_forScreen_options_error(
+                            &url,
+                            &screen,
+                            &NSDictionary::new(),
+                        ) {
+                            tracing::warn!("failed to set wallpaper: {error}")
+                        }
+                    }
+                }
+            }
+        });
+
+        Ok(())
+    }
+}
 
 impl MacosApi {
     #[tracing::instrument(skip_all)]

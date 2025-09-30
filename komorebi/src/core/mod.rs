@@ -4,6 +4,7 @@ use crate::core::default_layout::DefaultLayout;
 use crate::core::operation_direction::OperationDirection;
 use crate::core::pathext::ResolvedPathBuf;
 use crate::core::rect::Rect;
+use crate::static_config::KomorebiTheme;
 use clap::ValueEnum;
 use color_eyre::eyre;
 use serde::Deserialize;
@@ -361,7 +362,7 @@ pub enum SocketMessage {
     // WatchConfiguration(bool),
     // CompleteConfiguration,
     // AltFocusHack(bool),
-    // Theme(Box<KomorebiTheme>),
+    Theme(Box<KomorebiTheme>),
     // Animation(bool, Option<AnimationPrefix>),
     // AnimationDuration(u64, Option<AnimationPrefix>),
     // AnimationFps(u64),

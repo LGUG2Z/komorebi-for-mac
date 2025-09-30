@@ -38,6 +38,7 @@ use crate::notify_subscribers;
 use crate::state::GlobalState;
 use crate::state::State;
 use crate::static_config::StaticConfig;
+use crate::theme_manager;
 use crate::window::AdhocWindow;
 use crate::window::RuleDebug;
 use crate::window::Window;
@@ -1707,6 +1708,9 @@ impl WindowManager {
             SocketMessage::BorderOffset(offset) => {
                 border_manager::BORDER_OFFSET.store(offset, Ordering::SeqCst);
                 border_manager::destroy_all_borders()?;
+            }
+            SocketMessage::Theme(ref theme) => {
+                theme_manager::send_notification(*theme.clone());
             }
         }
 

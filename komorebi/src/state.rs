@@ -138,7 +138,7 @@ impl From<&WindowManager> for State {
                             layer: workspace.layer,
                             floating_layer_behaviour: workspace.floating_layer_behaviour,
                             globals: workspace.globals,
-                            // wallpaper: workspace.wallpaper.clone(),
+                            wallpaper: workspace.wallpaper.clone(),
                             workspace_config: None,
                         })
                         .collect::<VecDeque<_>>();
@@ -149,7 +149,7 @@ impl From<&WindowManager> for State {
                 // workspace_names: monitor.workspace_names.clone(),
                 container_padding: monitor.container_padding,
                 workspace_padding: monitor.workspace_padding,
-                // wallpaper: monitor.wallpaper.clone(),
+                wallpaper: monitor.wallpaper.clone(),
                 floating_layer_behaviour: monitor.floating_layer_behaviour,
             })
             .collect::<VecDeque<_>>();

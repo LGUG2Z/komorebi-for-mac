@@ -121,20 +121,20 @@ pub struct ThemeOptions {
     pub bar_accent: Option<komorebi_themes::Base16Value>,
 }
 
-// #[serde_with::serde_as]
-// #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-// #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-// pub struct Wallpaper {
-//     /// Path to the wallpaper image file
-//     #[serde_as(as = "ResolvedPathBuf")]
-//     pub path: PathBuf,
-//     /// Generate and apply Base16 theme for this wallpaper (default: true)
-//     #[serde(skip_serializing_if = "Option::is_none")]
-//     pub generate_theme: Option<bool>,
-//     /// Specify Light or Dark variant for theme generation (default: Dark)
-//     #[serde(skip_serializing_if = "Option::is_none")]
-//     pub theme_options: Option<ThemeOptions>,
-// }
+#[serde_with::serde_as]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+pub struct Wallpaper {
+    /// Path to the wallpaper image file
+    #[serde_as(as = "ResolvedPathBuf")]
+    pub path: PathBuf,
+    /// Generate and apply Base16 theme for this wallpaper (default: true)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub generate_theme: Option<bool>,
+    /// Specify Light or Dark variant for theme generation (default: Dark)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub theme_options: Option<ThemeOptions>,
+}
 
 // serde_as must be before derive
 #[serde_with::serde_as]
@@ -192,9 +192,9 @@ pub struct WorkspaceConfig {
     /// Determine what happens to a new window when the Floating workspace layer is active (default: Tile)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub floating_layer_behaviour: Option<FloatingLayerBehaviour>,
-    // /// Specify a wallpaper for this workspace
-    // #[serde(skip_serializing_if = "Option::is_none")]
-    // pub wallpaper: Option<Wallpaper>,
+    /// Specify a wallpaper for this workspace
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub wallpaper: Option<Wallpaper>,
 }
 
 impl From<&Workspace> for WorkspaceConfig {
@@ -274,7 +274,7 @@ impl From<&Workspace> for WorkspaceConfig {
             tile,
             layout_flip: value.layout_flip,
             floating_layer_behaviour: value.floating_layer_behaviour,
-            // wallpaper: None,
+            wallpaper: None,
         }
     }
 }
@@ -299,9 +299,9 @@ pub struct MonitorConfig {
     /// Workspace padding (default: global)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub workspace_padding: Option<i32>,
-    // /// Specify a wallpaper for this monitor
-    // #[serde(skip_serializing_if = "Option::is_none")]
-    // pub wallpaper: Option<Wallpaper>,
+    /// Specify a wallpaper for this monitor
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub wallpaper: Option<Wallpaper>,
     /// Determine what happens to a new window when the Floating workspace layer is active (default: Tile)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub floating_layer_behaviour: Option<FloatingLayerBehaviour>,
@@ -340,7 +340,7 @@ impl From<&Monitor> for MonitorConfig {
             window_based_work_area_offset_limit: Some(value.window_based_work_area_offset_limit),
             container_padding,
             workspace_padding,
-            // wallpaper: value.wallpaper.clone(),
+            wallpaper: value.wallpaper.clone(),
             floating_layer_behaviour: value.floating_layer_behaviour,
         }
     }
@@ -1250,7 +1250,7 @@ impl StaticConfig {
                     .unwrap_or(1);
                 monitor.container_padding = monitor_config.container_padding;
                 monitor.workspace_padding = monitor_config.workspace_padding;
-                // monitor.wallpaper = monitor_config.wallpaper.clone();
+                monitor.wallpaper = monitor_config.wallpaper.clone();
                 monitor.floating_layer_behaviour = monitor_config.floating_layer_behaviour;
 
                 monitor.update_workspaces_globals(offset);
@@ -1416,7 +1416,7 @@ impl StaticConfig {
                     .unwrap_or(1);
                 monitor.container_padding = monitor_config.container_padding;
                 monitor.workspace_padding = monitor_config.workspace_padding;
-                // monitor.wallpaper = monitor_config.wallpaper.clone();
+                monitor.wallpaper = monitor_config.wallpaper.clone();
                 monitor.floating_layer_behaviour = monitor_config.floating_layer_behaviour;
 
                 monitor.update_workspaces_globals(offset);
@@ -1544,8 +1544,8 @@ impl StaticConfig {
 
         for i in 0..monitor_count {
             wm.update_focused_workspace_by_monitor_idx(i)?;
-            // let ws_idx = wm.focused_workspace_idx_for_monitor_idx(i)?;
-            // wm.apply_wallpaper_for_monitor_workspace(i, ws_idx)?;
+            let ws_idx = wm.focused_workspace_idx_for_monitor_idx(i)?;
+            wm.apply_wallpaper_for_monitor_workspace(i, ws_idx)?;
         }
 
         // to update the borders
