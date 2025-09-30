@@ -1,21 +1,33 @@
 pub use komorebi::DATA_DIR;
 pub use komorebi::Notification;
+pub use komorebi::NotificationEvent;
+pub use komorebi::container::Container;
 pub use komorebi::core::ApplicationIdentifier;
 pub use komorebi::core::MoveBehaviour;
 pub use komorebi::core::OperationBehaviour;
 pub use komorebi::core::Sizing;
 pub use komorebi::core::SocketMessage;
 pub use komorebi::core::StateQuery;
+pub use komorebi::core::SubscribeOptions;
 pub use komorebi::core::WindowKind;
 pub use komorebi::core::arrangement::Axis;
 pub use komorebi::core::asc::ApplicationSpecificConfiguration;
 pub use komorebi::core::cycle_direction::CycleDirection;
 pub use komorebi::core::default_layout::DefaultLayout;
+pub use komorebi::core::layout::Layout;
 pub use komorebi::core::operation_direction::OperationDirection;
 pub use komorebi::core::pathext::PathExt;
 pub use komorebi::core::pathext::replace_env_in_path;
 pub use komorebi::core::rect::Rect;
+pub use komorebi::monitor_reconciliator::MonitorNotification;
+pub use komorebi::state::State;
+pub use komorebi::static_config::KomorebiTheme;
 pub use komorebi::static_config::StaticConfig;
+pub use komorebi::window::Window;
+pub use komorebi::workspace::Workspace;
+pub use komorebi::workspace::WorkspaceLayer;
+pub use komorebi_themes::colour::Colour;
+pub use komorebi_themes::colour::Rgb;
 use std::borrow::Borrow;
 use std::io::BufReader;
 use std::io::Read;
@@ -83,6 +95,32 @@ pub fn subscribe(name: &str) -> std::io::Result<UnixListener> {
     let listener = UnixListener::bind(&socket)?;
 
     send_message(&SocketMessage::AddSubscriberSocket(name.to_string()))?;
+
+    Ok(listener)
+}
+
+pub fn subscribe_with_options(
+    name: &str,
+    options: SubscribeOptions,
+) -> std::io::Result<UnixListener> {
+    let socket = DATA_DIR.join(name);
+
+    match std::fs::remove_file(&socket) {
+        Ok(()) => {}
+        Err(error) => match error.kind() {
+            std::io::ErrorKind::NotFound => {}
+            _ => {
+                return Err(error);
+            }
+        },
+    };
+
+    let listener = UnixListener::bind(&socket)?;
+
+    send_message(&SocketMessage::AddSubscriberSocketWithOptions(
+        name.to_string(),
+        options,
+    ))?;
 
     Ok(listener)
 }

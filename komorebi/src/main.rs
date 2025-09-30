@@ -257,14 +257,15 @@ fn main() -> eyre::Result<()> {
         StaticConfig::postload(config, &wm)?;
     }
 
-    wm.lock().update_focused_workspace(true, true)?;
+    wm.lock().retile_all(false)?;
 
     border_manager::listen_for_notifications(wm.clone(), CoreFoundationRunLoop(run_loop));
     theme_manager::listen_for_notifications();
-    listen_for_commands(wm.clone());
-    listen_for_events(wm.clone());
     monitor_reconciliator::listen_for_notifications(wm.clone())?;
     reaper::listen_for_notifications(wm.clone());
+
+    listen_for_commands(wm.clone());
+    listen_for_events(wm.clone());
 
     let quit_ctrlc = Arc::new(AtomicBool::new(false));
     let quit_thread = quit_ctrlc.clone();

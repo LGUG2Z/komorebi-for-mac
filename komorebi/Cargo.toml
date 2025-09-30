@@ -6,32 +6,31 @@ edition = "2024"
 
 [dependencies]
 komorebi-themes = { git = "https://github.com/LGUG2Z/komorebi", version = "0.1.38"}
+quickxml_to_serde = { git = "https://github.com/LGUG2Z/quickxml_to_serde.git", version = "0.6.1" }
 
+block2 = "0.3"
 clap = { workspace = true }
 color-eyre = { workspace = true }
-crossbeam-channel = "0.5"
-crossbeam-utils = "0.8"
+crossbeam-channel = { workspace = true }
+crossbeam-utils = { workspace = true }
 ctrlc = { version = "3", features = ["termination"] }
-dispatch2 = "0.3"
 dirs = { workspace = true }
-hotwatch = "0.5"
+dispatch2 = "0.3"
+hotwatch = { workspace = true }
 lazy_static = { workspace = true }
 nanoid = "0.4"
-block2 = "0.3"
 objc2 = "0.6"
-objc2-core-services = "0.3"
 objc2-app-kit = "0.3"
 objc2-application-services = "0.3"
-objc2-quartz-core = "0.3"
-objc2-core-video = "0.3"
 objc2-core-foundation = { version = "0.3", features = ["CFDictionary", "CFString"] }
 objc2-core-graphics = { version = "0.3", features = ["CGWindow", "alloc"] }
+objc2-core-services = "0.3"
+objc2-core-video = "0.3"
 objc2-foundation = "0.3"
-parking_lot = "0.12"
+objc2-quartz-core = "0.3"
+parking_lot = { workspace = true }
 pastey = { workspace = true }
 quick-xml = { version = "0.38", features = ["serialize"] }
-# forked to patch in serde_json_lenient and update some old dependencies
-quickxml_to_serde = { git = "https://github.com/LGUG2Z/quickxml_to_serde.git", version = "0.6.1" }
 regex = "1"
 schemars = { workspace = true, optional = true }
 serde = { workspace = true }
@@ -41,9 +40,9 @@ shadow-rs = { workspace = true }
 strum = { version = "0.27", features = ["derive"] }
 sysinfo = { workspace = true }
 thiserror = { workspace = true }
-tracing = "0.1"
-tracing-appender = "0.2"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing = { workspace = true }
+tracing-appender = { workspace = true }
+tracing-subscriber = { workspace = true }
 
 [build-dependencies]
 shadow-rs = { workspace = true }

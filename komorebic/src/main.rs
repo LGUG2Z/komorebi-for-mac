@@ -558,6 +558,9 @@ struct Start {
     #[clap(short, long)]
     #[clap(value_parser = replace_env_in_path)]
     config: Option<PathBuf>,
+    /// Start komorebi-bar in a background process
+    #[clap(long)]
+    bar: bool,
     // /// Do not attempt to auto-apply a dumped state temp file from a previously running instance of komorebi
     // #[clap(long)]
     // clean_state: bool,
@@ -568,6 +571,9 @@ struct Stop {
     /// Do not restore windows after stopping komorebi
     #[clap(long, hide = true)]
     ignore_restore: bool,
+    /// Stop komorebi-bar if it is running as a background process
+    #[clap(long)]
+    bar: bool,
 }
 
 #[derive(Parser)]
@@ -1472,6 +1478,17 @@ fn main() -> eyre::Result<()> {
                 return Ok(());
             }
 
+            if arg.bar {
+                let mut command = &mut Command::new("komorebi-bar");
+
+                command = command
+                    .stdout(Stdio::null())
+                    .stderr(Stdio::null())
+                    .stdin(Stdio::null());
+
+                command.spawn()?;
+            }
+
             println!("\nThank you for using komorebi!\n");
             println!("# Commercial Use License");
             println!(
@@ -1502,6 +1519,10 @@ fn main() -> eyre::Result<()> {
                 send_message(&SocketMessage::StopIgnoreRestore)?;
             } else {
                 send_message(&SocketMessage::Stop)?;
+            }
+
+            if arg.bar {
+                Command::new("pkill").arg("komorebi-bar").spawn()?;
             }
 
             // TODO: see if we need a force quit sometimes like we do on Windows

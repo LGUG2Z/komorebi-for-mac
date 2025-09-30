@@ -338,6 +338,10 @@ impl Window {
         AccessibilityApi::copy_attribute_names(&self.element).is_some()
     }
 
+    pub fn is_focused(&self) -> bool {
+        MacosApi::foreground_window_id().unwrap_or_default() == self.id
+    }
+
     #[tracing::instrument(skip_all)]
     pub fn observe(
         &self,

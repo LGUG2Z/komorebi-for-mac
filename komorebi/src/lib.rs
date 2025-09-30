@@ -113,12 +113,18 @@ lazy_static! {
     static ref REGEX_IDENTIFIERS: Arc<Mutex<HashMap<String, Regex>>> =
         Arc::new(Mutex::new(HashMap::new()));
     static ref MANAGE_IDENTIFIERS: Arc<Mutex<Vec<MatchingRule>>> = Arc::new(Mutex::new(vec![]));
-    static ref IGNORE_IDENTIFIERS: Arc<Mutex<Vec<MatchingRule>>> =
-        Arc::new(Mutex::new(vec![MatchingRule::Simple(IdWithIdentifier {
+    static ref IGNORE_IDENTIFIERS: Arc<Mutex<Vec<MatchingRule>>> = Arc::new(Mutex::new(vec![
+        MatchingRule::Simple(IdWithIdentifier {
             kind: ApplicationIdentifier::Exe,
             id: String::from("Spotlight"),
             matching_strategy: Option::from(MatchingStrategy::Equals),
-        })]));
+        }),
+        MatchingRule::Simple(IdWithIdentifier {
+            kind: ApplicationIdentifier::Exe,
+            id: String::from("komorebi-bar"),
+            matching_strategy: Option::from(MatchingStrategy::Equals),
+        })
+    ]));
     static ref SESSION_FLOATING_APPLICATIONS: Arc<Mutex<Vec<MatchingRule>>> =
         Arc::new(Mutex::new(Vec::new()));
     static ref FLOATING_APPLICATIONS: Arc<Mutex<Vec<MatchingRule>>> =
@@ -181,12 +187,13 @@ pub fn notify_subscribers(
 ) -> eyre::Result<()> {
     let is_override_event = matches!(
         notification.event,
-        NotificationEvent::Socket(SocketMessage::AddSubscriberSocket(_))
+        NotificationEvent::Monitor(_)
+        | NotificationEvent::Socket(SocketMessage::AddSubscriberSocket(_))
             | NotificationEvent::Socket(SocketMessage::AddSubscriberSocketWithOptions(_, _))
-            // | NotificationEvent::Socket(SocketMessage::Theme(_))
-            | NotificationEvent::Socket(SocketMessage::ReloadStaticConfiguration(_)) // | NotificationEvent::WindowManager(WindowManagerEvent::TitleUpdate(_, _))
-                                                                                     // | NotificationEvent::WindowManager(WindowManagerEvent::Show(_, _))
-                                                                                     // | NotificationEvent::WindowManager(WindowManagerEvent::Uncloak(_, _))
+            | NotificationEvent::Socket(SocketMessage::Theme(_))
+            | NotificationEvent::Socket(SocketMessage::ReloadStaticConfiguration(_))
+            // | NotificationEvent::WindowManager(WindowManagerEvent::TitleUpdate(_, _))
+            | NotificationEvent::WindowManager(WindowManagerEvent::Show(_, _)) // | NotificationEvent::WindowManager(WindowManagerEvent::Uncloak(_, _))
     );
 
     let notification = &serde_json::to_string(&notification)?;
@@ -259,7 +266,7 @@ impl Default for AccessibilityUiElement {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct AccessibilityObserver(pub Option<CFRetained<AXObserver>>);
 unsafe impl Sync for AccessibilityObserver {}
 unsafe impl Send for AccessibilityObserver {}
@@ -268,12 +275,6 @@ impl Deref for AccessibilityObserver {
 
     fn deref(&self) -> &Self::Target {
         self.0.as_ref().expect("must have an AXObserver")
-    }
-}
-
-impl Default for AccessibilityObserver {
-    fn default() -> Self {
-        Self(None)
     }
 }
 

@@ -53,10 +53,13 @@ pub struct MacosApi;
 
 impl MacosApi {
     pub fn set_wallpaper(path: &Path, display_id: u32) -> eyre::Result<()> {
-        let path_str = path.to_str().ok_or_eyre("Invalid path encoding")?;
+        let path_str = path
+            .to_str()
+            .ok_or_eyre("Invalid path encoding")?
+            .to_string();
 
-        DispatchQueue::main().exec_sync(|| {
-            let ns_path = NSString::from_str(path_str);
+        DispatchQueue::main().exec_async(move || {
+            let ns_path = NSString::from_str(&path_str);
             let url = unsafe { NSURL::fileURLWithPath(&ns_path) };
 
             let mtm = unsafe { MainThreadMarker::new_unchecked() };

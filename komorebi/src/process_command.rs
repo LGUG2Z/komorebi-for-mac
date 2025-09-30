@@ -1756,8 +1756,7 @@ pub fn read_commands_uds(
                         SocketMessage::TogglePause
                         | SocketMessage::State
                         | SocketMessage::GlobalState
-                        // | SocketMessage::Stop
-                        => Ok(wm.process_command(message, &mut stream)?),
+                        | SocketMessage::Stop => Ok(wm.process_command(message, &mut stream)?),
                         _ => {
                             tracing::trace!("ignoring while paused");
                             Ok(())

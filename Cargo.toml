@@ -3,7 +3,7 @@
 resolver = "2"
 members = [
     "komorebi", "komorebi-client",
-    "komorebic",
+    "komorebic", "komorebi-bar"
 ]
 
 
@@ -12,8 +12,15 @@ chrono = "0.4"
 chrono-tz = "0.10"
 clap = { version = "4", features = ["derive", "wrap_help"] }
 color-eyre = "0.6"
+crossbeam-channel = "0.5"
+crossbeam-utils = "0.8"
 dirs = "6"
+dunce = "1"
+eframe = "0.31"
+egui_extras = "0.31"
+hotwatch = "0.5"
 lazy_static = "1"
+parking_lot = "0.12"
 pastey = "0.1"
 schemars = "0.8"
 serde = { version = "1", features = ["derive"] }
@@ -21,3 +28,7 @@ serde_json = { package = "serde_json_lenient", version = "0.2" }
 shadow-rs = "1"
 sysinfo = "0.37"
 thiserror = "2"
+tracing = "0.1"
+tracing-appender = "0.2"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+which = "7"
