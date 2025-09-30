@@ -7,6 +7,7 @@ use crate::UNMANAGED_WINDOW_IDS;
 use crate::WORKSPACE_MATCHING_RULES;
 use crate::accessibility::AccessibilityApi;
 use crate::application::Application;
+use crate::border_manager;
 use crate::container::Container;
 use crate::core::CrossBoundaryBehaviour;
 use crate::core::MoveBehaviour;
@@ -1570,6 +1571,8 @@ impl WindowManager {
 
             workspace.update()?;
         }
+
+        border_manager::destroy_all_borders()?;
 
         Ok(())
     }

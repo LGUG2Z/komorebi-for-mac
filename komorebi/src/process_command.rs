@@ -732,14 +732,8 @@ impl WindowManager {
 
                 self.update_focused_workspace(false, false)?;
             }
-            SocketMessage::Retile => {
-                border_manager::destroy_all_borders()?;
-                self.retile_all(false)?
-            }
-            SocketMessage::RetileWithResizeDimensions => {
-                border_manager::destroy_all_borders()?;
-                self.retile_all(true)?
-            }
+            SocketMessage::Retile => self.retile_all(false)?,
+            SocketMessage::RetileWithResizeDimensions => self.retile_all(true)?,
             SocketMessage::ToggleWorkspaceWindowContainerBehaviour => {
                 let current_global_behaviour = self.window_management_behaviour.current_behaviour;
                 if let Some(behaviour) =

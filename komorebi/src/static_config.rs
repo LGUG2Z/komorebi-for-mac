@@ -9,6 +9,7 @@ use crate::IGNORE_IDENTIFIERS;
 use crate::MANAGE_IDENTIFIERS;
 use crate::REGEX_IDENTIFIERS;
 use crate::WORKSPACE_MATCHING_RULES;
+use crate::border_manager;
 use crate::core::CrossBoundaryBehaviour;
 use crate::core::FloatingLayerBehaviour;
 use crate::core::MoveBehaviour;
@@ -42,6 +43,7 @@ use color_eyre::eyre;
 use crossbeam_channel::Receiver;
 use hotwatch::EventKind;
 use hotwatch::Hotwatch;
+use komorebi_themes::colour::Colour;
 use objc2_core_foundation::CFRetained;
 use objc2_core_foundation::CFRunLoop;
 use parking_lot::Mutex;
@@ -57,28 +59,28 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
-// #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-// #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-// pub struct BorderColours {
-//     /// Border colour when the container contains a single window
-//     #[serde(skip_serializing_if = "Option::is_none")]
-//     pub single: Option<Colour>,
-//     /// Border colour when the container contains multiple windows
-//     #[serde(skip_serializing_if = "Option::is_none")]
-//     pub stack: Option<Colour>,
-//     /// Border colour when the container is in monocle mode
-//     #[serde(skip_serializing_if = "Option::is_none")]
-//     pub monocle: Option<Colour>,
-//     /// Border colour when the container is in floating mode
-//     #[serde(skip_serializing_if = "Option::is_none")]
-//     pub floating: Option<Colour>,
-//     /// Border colour when the container is unfocused
-//     #[serde(skip_serializing_if = "Option::is_none")]
-//     pub unfocused: Option<Colour>,
-//     /// Border colour when the container is unfocused and locked
-//     #[serde(skip_serializing_if = "Option::is_none")]
-//     pub unfocused_locked: Option<Colour>,
-// }
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+pub struct BorderColours {
+    /// Border colour when the container contains a single window
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub single: Option<Colour>,
+    /// Border colour when the container contains multiple windows
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stack: Option<Colour>,
+    /// Border colour when the container is in monocle mode
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub monocle: Option<Colour>,
+    /// Border colour when the container is in floating mode
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub floating: Option<Colour>,
+    /// Border colour when the container is unfocused
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub unfocused: Option<Colour>,
+    /// Border colour when the container is unfocused and locked
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub unfocused_locked: Option<Colour>,
+}
 
 // #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 // #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
@@ -409,22 +411,22 @@ pub struct StaticConfig {
     /// Path to applications.json from komorebi-application-specific-configurations (default: None)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub app_specific_configuration_path: Option<AppSpecificConfigurationPath>,
-    // /// Width of the window border (default: 8)
-    // #[serde(skip_serializing_if = "Option::is_none")]
-    // #[serde(alias = "active_window_border_width")]
-    // pub border_width: Option<i32>,
-    // /// Offset of the window border (default: -1)
-    // #[serde(skip_serializing_if = "Option::is_none")]
-    // #[serde(alias = "active_window_border_offset")]
-    // pub border_offset: Option<i32>,
-    // /// Display an active window border (default: true)
-    // #[serde(skip_serializing_if = "Option::is_none")]
-    // #[serde(alias = "active_window_border")]
-    // pub border: Option<bool>,
-    // /// Active window border colours for different container types
-    // #[serde(skip_serializing_if = "Option::is_none")]
-    // #[serde(alias = "active_window_border_colours")]
-    // pub border_colours: Option<BorderColours>,
+    /// Width of the window border (default: 6)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(alias = "active_window_border_width")]
+    pub border_width: Option<i32>,
+    /// Offset of the window border (default: 5)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(alias = "active_window_border_offset")]
+    pub border_offset: Option<i32>,
+    /// Display an active window border (default: true)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(alias = "active_window_border")]
+    pub border: Option<bool>,
+    /// Active window border colours for different container types
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(alias = "active_window_border_colours")]
+    pub border_colours: Option<BorderColours>,
     // /// Active window border style (default: System)
     // #[serde(skip_serializing_if = "Option::is_none")]
     // #[serde(alias = "active_window_border_style")]
@@ -693,24 +695,24 @@ impl From<&WindowManager> for StaticConfig {
             monitors.push(MonitorConfig::from(m));
         }
 
-        // let border_colours = if border_manager::FOCUSED.load(Ordering::SeqCst) == 0 {
-        //     None
-        // } else {
-        //     Option::from(BorderColours {
-        //         single: Option::from(Colour::from(border_manager::FOCUSED.load(Ordering::SeqCst))),
-        //         stack: Option::from(Colour::from(border_manager::STACK.load(Ordering::SeqCst))),
-        //         monocle: Option::from(Colour::from(border_manager::MONOCLE.load(Ordering::SeqCst))),
-        //         floating: Option::from(Colour::from(
-        //             border_manager::FLOATING.load(Ordering::SeqCst),
-        //         )),
-        //         unfocused: Option::from(Colour::from(
-        //             border_manager::UNFOCUSED.load(Ordering::SeqCst),
-        //         )),
-        //         unfocused_locked: Option::from(Colour::from(
-        //             border_manager::UNFOCUSED_LOCKED.load(Ordering::SeqCst),
-        //         )),
-        //     })
-        // };
+        let border_colours = if border_manager::FOCUSED.load(Ordering::SeqCst) == 0 {
+            None
+        } else {
+            Option::from(BorderColours {
+                single: Option::from(Colour::from(border_manager::FOCUSED.load(Ordering::SeqCst))),
+                stack: Option::from(Colour::from(border_manager::STACK.load(Ordering::SeqCst))),
+                monocle: Option::from(Colour::from(border_manager::MONOCLE.load(Ordering::SeqCst))),
+                floating: Option::from(Colour::from(
+                    border_manager::FLOATING.load(Ordering::SeqCst),
+                )),
+                unfocused: Option::from(Colour::from(
+                    border_manager::UNFOCUSED.load(Ordering::SeqCst),
+                )),
+                unfocused_locked: Option::from(Colour::from(
+                    border_manager::UNFOCUSED_LOCKED.load(Ordering::SeqCst),
+                )),
+            })
+        };
 
         Self {
             // invisible_borders: None,
@@ -744,10 +746,10 @@ impl From<&WindowManager> for StaticConfig {
             // focus_follows_mouse: value.focus_follows_mouse,
             mouse_follows_focus: Option::from(value.mouse_follows_focus),
             app_specific_configuration_path: None,
-            // border_width: Option::from(border_manager::BORDER_WIDTH.load(Ordering::SeqCst)),
-            // border_offset: Option::from(border_manager::BORDER_OFFSET.load(Ordering::SeqCst)),
-            // border: Option::from(border_manager::BORDER_ENABLED.load(Ordering::SeqCst)),
-            // border_colours,
+            border_width: Option::from(border_manager::BORDER_WIDTH.load(Ordering::SeqCst)),
+            border_offset: Option::from(border_manager::BORDER_OFFSET.load(Ordering::SeqCst)),
+            border: Option::from(border_manager::BORDER_ENABLED.load(Ordering::SeqCst)),
+            border_colours,
             // transparency: Option::from(
             //     transparency_manager::TRANSPARENCY_ENABLED.load(Ordering::SeqCst),
             // ),
@@ -804,6 +806,7 @@ impl StaticConfig {
         //     preferences.clone_from(monitor_index_preferences);
         // }
         //
+
         if let Some(display_index_preferences) = &self.display_index_preferences {
             let mut preferences = DISPLAY_INDEX_PREFERENCES.write();
             preferences.clone_from(display_index_preferences);
@@ -870,37 +873,37 @@ impl StaticConfig {
             DEFAULT_WORKSPACE_PADDING.store(workspace, Ordering::SeqCst);
         }
 
-        // border_manager::BORDER_WIDTH.store(self.border_width.unwrap_or(8), Ordering::SeqCst);
-        // border_manager::BORDER_OFFSET.store(self.border_offset.unwrap_or(-1), Ordering::SeqCst);
-        // border_manager::BORDER_ENABLED.store(self.border.unwrap_or(true), Ordering::SeqCst);
-        //
-        // if let Some(colours) = &self.border_colours {
-        //     if let Some(single) = colours.single {
-        //         border_manager::FOCUSED.store(u32::from(single), Ordering::SeqCst);
-        //     }
-        //
-        //     if let Some(stack) = colours.stack {
-        //         border_manager::STACK.store(u32::from(stack), Ordering::SeqCst);
-        //     }
-        //
-        //     if let Some(monocle) = colours.monocle {
-        //         border_manager::MONOCLE.store(u32::from(monocle), Ordering::SeqCst);
-        //     }
-        //
-        //     if let Some(floating) = colours.floating {
-        //         border_manager::FLOATING.store(u32::from(floating), Ordering::SeqCst);
-        //     }
-        //
-        //     if let Some(unfocused) = colours.unfocused {
-        //         border_manager::UNFOCUSED.store(u32::from(unfocused), Ordering::SeqCst);
-        //     }
-        //
-        //     if let Some(unfocused_locked) = colours.unfocused_locked {
-        //         border_manager::UNFOCUSED_LOCKED
-        //             .store(u32::from(unfocused_locked), Ordering::SeqCst);
-        //     }
-        // }
-        //
+        border_manager::BORDER_WIDTH.store(self.border_width.unwrap_or(6), Ordering::SeqCst);
+        border_manager::BORDER_OFFSET.store(self.border_offset.unwrap_or(5), Ordering::SeqCst);
+        border_manager::BORDER_ENABLED.store(self.border.unwrap_or(true), Ordering::SeqCst);
+
+        if let Some(colours) = &self.border_colours {
+            if let Some(single) = colours.single {
+                border_manager::FOCUSED.store(u32::from(single), Ordering::SeqCst);
+            }
+
+            if let Some(stack) = colours.stack {
+                border_manager::STACK.store(u32::from(stack), Ordering::SeqCst);
+            }
+
+            if let Some(monocle) = colours.monocle {
+                border_manager::MONOCLE.store(u32::from(monocle), Ordering::SeqCst);
+            }
+
+            if let Some(floating) = colours.floating {
+                border_manager::FLOATING.store(u32::from(floating), Ordering::SeqCst);
+            }
+
+            if let Some(unfocused) = colours.unfocused {
+                border_manager::UNFOCUSED.store(u32::from(unfocused), Ordering::SeqCst);
+            }
+
+            if let Some(unfocused_locked) = colours.unfocused_locked {
+                border_manager::UNFOCUSED_LOCKED
+                    .store(u32::from(unfocused_locked), Ordering::SeqCst);
+            }
+        }
+
         // STYLE.store(self.border_style.unwrap_or_default());
         //
         // if !*WINDOWS_11
@@ -1345,9 +1348,9 @@ impl StaticConfig {
 
         wm.enforce_workspace_rules()?;
 
-        // if value.border == Some(true) {
-        //     border_manager::BORDER_ENABLED.store(true, Ordering::SeqCst);
-        // }
+        if value.border == Some(true) {
+            border_manager::BORDER_ENABLED.store(true, Ordering::SeqCst);
+        }
 
         Ok(())
     }
@@ -1425,13 +1428,10 @@ impl StaticConfig {
 
                 // Check if this monitor config is the preferred config for this monitor and store
                 // a copy of the monitor itself on the monitor cache if it is.
-                // if idx == preferred_config_idx {
-                //     let id = monitor
-                //         .serial_number_id
-                //         .as_ref()
-                //         .map_or(&monitor.device_id, |sn| sn);
-                //     monitor_reconciliator::insert_in_monitor_cache(id, monitor.clone());
-                // }
+                if idx == preferred_config_idx {
+                    let id = monitor.serial_number_id.clone();
+                    monitor_reconciliator::insert_in_monitor_cache(&id, monitor.clone());
+                }
 
                 let mut workspace_matching_rules = WORKSPACE_MATCHING_RULES.lock();
                 for (j, ws) in monitor_config.workspaces.iter().enumerate() {
@@ -1506,7 +1506,7 @@ impl StaticConfig {
 
         wm.enforce_workspace_rules()?;
 
-        // border_manager::BORDER_ENABLED.store(value.border.unwrap_or(true), Ordering::SeqCst);
+        border_manager::BORDER_ENABLED.store(value.border.unwrap_or(true), Ordering::SeqCst);
         wm.window_management_behaviour.current_behaviour =
             value.window_container_behaviour.unwrap_or_default();
         wm.window_management_behaviour.float_override = value.float_override.unwrap_or_default();
@@ -1546,6 +1546,9 @@ impl StaticConfig {
             // let ws_idx = wm.focused_workspace_idx_for_monitor_idx(i)?;
             // wm.apply_wallpaper_for_monitor_workspace(i, ws_idx)?;
         }
+
+        // to update the borders
+        wm.retile_all(true)?;
 
         Ok(())
     }
