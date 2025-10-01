@@ -5,7 +5,7 @@ description = "A tiling window manager for macOS"
 edition = "2024"
 
 [dependencies]
-komorebi-themes = { git = "https://github.com/LGUG2Z/komorebi", version = "0.1.38"}
+komorebi-themes = { workspace = true }
 quickxml_to_serde = { git = "https://github.com/LGUG2Z/quickxml_to_serde.git", version = "0.6.1" }
 
 block2 = "0.3"

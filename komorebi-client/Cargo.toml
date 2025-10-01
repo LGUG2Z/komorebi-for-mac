@@ -5,7 +5,8 @@ edition = "2024"
 
 [dependencies]
 komorebi = { path = "../komorebi", default-features = false }
-komorebi-themes = { git = "https://github.com/LGUG2Z/komorebi", version = "0.1.38"}
+komorebi-themes = { workspace = true }
+
 serde_json = { workspace = true }
 
 [features]

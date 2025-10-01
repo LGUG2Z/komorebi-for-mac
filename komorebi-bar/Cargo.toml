@@ -7,7 +7,7 @@ edition = "2024"
 
 [dependencies]
 komorebi-client = { path = "../komorebi-client", default-features = false }
-komorebi-themes = { git = "https://github.com/LGUG2Z/komorebi", version = "0.1.38" }
+komorebi-themes = { workspace = true }
 
 chrono-tz = { workspace = true }
 chrono = { workspace = true }
@@ -17,7 +17,7 @@ crossbeam-channel = { workspace = true }
 dirs = { workspace = true }
 dunce = { workspace = true }
 eframe = { workspace = true }
-egui-phosphor = "0.9"
+egui-phosphor = "0.10"
 font-loader = "0.11"
 hotwatch = { workspace = true }
 image = "0.25"
@@ -37,10 +37,6 @@ sysinfo = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 which = { workspace = true }
-#windows = { workspace = true }
-#windows-core = { workspace = true }
-#windows-icons = { git = "https://github.com/LGUG2Z/windows-icons", rev = "0c9d7ee1b807347c507d3a9862dd007b4d3f4354" }
-#windows-icons-fallback = { package = "windows-icons", git = "https://github.com/LGUG2Z/windows-icons", rev = "d67cc9920aa9b4883393e411fb4fa2ddd4c498b5" }
 
 [features]
 default = ["schemars"]

@@ -485,6 +485,7 @@ impl Komobar {
                     .margin
                     .as_ref()
                     .map_or(0, |v| v.to_individual(0.0).bottom as i32);
+
                 let new_rect = komorebi_client::Rect {
                     left: 0,
                     top: (height as i32)

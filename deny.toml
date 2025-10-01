@@ -10,8 +10,9 @@ feature-depth = 1
 
 [advisories]
 ignore = [
+    { id = "RUSTSEC-2024-0436", reason = "paste is fine" },
     { id = "RUSTSEC-2024-0320", reason = "not using any yaml features from this library" },
-    { id = "RUSTSEC-2025-0056", reason = "only used for colour palette generation" }
+    { id = "RUSTSEC-2025-0056", reason = "only used for colour palette generation" },
 ]
 
 [licenses]
@@ -19,6 +20,7 @@ allow = [
     "0BSD",
     "Apache-2.0",
     "Artistic-2.0",
+    "BSD-2-Clause",
     "BSD-3-Clause",
     "CC0-1.0",
     "ISC",
@@ -32,7 +34,6 @@ allow = [
     "LicenseRef-Komorebi-2.0",
     # these are also ok, but not yet used
 
-    #    "BSD-2-Clause",
     #    "BSL-1.0",
     #    "MIT-0",
 ]
@@ -50,6 +51,11 @@ license-files = []
 
 [[licenses.clarify]]
 crate = "komorebic"
+expression = "LicenseRef-Komorebi-2.0"
+license-files = []
+
+[[licenses.clarify]]
+crate = "komorebi-bar"
 expression = "LicenseRef-Komorebi-2.0"
 license-files = []
 
@@ -77,7 +83,6 @@ allow-registry = ["https://github.com/rust-lang/crates.io-index"]
 allow-git = [
     "https://github.com/LGUG2Z/quickxml_to_serde",
     "https://github.com/LGUG2Z/base16-egui-themes",
-    "https://github.com/LGUG2Z/catppuccin-egui",
     "https://github.com/LGUG2Z/flavours",
     "https://github.com/LGUG2Z/komorebi",
     "https://github.com/LGUG2Z/base16_color_scheme",
