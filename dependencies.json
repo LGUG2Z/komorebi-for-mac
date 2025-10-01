@@ -524,6 +524,7 @@
         "hyper-tls 0.6.0 registry+https://github.com/rust-lang/crates.io-index",
         "hyper-util 0.1.17 registry+https://github.com/rust-lang/crates.io-index",
         "iana-time-zone 0.1.64 registry+https://github.com/rust-lang/crates.io-index",
+        "icns 0.3.1 registry+https://github.com/rust-lang/crates.io-index",
         "ident_case 1.0.1 registry+https://github.com/rust-lang/crates.io-index",
         "idna 1.1.0 registry+https://github.com/rust-lang/crates.io-index",
         "idna_adapter 1.2.1 registry+https://github.com/rust-lang/crates.io-index",

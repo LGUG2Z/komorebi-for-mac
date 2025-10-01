@@ -20,6 +20,9 @@ use komorebi_client::PathExt;
 use komorebi_client::SocketMessage;
 use komorebi_client::SubscribeOptions;
 use komorebi_client::replace_env_in_path;
+use objc2::MainThreadMarker;
+use objc2_app_kit::NSApplication;
+use objc2_app_kit::NSApplicationActivationPolicy;
 use std::io::BufReader;
 use std::io::Read;
 use std::path::PathBuf;
@@ -288,6 +291,11 @@ fn main() -> eyre::Result<()> {
         "komorebi-bar",
         native_options,
         Box::new(|cc| {
+            unsafe {
+                let app = NSApplication::sharedApplication(MainThreadMarker::new_unchecked());
+                app.setActivationPolicy(NSApplicationActivationPolicy::Accessory);
+            }
+
             let ctx_repainter = cc.egui_ctx.clone();
             std::thread::spawn(move || loop {
                 std::thread::sleep(Duration::from_secs(1));

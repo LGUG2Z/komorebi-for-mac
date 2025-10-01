@@ -2887,6 +2887,8 @@ dependencies = [
  "num",
  "num-derive",
  "num-traits",
+ "objc2 0.6.2",
+ "objc2-app-kit 0.3.1",
  "parking_lot",
  "random_word",
  "reqwest",
@@ -5073,9 +5075,9 @@ dependencies = [
 
 [[package]]
 name = "rustls-webpki"
-version = "0.103.6"
+version = "0.103.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8572f3c2cb9934231157b45499fc41e1f58c589fdfb81a844ba873265e80f8eb"
+checksum = "e10b3f4191e8a80e6b43eebabfac91e5dcecebb27a71f04e820c47ec41d314bf"
 dependencies = [
  "ring",
  "rustls-pki-types",

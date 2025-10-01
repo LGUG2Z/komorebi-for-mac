@@ -27,6 +27,8 @@ netdev = "0.36"
 num = "0.4"
 num-derive = "0.4"
 num-traits = "0.2"
+objc2 = "0.6"
+objc2-app-kit = "0.3"
 parking_lot = { workspace = true }
 random_word = { version = "0.5", features = ["en"] }
 reqwest = { version = "0.12", features = ["blocking"] }
