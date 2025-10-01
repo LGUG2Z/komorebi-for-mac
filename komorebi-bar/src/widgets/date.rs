@@ -198,7 +198,7 @@ impl BarWidget for Date {
                 let mut layout_job = LayoutJob::simple(
                     match self.label_prefix {
                         LabelPrefix::Icon | LabelPrefix::IconAndText => {
-                            egui_phosphor::regular::CALENDAR_DOTS.to_string()
+                            egui_phosphor::regular::CALENDAR.to_string()
                         }
                         LabelPrefix::None | LabelPrefix::Text => String::new(),
                     },

@@ -1254,6 +1254,8 @@ fn main() -> eyre::Result<()> {
             std::fs::create_dir_all(data_dir)?;
 
             let mut komorebi_json = include_str!("../../docs/komorebi.example.json").to_string();
+            let komorebi_bar_json =
+                include_str!("../../docs/komorebi.bar.example.json").to_string();
 
             if std::env::var("KOMOREBI_CONFIG_HOME").is_ok() {
                 komorebi_json =
@@ -1261,12 +1263,14 @@ fn main() -> eyre::Result<()> {
             }
 
             let komorebi_path = HOME_DIR.join("komorebi.json");
+            let bar_path = HOME_DIR.join("komorebi.bar.json");
             let applications_path = HOME_DIR.join("applications.json");
             let skhdrc_path = HOME_DIR.join("skhdrc");
 
             let mut written_files = Vec::new();
 
             write_file_with_prompt(&komorebi_path, &komorebi_json, &mut written_files)?;
+            write_file_with_prompt(&bar_path, &komorebi_bar_json, &mut written_files)?;
 
             let applications_json = include_str!("../applications.json");
             write_file_with_prompt(&applications_path, applications_json, &mut written_files)?;

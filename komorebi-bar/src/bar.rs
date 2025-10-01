@@ -793,8 +793,8 @@ impl Komobar {
 
     pub fn position_bar(&self, ctx: &Context) {
         ctx.send_viewport_cmd(ViewportCommand::OuterPosition(Pos2::new(
-            self.size_rect.top as f32,
             self.size_rect.left as f32,
+            self.size_rect.top as f32,
         )));
 
         ctx.send_viewport_cmd(ViewportCommand::InnerSize(Vec2::new(

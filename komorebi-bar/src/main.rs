@@ -247,6 +247,7 @@ fn main() -> eyre::Result<()> {
     let viewport_builder = ViewportBuilder::default()
         .with_decorations(false)
         .with_transparent(true)
+        .with_has_shadow(false)
         .with_taskbar(false);
 
     let native_options = eframe::NativeOptions {
