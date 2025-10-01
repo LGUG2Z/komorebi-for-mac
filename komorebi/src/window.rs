@@ -63,6 +63,8 @@ use objc2_core_graphics::kCGWindowBounds;
 use objc2_core_graphics::kCGWindowName;
 use objc2_core_graphics::kCGWindowOwnerName;
 use objc2_core_graphics::kCGWindowOwnerPID;
+use objc2_foundation::NSBundle;
+use objc2_foundation::NSString;
 use regex::Regex;
 use serde::Deserialize;
 use serde::Serialize;
@@ -74,6 +76,7 @@ use std::ffi::c_void;
 use std::fmt::Display;
 use std::fmt::Formatter;
 use std::fmt::Write;
+use std::path::Path;
 use std::path::PathBuf;
 use std::ptr::NonNull;
 use std::str::FromStr;
@@ -193,6 +196,7 @@ pub struct WindowDetails {
     pub exe: String,
     pub role: String,
     pub subrole: String,
+    pub icon_path: PathBuf,
 }
 
 impl From<&Window> for WindowDetails {
@@ -202,6 +206,7 @@ impl From<&Window> for WindowDetails {
             exe: value.exe().unwrap_or_default(),
             role: value.role().unwrap_or_default(),
             subrole: value.subrole().unwrap_or_default(),
+            icon_path: value.icon_path().unwrap_or_default(),
         }
     }
 }
@@ -419,6 +424,18 @@ impl Window {
         }
     }
 
+    pub fn bundle_path(&self) -> Option<PathBuf> {
+        if let Ok(Some(path)) = self
+            .running_application()
+            .map(|app| unsafe { app.bundleURL() })
+            .map(|url| url.map(|url| url.to_file_path()))
+        {
+            path
+        } else {
+            None
+        }
+    }
+
     pub fn path(&self) -> Option<PathBuf> {
         if let Ok(Some(path)) = self
             .running_application()
@@ -429,6 +446,34 @@ impl Window {
         } else {
             None
         }
+    }
+
+    pub fn icon_path(&self) -> Option<PathBuf> {
+        if let Some(path) = self.bundle_path() {
+            unsafe {
+                if let Some(bundle) =
+                    NSBundle::bundleWithPath(&NSString::from_str(&path.to_string_lossy()))
+                    && let Some(icon_file) =
+                        bundle.objectForInfoDictionaryKey(&NSString::from_str("CFBundleIconFile"))
+                    && let Ok(icon_name) = icon_file.downcast::<NSString>()
+                {
+                    let mut icon_path =
+                        format!("{}/Contents/Resources/{}", path.display(), icon_name);
+
+                    if !icon_path.ends_with(".icns") {
+                        icon_path.push_str(".icns");
+                    }
+
+                    let path = Path::new(&icon_path);
+
+                    if path.exists() {
+                        return Some(PathBuf::from(path));
+                    }
+                }
+            }
+        }
+
+        None
     }
 
     pub fn role(&self) -> Option<String> {

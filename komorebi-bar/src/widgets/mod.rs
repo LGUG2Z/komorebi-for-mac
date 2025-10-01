@@ -154,8 +154,8 @@ impl ImageIcon {
 pub enum ImageIconId {
     /// Identifier based on a file system path.
     Path(Arc<Path>),
-    /// Windows HWND handle.
-    Hwnd(isize),
+    /// Window ID
+    WindowId(u32),
 }
 
 impl From<&Path> for ImageIconId {
@@ -165,9 +165,9 @@ impl From<&Path> for ImageIconId {
     }
 }
 
-impl From<isize> for ImageIconId {
+impl From<u32> for ImageIconId {
     #[inline]
-    fn from(value: isize) -> Self {
-        Self::Hwnd(value)
+    fn from(value: u32) -> Self {
+        Self::WindowId(value)
     }
 }

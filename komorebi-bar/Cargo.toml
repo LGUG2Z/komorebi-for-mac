@@ -9,8 +9,8 @@ edition = "2024"
 komorebi-client = { path = "../komorebi-client", default-features = false }
 komorebi-themes = { workspace = true }
 
-chrono-tz = { workspace = true }
 chrono = { workspace = true }
+chrono-tz = { workspace = true }
 clap = { workspace = true }
 color-eyre = { workspace = true }
 crossbeam-channel = { workspace = true }
@@ -20,6 +20,7 @@ eframe = { workspace = true }
 egui-phosphor = "0.10"
 font-loader = "0.11"
 hotwatch = { workspace = true }
+icns = "0.3"
 image = "0.25"
 lazy_static = { workspace = true }
 netdev = "0.36"

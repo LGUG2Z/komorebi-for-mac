@@ -28,6 +28,9 @@ use eframe::egui::Ui;
 use eframe::egui::Vec2;
 use eframe::egui::text::LayoutJob;
 use eframe::egui::vec2;
+use icns::IconFamily;
+use icns::IconType;
+use image::RgbaImage;
 use komorebi_client::Container;
 use komorebi_client::PathExt;
 use komorebi_client::Rect;
@@ -42,6 +45,8 @@ use serde::Serialize;
 use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
+use std::fs::File;
+use std::io::BufReader;
 use std::io::Result as IoResult;
 use std::path::Path;
 use std::rc::Rc;
@@ -1005,11 +1010,37 @@ impl From<&Window> for WindowInfo {
     fn from(value: &Window) -> Self {
         Self {
             title: value.details.as_ref().map(|details| details.title.clone()),
-            icon: None,
-            // icon: ImageIcon::try_load(value.hwnd, || {
-            //     windows_icons::get_icon_by_hwnd(value.hwnd)
-            //         .or_else(|| windows_icons_fallback::get_icon_by_process_id(value.process_id()))
-            // }),
+            icon: value
+                .details
+                .as_ref()
+                .map(|details| {
+                    ImageIcon::try_load(details.icon_path.as_path(), || {
+                        icns_to_rgba(&details.icon_path.to_string_lossy())
+                    })
+                })
+                .unwrap_or_default(),
         }
     }
+}
+
+pub fn icns_to_rgba(path: &str) -> Option<RgbaImage> {
+    let file = File::open(path).ok()?;
+    let icon_family = IconFamily::read(BufReader::new(file)).ok()?;
+
+    let icon = icon_family
+        .get_icon_with_type(IconType::RGBA32_512x512_2x)
+        .or_else(|_| icon_family.get_icon_with_type(IconType::RGBA32_512x512))
+        .or_else(|_| icon_family.get_icon_with_type(IconType::RGBA32_256x256))
+        .or_else(|_| icon_family.get_icon_with_type(IconType::RGBA32_128x128))
+        .or_else(|_| icon_family.get_icon_with_type(IconType::RGBA32_64x64))
+        .or_else(|_| icon_family.get_icon_with_type(IconType::RGBA32_32x32))
+        .or_else(|_| icon_family.get_icon_with_type(IconType::RGB24_128x128))
+        .or_else(|_| icon_family.get_icon_with_type(IconType::RGB24_32x32))
+        .ok()?;
+
+    let width = icon.width();
+    let height = icon.height();
+    let data = icon.data().to_vec();
+
+    RgbaImage::from_raw(width, height, data)
 }
