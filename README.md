@@ -30,6 +30,8 @@ Tiling Window Management for macOS.
   </a>
 </p>
 
+<img width="2560" height="1080" alt="Screenshot 2025-10-06 at 3 55 50 PM" src="https://github.com/user-attachments/assets/93ee9c94-2df6-4211-9f8a-db34e3c0a604" />
+
 ## Overview
 
 _komorebi for Mac_ is a tiling window manager that works as an extension to the
@@ -101,11 +103,219 @@ make an anonymous Bitcoin donation to
 
 ## Licensing for Commercial Use
 
-A dedicated Individual Commercial Use License will eventually be made available
-for those who want to use `komorebi` at work.
+A dedicated Individual Commercial Use License is available for those who want to
+use `komorebi` at work.
 
-The Individual Commerical Use License will add “Commercial Use” as a “Permitted
-Use” for the licensed individual only, for the duration of a valid paid license
-subscription only. All provisions and restrictions enumerated in
-the [Komorebi License](https://github.com/LGUG2Z/komorebi-license) will continue
-to apply.
+The Individual Commerical Use License adds “Commercial Use” as a “Permitted Use”
+for the licensed individual only, for the duration of a valid paid license
+subscription only. All provisions and restrictions enumerated in the [Komorebi
+License](https://github.com/LGUG2Z/komorebi-license) continue to apply.
+
+More information, pricing and purchase links for Individual Commercial Use
+Licenses [can be found here](https://lgug2z.com/software/komorebi).
+
+# Contribution Guidelines
+
+_komorebi for Mac_ is currently not accepting contributions.
+
+[//]: # (If you would like to contribute to `komorebi` please take the time to carefully)
+
+[//]: # (read the guidelines below.)
+
+[//]: # ()
+[//]: # (Please see [CONTRIBUTING.md]&#40;./CONTRIBUTING.md&#41; for more information about how)
+
+[//]: # (code contributions to `komorebi` are licensed.)
+
+## Commit hygiene
+
+- Flatten all `use` statements
+- Run `cargo +stable clippy` and ensure that all lints and suggestions have been
+  addressed before committing
+- Run `cargo +nightly fmt --all` to ensure consistent formatting before
+  committing
+- Use `git cz` with
+  the [Commitizen CLI](https://github.com/commitizen/cz-cli#conventional-commit-messages-as-a-global-utility)
+  to prepare commit messages
+- Provide **at least** one short sentence or paragraph in your commit message
+  body to describe your thought process for
+  the changes being committed
+
+## PRs should contain only a single feature or bug fix
+
+It is very difficult to review pull requests which touch multiple unrelated
+features and parts of the codebase.
+
+Please do not submit pull requests like this; you will be asked to separate them
+into smaller PRs that deal only with one feature or bug fix at a time.
+
+If you are working on multiple features and bug fixes, I suggest that you cut a
+branch called `local-trunk` from `master` which you keep up to date, and rebase
+the various independent branches you are working on onto that branch if you want
+to test them together or create a build with everything integrated.
+
+## Refactors to the codebase must have prior approval
+
+`komorebi` is a mature codebase with an internal consistency and structure that
+has developed organically over close to half a decade.
+
+There are [countless hours of live coding videos](https://youtube.com/@LGUG2Z)
+demonstrating work on this project and showing new contributors how to do
+everything from basic tasks like implementing new `komorebic` commands to
+distinguishing monitors by manufacturer hardware identifiers and video card
+ports.
+
+Refactors to the structure of the codebase are not taken lightly and require
+prior discussion and approval.
+
+Please do not start refactoring the codebase with the expectation of having your
+changes integrated until you receive an explicit approval or a request to do so.
+
+Similarly, when implementing features and bug fixes, please stick to the
+structure of the codebase as much as possible and do not take this as an
+opportunity to do some "refactoring along the way".
+
+It is extremely difficult to review PRs for features and bug fixes if they are
+lost in sweeping changes to the structure of the codebase.
+
+## Breaking changes to user-facing interfaces are unacceptable
+
+This includes but is not limited to:
+
+- All `komorebic` commands
+- The `komorebi.json` schema
+- The [
+  `komorebi-application-specific-configuration`](https://github.com/LGUG2Z/komorebi-application-specific-configuration)
+  schema
+
+No user should ever find that their configuration file has stopped working after
+upgrading to a new version of `komorebi`.
+
+More often than not there are ways to reformulate changes that may initially
+seem like they require breaking user-facing interfaces into additive changes.
+
+For some inspiration please take a look
+at [this commit](https://github.com/LGUG2Z/komorebi/commit/e7d928a065eb63bb4ea1fb864c69c1cae8cc763b)
+which added the ability for users to specify colours in `komorebi.json` in Hex
+format alongside RGB.
+
+There is also a process in place for graceful, non-breaking, deprecation of
+configuration options that are no longer required.
+
+# Logs and Debugging
+
+Logs from `komorebi` will be appended to
+`$HOME/Library/Application Support/komorebi/komorebi.log.$timestamp`.
+
+Whenever running the `komorebic stop` command or sending a Ctrl-C signal to
+`komorebi` directly, the `komorebi` process ensures that all hidden windows are
+restored before termination.
+
+## Panics and Deadlocks
+
+If `komorebi` ever stops responding, it is most likely either due to either a
+panic or a deadlock. In the case of a panic, this will be reported in the log.
+In the case of a deadlock, there will not be any errors in the log, but the
+process and the log will appear frozen.
+
+If you believe you have encountered a deadlock, you can compile `komorebi` with
+`--features deadlock_detection` and try reproducing the deadlock again. This
+will check for deadlocks every 5 seconds in the background, and if a deadlock is
+found, information about it will appear in the log which can be shared when
+opening an issue.
+
+# Window Manager State and Integrations
+
+The current state of the window manager can be queried using the
+`komorebic state` command, which returns a JSON representation of the `State`
+struct.
+
+This may also be polled to build further integrations and widgets on top of.
+
+# Window Manager Event Subscriptions
+
+## Unix Domain Sockets
+
+It is possible to subscribe to notifications of every `WindowManagerEvent` and `SocketMessage` handled
+by `komorebi` using [Unix Domain Sockets](https://devblogs.microsoft.com/commandline/af_unix-comes-to-windows/).
+
+UDS are also the only mode of communication between `komorebi` and `komorebic`.
+
+First, your application must create a socket in `$ENV:LocalAppData\komorebi`. Once the socket has been created, run the
+following command:
+
+```powershell
+komorebic.exe subscribe-socket <your socket name>
+```
+
+If the socket exists, komorebi will start pushing JSON data of successfully
+handled events and messages as in the example above in the Named Pipes section.
+
+## Rust Client
+
+As of `v0.1.22` it is possible to use the `komorebi-client` crate to subscribe
+to notifications of every `WindowManagerEvent` and `SocketMessage` handled by
+`komorebi` in a Rust codebase.
+
+Below is a simple example of how to use `komorebi-client` in a basic Rust application.
+
+```rust
+// komorebi-client = { git = "https://github.com/LGUG2Z/komorebi", tag = "v0.1.38"}
+
+use anyhow::Result;
+use komorebi_client::Notification;
+use komorebi_client::NotificationEvent;
+use komorebi_client::UnixListener;
+use komorebi_client::WindowManagerEvent;
+use std::io::BufRead;
+use std::io::BufReader;
+use std::io::Read;
+
+pub fn main() -> anyhow::Result<()> {
+  let socket = komorebi_client::subscribe(NAME)?;
+
+  for incoming in socket.incoming() {
+    match incoming {
+      Ok(data) => {
+        let reader = BufReader::new(data.try_clone()?);
+
+        for line in reader.lines().flatten() {
+          let notification: Notification = match serde_json::from_str(&line) {
+            Ok(notification) => notification,
+            Err(error) => {
+              log::debug!("discarding malformed komorebi notification: {error}");
+              continue;
+            }
+          };
+
+          // match and filter on desired notifications
+        }
+      }
+      Err(error) => {
+        log::debug!("{error}");
+      }
+    }
+  }
+
+}
+```
+
+A read-world example can be found
+in [komokana](https://github.com/LGUG2Z/komokana/blob/feature/komorebi-uds/src/main.rs).
+
+## Subscription Event Notification Schema
+
+A [JSON Schema](https://json-schema.org/) of the event notifications emitted to
+subscribers can be generated with the `komorebic notification-schema` command.
+The output of this command can be redirected to the clipboard or a file, which
+can be used with services such as [Quicktype](https://app.quicktype.io/) to
+generate type definitions in different programming languages.
+
+## Socket Message Schema
+
+A [JSON Schema](https://json-schema.org/) of socket messages used to send
+instructions to `komorebi` can be generated with the `komorebic socket-schema`
+command. The output of this command can be redirected to the clipboard or a
+file, which can be used with services such
+as [Quicktype](https://app.quicktype.io/) to generate type definitions in
+different programming languages.
