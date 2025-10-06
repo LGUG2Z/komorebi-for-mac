@@ -60,7 +60,7 @@ impl MacosApi {
 
         DispatchQueue::main().exec_async(move || {
             let ns_path = NSString::from_str(&path_str);
-            let url = unsafe { NSURL::fileURLWithPath(&ns_path) };
+            let url = NSURL::fileURLWithPath(&ns_path);
 
             let mtm = unsafe { MainThreadMarker::new_unchecked() };
             let screens = NSScreen::screens(mtm);
@@ -72,7 +72,7 @@ impl MacosApi {
                     && let Ok(did) = did.downcast::<NSNumber>()
                     && did.as_u32() == display_id
                 {
-                    let workspace = unsafe { NSWorkspace::sharedWorkspace() };
+                    let workspace = NSWorkspace::sharedWorkspace();
                     unsafe {
                         if let Err(error) = workspace.setDesktopImageURL_forScreen_options_error(
                             &url,
@@ -235,7 +235,7 @@ impl MacosApi {
                         MonitorInfo {
                             alphanumeric_serial_number: serial_number.to_string(),
                             manufacturer_id: "".to_string(),
-                            product_name: unsafe { screen.localizedName() }.to_string(),
+                            product_name: screen.localizedName().to_string(),
                             legacy_manufacturer_id: "".to_string(),
                             product_id: "".to_string(),
                             serial_number,
@@ -265,7 +265,7 @@ impl MacosApi {
 
                             let visible_frame = screen.visibleFrame();
                             let primary_display_height =
-                                CoreGraphicsApi::display_bounds(unsafe { CGMainDisplayID() })
+                                CoreGraphicsApi::display_bounds(CGMainDisplayID())
                                     .size
                                     .height;
 
@@ -446,11 +446,9 @@ impl MacosApi {
     }
 
     pub fn cursor_pos() -> CGPoint {
-        unsafe {
-            let source = CGEventSource::new(CGEventSourceStateID::HIDSystemState);
-            let event = CGEvent::new(source.as_deref());
-            CGEvent::location(event.as_deref())
-        }
+        let source = CGEventSource::new(CGEventSourceStateID::HIDSystemState);
+        let event = CGEvent::new(source.as_deref());
+        CGEvent::location(event.as_deref())
     }
 
     pub fn monitor_from_point(point: CGPoint) -> Option<u32> {
@@ -458,6 +456,6 @@ impl MacosApi {
     }
 
     pub fn left_mouse_button_is_pressed() -> bool {
-        (unsafe { NSEvent::pressedMouseButtons() } & 0x1 != 0)
+        NSEvent::pressedMouseButtons() & 0x1 != 0
     }
 }

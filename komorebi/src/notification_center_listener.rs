@@ -32,60 +32,58 @@ define_class! {
     impl NotificationCenterListenerNsObject {
         #[unsafe(method(handleNotification:))]
         fn handle_notification(&self, notif: &NSNotification) {
-            unsafe {
-                let mut process_id = None;
-                let mut window_id = None;
-                let mut valid_keys = vec![];
+            let mut process_id = None;
+            let mut window_id = None;
+            let mut valid_keys = vec![];
 
-                if let Some(user_info) = notif.userInfo() {
-                    let all_keys = user_info.allKeys();
-                    for k in all_keys {
-                        if let Some(key) = k.downcast_ref::<NSString>()  {
-                            valid_keys.push(key.to_string());
-                        }
-                    }
-
-                    if let Some(application_key) =
-                        user_info.valueForKey(&NSString::from_str("NSWorkspaceApplicationKey"))
-                        && let Some(application) = application_key.downcast_ref::<NSRunningApplication>()
-                    {
-                        process_id = Some(application.processIdentifier());
-                        if let Ok(application) = Application::new(application.processIdentifier()) {
-                            window_id = application.main_window_id();
-                        }
+            if let Some(user_info) = notif.userInfo() {
+                let all_keys = user_info.allKeys();
+                for k in all_keys {
+                    if let Some(key) = k.downcast_ref::<NSString>()  {
+                        valid_keys.push(key.to_string());
                     }
                 }
 
-                tracing::trace!("received {} with keys {}", notif.name(), valid_keys.join(", "));
+                if let Some(application_key) =
+                    user_info.valueForKey(&NSString::from_str("NSWorkspaceApplicationKey"))
+                    && let Some(application) = application_key.downcast_ref::<NSRunningApplication>()
+                {
+                    process_id = Some(application.processIdentifier());
+                    if let Ok(application) = Application::new(application.processIdentifier()) {
+                        window_id = application.main_window_id();
+                    }
+                }
+            }
 
-                match process_id {
-                    None => {
-                        if let Ok(notification) =
-                            AppKitWorkspaceNotification::from_str(&notif.name().to_string()) {
-                            if matches!(notification, AppKitWorkspaceNotification::NSWorkspaceActiveSpaceDidChangeNotification) {
-                                // TODO: this is really, really stupid
-                                window_manager_event_listener::send_notification(WindowManagerEvent::SpaceChange(SystemNotification::AppKitWorkspace(notification), 0));
-                            }
-                        } else {
-                            tracing::debug!(
-                                "notification: {}, skipping as there is no associated process id",
-                                notif.name()
-                            );
+            tracing::trace!("received {} with keys {}", notif.name(), valid_keys.join(", "));
+
+        match process_id {
+            None => {
+                    if let Ok(notification) =
+                        AppKitWorkspaceNotification::from_str(&notif.name().to_string()) {
+                        if matches!(notification, AppKitWorkspaceNotification::NSWorkspaceActiveSpaceDidChangeNotification) {
+                            // TODO: this is really, really stupid
+                            window_manager_event_listener::send_notification(WindowManagerEvent::SpaceChange(SystemNotification::AppKitWorkspace(notification), 0));
                         }
+                    } else {
+                        tracing::debug!(
+                            "notification: {}, skipping as there is no associated process id",
+                            notif.name()
+                        );
                     }
-                    Some(process_id) => {
-                        tracing::debug!("notification: {}, process: {process_id}", notif.name());
-                        if let Ok(notification) =
-                            AppKitWorkspaceNotification::from_str(&notif.name().to_string())
-                            && let Some(event) = WindowManagerEvent::from_system_notification(
-                                SystemNotification::AppKitWorkspace(notification),
-                                process_id,
-                                window_id,
-                            )
-                        {
-                            window_manager_event_listener::send_notification(event);
-                        };
-                    }
+                }
+                Some(process_id) => {
+                    tracing::debug!("notification: {}, process: {process_id}", notif.name());
+                    if let Ok(notification) =
+                        AppKitWorkspaceNotification::from_str(&notif.name().to_string())
+                        && let Some(event) = WindowManagerEvent::from_system_notification(
+                            SystemNotification::AppKitWorkspace(notification),
+                            process_id,
+                            window_id,
+                        )
+                    {
+                        window_manager_event_listener::send_notification(event);
+                    };
                 }
             }
         }

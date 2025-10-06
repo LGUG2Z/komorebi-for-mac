@@ -414,10 +414,7 @@ impl Window {
     }
 
     pub fn bundle_identifier(&self) -> Option<String> {
-        if let Ok(Some(identifier)) = self
-            .running_application()
-            .map(|app| unsafe { app.bundleIdentifier() })
-        {
+        if let Ok(Some(identifier)) = self.running_application().map(|app| app.bundleIdentifier()) {
             Some(identifier.to_string())
         } else {
             None
@@ -427,7 +424,7 @@ impl Window {
     pub fn bundle_path(&self) -> Option<PathBuf> {
         if let Ok(Some(path)) = self
             .running_application()
-            .map(|app| unsafe { app.bundleURL() })
+            .map(|app| app.bundleURL())
             .map(|url| url.map(|url| url.to_file_path()))
         {
             path
@@ -439,7 +436,7 @@ impl Window {
     pub fn path(&self) -> Option<PathBuf> {
         if let Ok(Some(path)) = self
             .running_application()
-            .map(|app| unsafe { app.executableURL() })
+            .map(|app| app.executableURL())
             .map(|ns_url| ns_url.map(|url| url.to_file_path()))
         {
             path
@@ -449,27 +446,23 @@ impl Window {
     }
 
     pub fn icon_path(&self) -> Option<PathBuf> {
-        if let Some(path) = self.bundle_path() {
-            unsafe {
-                if let Some(bundle) =
-                    NSBundle::bundleWithPath(&NSString::from_str(&path.to_string_lossy()))
-                    && let Some(icon_file) =
-                        bundle.objectForInfoDictionaryKey(&NSString::from_str("CFBundleIconFile"))
-                    && let Ok(icon_name) = icon_file.downcast::<NSString>()
-                {
-                    let mut icon_path =
-                        format!("{}/Contents/Resources/{}", path.display(), icon_name);
+        if let Some(path) = self.bundle_path()
+            && let Some(bundle) =
+                NSBundle::bundleWithPath(&NSString::from_str(&path.to_string_lossy()))
+            && let Some(icon_file) =
+                bundle.objectForInfoDictionaryKey(&NSString::from_str("CFBundleIconFile"))
+            && let Ok(icon_name) = icon_file.downcast::<NSString>()
+        {
+            let mut icon_path = format!("{}/Contents/Resources/{}", path.display(), icon_name);
 
-                    if !icon_path.ends_with(".icns") {
-                        icon_path.push_str(".icns");
-                    }
+            if !icon_path.ends_with(".icns") {
+                icon_path.push_str(".icns");
+            }
 
-                    let path = Path::new(&icon_path);
+            let path = Path::new(&icon_path);
 
-                    if path.exists() {
-                        return Some(PathBuf::from(path));
-                    }
-                }
+            if path.exists() {
+                return Some(PathBuf::from(path));
             }
         }
 
@@ -487,14 +480,10 @@ impl Window {
     }
 
     fn running_application(&self) -> Result<Retained<NSRunningApplication>, AccessibilityError> {
-        unsafe {
-            NSRunningApplication::runningApplicationWithProcessIdentifier(
-                self.application.process_id,
-            )
+        NSRunningApplication::runningApplicationWithProcessIdentifier(self.application.process_id)
             .ok_or(AccessibilityError::Custom(
                 AccessibilityCustomError::NSRunningApplication(self.application.process_id),
             ))
-        }
     }
 
     pub fn set_position(&self, rect: &Rect) -> Result<(), AccessibilityError> {
@@ -509,25 +498,22 @@ impl Window {
     }
 
     pub fn focus(&self, mouse_follows_focus: bool) -> Result<(), LibraryError> {
-        unsafe {
-            match self.running_application() {
-                Ok(running_application) => {
-                    running_application
-                        .activateWithOptions(NSApplicationActivationOptions::empty());
-                }
-                Err(error) => {
-                    tracing::warn!(
-                        "failed to get running application for {} ({:?}): {error}",
-                        self.application.process_id,
-                        self.application.name()
-                    );
-                }
+        match self.running_application() {
+            Ok(running_application) => {
+                running_application.activateWithOptions(NSApplicationActivationOptions::empty());
             }
-
-            let cf_boolean = CFBoolean::new(true);
-            let value = &**cf_boolean;
-            AccessibilityApi::set_attribute_cf_value(&self.element, kAXMainAttribute, value)?;
+            Err(error) => {
+                tracing::warn!(
+                    "failed to get running application for {} ({:?}): {error}",
+                    self.application.process_id,
+                    self.application.name()
+                );
+            }
         }
+
+        let cf_boolean = CFBoolean::new(true);
+        let value = &**cf_boolean;
+        AccessibilityApi::set_attribute_cf_value(&self.element, kAXMainAttribute, value)?;
 
         if mouse_follows_focus {
             MacosApi::center_cursor_in_rect(&MacosApi::window_rect(&self.element)?.into())?

@@ -20,19 +20,17 @@ pub struct CoreGraphicsApi;
 
 impl CoreGraphicsApi {
     pub fn warp_mouse_cursor_position(x: i32, y: i32) -> Result<(), CoreGraphicsError> {
-        match unsafe {
-            CoreGraphicsError::from(CGWarpMouseCursorPosition(CGPoint::new(
-                x as CGFloat,
-                y as CGFloat,
-            )))
-        } {
+        match CoreGraphicsError::from(CGWarpMouseCursorPosition(CGPoint::new(
+            x as CGFloat,
+            y as CGFloat,
+        ))) {
             CoreGraphicsError::Success => Ok(()),
             error => Err(error),
         }
     }
 
     pub fn contains_rect(smaller: CGRect, bigger: CGRect) -> bool {
-        unsafe { CGRectIntersectsRect(smaller, bigger) }
+        CGRectIntersectsRect(smaller, bigger)
     }
 
     pub fn connected_display_ids() -> Result<Vec<u32>, CoreGraphicsError> {
@@ -55,11 +53,11 @@ impl CoreGraphicsApi {
     }
 
     pub fn display_bounds(display_id: u32) -> CGRect {
-        unsafe { CGDisplayBounds(display_id) }
+        CGDisplayBounds(display_id)
     }
 
     pub fn display_serial_number(display_id: u32) -> u32 {
-        unsafe { CGDisplaySerialNumber(display_id) }
+        CGDisplaySerialNumber(display_id)
     }
 
     pub fn display_bounds_for_window_rect(window_rect: CGRect) -> Option<CGRect> {
@@ -113,13 +111,11 @@ impl CoreGraphicsApi {
     }
 
     pub fn window_list_info() -> Option<CFRetained<CFArray>> {
-        unsafe {
-            CGWindowListCopyWindowInfo(
-                // this is still way too many bogus windows
-                CGWindowListOption::OptionOnScreenOnly | CGWindowListOption::ExcludeDesktopElements,
-                // required when using OnScreenOnly
-                kCGNullWindowID,
-            )
-        }
+        CGWindowListCopyWindowInfo(
+            // this is still way too many bogus windows
+            CGWindowListOption::OptionOnScreenOnly | CGWindowListOption::ExcludeDesktopElements,
+            // required when using OnScreenOnly
+            kCGNullWindowID,
+        )
     }
 }

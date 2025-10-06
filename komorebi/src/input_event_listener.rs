@@ -92,8 +92,6 @@ impl InputEventListener {
 impl Drop for InputEventListener {
     fn drop(&mut self) {
         CFMachPort::invalidate(&self.port);
-        unsafe {
-            CGEvent::tap_enable(&self.port, false);
-        }
+        CGEvent::tap_enable(&self.port, false);
     }
 }

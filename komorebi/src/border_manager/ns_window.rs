@@ -64,37 +64,31 @@ impl NsWindow {
             };
 
             // Make transparent
-            unsafe {
-                window.setBackgroundColor(Some(&NSColor::clearColor()));
-                window.setAnimationBehavior(NSWindowAnimationBehavior::None);
-                window.disableSnapshotRestoration();
-                window.setPreservesContentDuringLiveResize(false);
-                window.setRestorable(false);
-            }
+            window.setBackgroundColor(Some(&NSColor::clearColor()));
+            window.setAnimationBehavior(NSWindowAnimationBehavior::None);
+            window.disableSnapshotRestoration();
+            window.setPreservesContentDuringLiveResize(false);
+            window.setRestorable(false);
 
             window.setHasShadow(false);
             window.setOpaque(false);
             window.setLevel(NSNormalWindowLevel);
             window.setIgnoresMouseEvents(true);
 
-            unsafe {
-                window.setCollectionBehavior(
-                    NSWindowCollectionBehavior::CanJoinAllSpaces |
-                        NSWindowCollectionBehavior::Stationary |
-                        NSWindowCollectionBehavior::IgnoresCycle |
-                        NSWindowCollectionBehavior::Transient
-                );
-            }
+            window.setCollectionBehavior(
+                NSWindowCollectionBehavior::CanJoinAllSpaces |
+                    NSWindowCollectionBehavior::Stationary |
+                    NSWindowCollectionBehavior::IgnoresCycle |
+                    NSWindowCollectionBehavior::Transient
+            );
 
             let content_view = {
                 let view = NSView::alloc(mtm);
-                unsafe { NSView::initWithFrame(view, window_frame) }
+                NSView::initWithFrame(view, window_frame)
             };
 
             content_view.setWantsLayer(true);
-            unsafe {
-                content_view.setAutoresizesSubviews(false);
-            }
+            content_view.setAutoresizesSubviews(false);
 
             // Create and configure the layer for the border
             let layer = {
@@ -120,9 +114,7 @@ impl NsWindow {
                 }
             };
 
-            unsafe {
-                content_view.setLayer(Some(&layer));
-            }
+            content_view.setLayer(Some(&layer));
 
             window.setContentView(Some(&content_view));
             window.setMovableByWindowBackground(false);

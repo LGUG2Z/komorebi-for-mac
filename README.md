@@ -118,14 +118,11 @@ Licenses [can be found here](https://lgug2z.com/software/komorebi).
 
 _komorebi for Mac_ is currently not accepting contributions.
 
-[//]: # (If you would like to contribute to `komorebi` please take the time to carefully)
-
-[//]: # (read the guidelines below.)
-
-[//]: # ()
-[//]: # (Please see [CONTRIBUTING.md]&#40;./CONTRIBUTING.md&#41; for more information about how)
-
-[//]: # (code contributions to `komorebi` are licensed.)
+[//]: # "If you would like to contribute to `komorebi` please take the time to carefully"
+[//]: # "read the guidelines below."
+[//]: #
+[//]: # "Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for more information about how"
+[//]: # "code contributions to `komorebi` are licensed."
 
 ## Commit hygiene
 

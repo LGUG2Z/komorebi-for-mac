@@ -101,9 +101,7 @@ impl Border {
 
         let rect = MacosApi::window_rect(&element).unwrap_or_default();
 
-        let frame = Rect::from(CoreGraphicsApi::display_bounds(unsafe {
-            CGMainDisplayID()
-        }));
+        let frame = Rect::from(CoreGraphicsApi::display_bounds(CGMainDisplayID()));
         let ns_rect = NSRect::new(
             NSPoint::new(
                 rect.origin.x,

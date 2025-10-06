@@ -69,7 +69,7 @@ impl TryFrom<NSNotification> for AppKitWorkspaceNotification {
     type Error = strum::ParseError;
 
     fn try_from(value: NSNotification) -> Result<Self, Self::Error> {
-        let name = unsafe { value.name().to_string() };
+        let name = value.name().to_string();
 
         AppKitWorkspaceNotification::from_str(&name)
     }
