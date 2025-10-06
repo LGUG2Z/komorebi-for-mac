@@ -42,6 +42,7 @@ pub enum WindowManagerEvent {
     MoveEnd(SystemNotification, i32, u32),
     ResizeStart(SystemNotification, i32, u32),
     ResizeEnd(SystemNotification, i32, u32),
+    SpaceChange(SystemNotification, i32),
 }
 
 impl WindowManagerEvent {
@@ -141,6 +142,7 @@ impl WindowManagerEvent {
             | WindowManagerEvent::MoveEnd(_, process_id, _)
             | WindowManagerEvent::ResizeStart(_, process_id, _)
             | WindowManagerEvent::ResizeEnd(_, process_id, _)
+            | WindowManagerEvent::SpaceChange(_, process_id)
             | WindowManagerEvent::Restore(_, process_id, _) => *process_id,
         }
     }
@@ -157,6 +159,7 @@ impl WindowManagerEvent {
             | WindowManagerEvent::ResizeStart(n, _, _)
             | WindowManagerEvent::ResizeEnd(n, _, _)
             | WindowManagerEvent::Unmanage(n, _, _)
+            | WindowManagerEvent::SpaceChange(n, _)
             | WindowManagerEvent::Restore(n, _, _) => match n {
                 SystemNotification::Accessibility(a) => a.to_string(),
                 SystemNotification::AppKitWorkspace(a) => a.to_string(),
@@ -168,7 +171,9 @@ impl WindowManagerEvent {
     pub fn window_id(&self) -> Option<u32> {
         match self {
             WindowManagerEvent::FocusChange(_, _, window_id) => *window_id,
-            WindowManagerEvent::Show(_, _) | WindowManagerEvent::Destroy(_, _) => None,
+            WindowManagerEvent::Show(_, _)
+            | WindowManagerEvent::Destroy(_, _)
+            | WindowManagerEvent::SpaceChange(_, _) => None,
             WindowManagerEvent::Minimize(_, _, window_id)
             | WindowManagerEvent::Manage(_, _, window_id)
             | WindowManagerEvent::Unmanage(_, _, window_id)

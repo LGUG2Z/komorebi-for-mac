@@ -60,10 +60,18 @@ define_class! {
 
                 match process_id {
                     None => {
-                        tracing::debug!(
-                            "notification: {}, skipping as there is no associated process id",
-                            notif.name()
-                        );
+                        if let Ok(notification) =
+                            AppKitWorkspaceNotification::from_str(&notif.name().to_string()) {
+                            if matches!(notification, AppKitWorkspaceNotification::NSWorkspaceActiveSpaceDidChangeNotification) {
+                                // TODO: this is really, really stupid
+                                window_manager_event_listener::send_notification(WindowManagerEvent::SpaceChange(SystemNotification::AppKitWorkspace(notification), 0));
+                            }
+                        } else {
+                            tracing::debug!(
+                                "notification: {}, skipping as there is no associated process id",
+                                notif.name()
+                            );
+                        }
                     }
                     Some(process_id) => {
                         tracing::debug!("notification: {}, process: {process_id}", notif.name());

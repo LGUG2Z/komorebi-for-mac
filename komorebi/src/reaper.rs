@@ -1,10 +1,12 @@
 use crate::TABBED_APPLICATIONS;
+use crate::accessibility::AccessibilityApi;
 use crate::accessibility::error::AccessibilityError;
 use crate::border_manager;
 use crate::window::Window;
 use crate::window_manager::WindowManager;
 use crossbeam_channel::Receiver;
 use crossbeam_channel::Sender;
+use objc2_core_foundation::CFBoolean;
 use parking_lot::Mutex;
 use std::sync::Arc;
 use std::sync::OnceLock;
@@ -112,6 +114,17 @@ pub fn notify_on_error(
         if tabbed_applications.contains(&window.application.name().unwrap_or_default())
             && window.is_valid()
         {
+            should_reap = false;
+        }
+
+        if let Some(is_fullscreen) =
+            AccessibilityApi::copy_attribute_value::<CFBoolean>(&window.element, "AXFullScreen")
+            && is_fullscreen.as_bool()
+        {
+            tracing::debug!(
+                "skipping reap for fullscreen window {} during position update failure",
+                window.id
+            );
             should_reap = false;
         }
 
