@@ -28,6 +28,7 @@ Clone the git repository, enter the directory, and build the following binaries:
 ```powershell
 cargo +stable install --path komorebi --locked --target-dir ~/.cargo/bin
 cargo +stable install --path komorebic --locked --target-dir ~/.cargo/bin
+cargo +stable install --path komorebi-bar --locked --target-dir ~/.cargo/bin
 ```
 
 If the binaries have been built and added to your `$PATH` correctly, you should
@@ -47,6 +48,7 @@ Finally, you can run the following commands to clean up files created by the
 ```powershell
 rm -rf ~/.cargo/bin/komorebi
 rm -rf ~/.cargo/bin/komorebic
+rm -rf ~/.cargo/bin/komorebi-bar
 rm -rf ~/.config/komorebi
 rm -rf "~/Library/Application Support/komorebi"
 ```

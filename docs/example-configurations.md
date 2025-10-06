@@ -26,10 +26,16 @@ it requires to run, and will open the following System Settings tabs for you:
 * Settings -> Privacy & Security -> Screen & System Audio Recording
 
 With the example configurations downloaded and permissions granted, you can now
-start `komorebi`
+start `komorebi`:
 
 ```powershell
 komorebic start
+```
+
+Alternatively, if you also want to start with the status bar, you can run:
+
+```powershell
+komorebic start --bar
 ```
 
 ## komorebi.json
@@ -174,3 +180,24 @@ colon.
 
 You can try the example komorebi configuration by running
 `skhd --config ~/.config/komorebi/skhdrc`.
+
+## komorebi.bar.json
+
+The example status bar configuration sets some sane defaults and provides
+a number of pre-configured widgets on the primary monitor.
+
+```json
+{% include "./komorebi.bar.example.json" %}
+```
+
+### Themes
+
+Themes can be set in either `komorebi.json` or `komorebi.bar.json`. If set
+in `komorebi.json`, the theme will be applied to both komorebi's borders and
+stackbars as well as the status bar.
+
+If set in `komorebi.bar.json`, the theme will only be applied to the status bar.
+
+All [Catppuccin palette variants](https://catppuccin.com/)
+and [most Base16 palette variants](https://tinted-theming.github.io/tinted-gallery/)
+are available as themes.
