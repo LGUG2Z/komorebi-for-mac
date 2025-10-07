@@ -1,4 +1,5 @@
 use crate::accessibility::error::AccessibilityError;
+use crate::core::WindowHidingPosition;
 use crate::lockable_sequence::Lockable;
 use crate::ring::Ring;
 use crate::window::Window;
@@ -76,14 +77,18 @@ impl Container {
         self.remove_window_by_idx(focused_idx)
     }
 
-    pub fn add_window(&mut self, window: &Window) -> eyre::Result<()> {
+    pub fn add_window(
+        &mut self,
+        window: &Window,
+        hiding_position: WindowHidingPosition,
+    ) -> eyre::Result<()> {
         self.windows_mut().push_back(window.clone());
         self.focus_window(self.windows().len().saturating_sub(1));
         let focused_window_idx = self.focused_window_idx();
 
         for (i, window) in self.windows_mut().iter_mut().enumerate() {
             if i != focused_window_idx {
-                window.hide()?;
+                window.hide(hiding_position)?;
             }
         }
 
@@ -99,14 +104,17 @@ impl Container {
     /// Hides the unfocused windows of the container and restores the focused one. This function
     /// is used to make sure we update the window that should be shown on a stack. If the container
     /// isn't a stack this function won't change anything.
-    pub fn load_focused_window(&mut self) -> Result<(), AccessibilityError> {
+    pub fn load_focused_window(
+        &mut self,
+        hiding_position: WindowHidingPosition,
+    ) -> Result<(), AccessibilityError> {
         let focused_idx = self.focused_window_idx();
 
         for (i, window) in self.windows_mut().iter_mut().enumerate() {
             if i == focused_idx {
                 window.restore()?;
             } else {
-                window.hide()?;
+                window.hide(hiding_position)?;
             }
         }
 
@@ -119,7 +127,11 @@ impl Container {
         window
     }
 
-    pub fn hide(&mut self, omit: Option<u32>) -> eyre::Result<()> {
+    pub fn hide(
+        &mut self,
+        hiding_position: WindowHidingPosition,
+        omit: Option<u32>,
+    ) -> eyre::Result<()> {
         for window in self.windows_mut().iter_mut().rev() {
             let mut should_hide = omit.is_none();
 
@@ -131,7 +143,7 @@ impl Container {
             }
 
             if should_hide {
-                window.hide()?;
+                window.hide(hiding_position)?;
             }
         }
 

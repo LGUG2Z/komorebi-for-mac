@@ -14,6 +14,7 @@ use crate::app_kit_notification_constants::AppKitWorkspaceNotification;
 use crate::border_manager;
 use crate::core::Sizing;
 use crate::core::WindowContainerBehaviour;
+use crate::core::WindowHidingPosition;
 use crate::core::config_generation::MatchingRule;
 use crate::core::default_layout::DefaultLayout;
 use crate::core::layout::Layout;
@@ -441,7 +442,8 @@ impl WindowManager {
                             "ignoring show event for window already associated with another workspace"
                         );
 
-                        AdhocWindow::hide(window_id, element)?;
+                        // TODO: probably shouldn't default here
+                        AdhocWindow::hide(window_id, element, WindowHidingPosition::default())?;
                         create = false;
                     }
                 }
@@ -462,7 +464,6 @@ impl WindowManager {
                     && let Ok(mut window) = Window::new(element, application.clone())
                 {
                     window.observe(&self.run_loop, None)?;
-
                     let behaviour = self
                         .window_management_behaviour(focused_monitor_idx, focused_workspace_idx);
                     let workspace = self.focused_workspace_mut()?;
@@ -534,10 +535,12 @@ impl WindowManager {
                                 self.update_focused_workspace(false, false)?;
                             }
                             WindowContainerBehaviour::Append => {
+                                let window_hiding_position =
+                                    workspace.globals.window_hiding_position;
                                 workspace
                                     .focused_container_mut()
                                     .ok_or_eyre("there is no focused container")?
-                                    .add_window(&window)?;
+                                    .add_window(&window, window_hiding_position)?;
                                 workspace.layer = WorkspaceLayer::Tiling;
                                 self.update_focused_workspace(true, false)?;
                             }
@@ -575,7 +578,7 @@ impl WindowManager {
                         if !(monocle_window_event || workspace.layer != WorkspaceLayer::Tiling)
                             && monocle_container.is_some()
                         {
-                            window.hide()?;
+                            window.hide(workspace.globals.window_hiding_position)?;
                         }
                     }
 

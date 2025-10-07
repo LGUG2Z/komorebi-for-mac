@@ -566,6 +566,10 @@ impl WindowManager {
             SocketMessage::ToggleFloat => self.toggle_float(false)?,
             SocketMessage::ToggleWorkspaceLayer => {
                 let mouse_follows_focus = self.mouse_follows_focus;
+                let hiding_position = self
+                    .focused_monitor()
+                    .ok_or_eyre("there is no monitor")?
+                    .window_hiding_position;
                 let workspace = self.focused_workspace_mut()?;
 
                 let mut to_focus = None;
@@ -631,7 +635,7 @@ impl WindowManager {
                             }
 
                             for window in workspace.floating_windows_mut() {
-                                window.hide()?;
+                                window.hide(hiding_position)?;
                             }
                         } else {
                             let focused_container_idx = workspace.focused_container_idx();
@@ -662,7 +666,7 @@ impl WindowManager {
 
                             for window in window_idx_pairs {
                                 // TODO: figure out z order
-                                window.hide()?;
+                                window.hide(hiding_position)?;
                                 // window.lower()?;
                             }
                         }

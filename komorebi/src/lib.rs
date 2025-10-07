@@ -308,3 +308,11 @@ pub fn hidden_frame_bottom_left(screen_frame: CGRect, window_size: CGSize) -> CG
 
     CGRect::new(CGPoint::new(origin_x, origin_y), window_size)
 }
+
+pub fn hidden_frame_bottom_right(screen_frame: CGRect, window_size: CGSize) -> CGRect {
+    let visible_sliver: f64 = 1.0;
+    let origin_x = screen_frame.origin.x + screen_frame.size.width - visible_sliver;
+    let origin_y = screen_frame.origin.y + screen_frame.size.height - visible_sliver;
+
+    CGRect::new(CGPoint::new(origin_x, origin_y), window_size)
+}

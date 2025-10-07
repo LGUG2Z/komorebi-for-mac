@@ -31,12 +31,14 @@ use crate::accessibility::notification_constants::kAXWindowResizedNotification;
 use crate::application::Application;
 use crate::cf_dictionary_value;
 use crate::core::ApplicationIdentifier;
+use crate::core::WindowHidingPosition;
 use crate::core::config_generation::IdWithIdentifier;
 use crate::core::config_generation::MatchingRule;
 use crate::core::config_generation::MatchingStrategy;
 use crate::core::rect::Rect;
 use crate::core_graphics::CoreGraphicsApi;
 use crate::hidden_frame_bottom_left;
+use crate::hidden_frame_bottom_right;
 use crate::macos_api::MacosApi;
 use crate::reaper;
 use crate::window_manager_event::SystemNotification;
@@ -341,7 +343,10 @@ impl Window {
     }
 
     #[tracing::instrument(skip_all)]
-    pub fn hide(&mut self) -> Result<(), AccessibilityError> {
+    pub fn hide(
+        &mut self,
+        hiding_position: WindowHidingPosition,
+    ) -> Result<(), AccessibilityError> {
         let rect = MacosApi::window_rect(&self.element)?;
 
         let mut window_restore_positions = WINDOW_RESTORE_POSITIONS.lock();
@@ -352,7 +357,14 @@ impl Window {
 
         if let Some(monitor_size) = CoreGraphicsApi::display_bounds_for_window_rect(rect) {
             // I don't love this, but it's basically what Aerospace does in lieu of an actual "Hide" API
-            let hidden_rect = hidden_frame_bottom_left(monitor_size, rect.size);
+            let hidden_rect = match hiding_position {
+                WindowHidingPosition::BottomLeft => {
+                    hidden_frame_bottom_left(monitor_size, rect.size)
+                }
+                WindowHidingPosition::BottomRight => {
+                    hidden_frame_bottom_right(monitor_size, rect.size)
+                }
+            };
 
             tracing::debug!(
                 "hiding {} and setting restore point to {},{}",
@@ -804,7 +816,11 @@ impl AdhocWindow {
     }
 
     #[tracing::instrument(skip_all)]
-    pub fn hide(id: u32, element: &CFRetained<AXUIElement>) -> Result<(), AccessibilityError> {
+    pub fn hide(
+        id: u32,
+        element: &CFRetained<AXUIElement>,
+        hiding_position: WindowHidingPosition,
+    ) -> Result<(), AccessibilityError> {
         let mut window_restore_positions = WINDOW_RESTORE_POSITIONS.lock();
         if let Entry::Vacant(entry) = window_restore_positions.entry(id) {
             let rect = MacosApi::window_rect(element)?;
@@ -813,7 +829,14 @@ impl AdhocWindow {
                 drop(window_restore_positions);
 
                 // I don't love this, but it's basically what Aerospace does in lieu of an actual "Hide" API
-                let hidden_rect = hidden_frame_bottom_left(monitor_size, rect.size);
+                let hidden_rect = match hiding_position {
+                    WindowHidingPosition::BottomLeft => {
+                        hidden_frame_bottom_left(monitor_size, rect.size)
+                    }
+                    WindowHidingPosition::BottomRight => {
+                        hidden_frame_bottom_right(monitor_size, rect.size)
+                    }
+                };
 
                 tracing::debug!(
                     "hiding window with id {id} and setting restore point to {},{}",

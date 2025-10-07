@@ -15,6 +15,7 @@ use crate::core::OperationBehaviour;
 use crate::core::Placement;
 use crate::core::Sizing;
 use crate::core::WindowContainerBehaviour;
+use crate::core::WindowHidingPosition;
 use crate::core::WindowManagementBehaviour;
 use crate::core::arrangement::Arrangement;
 use crate::core::arrangement::Axis;
@@ -1122,8 +1123,9 @@ impl WindowManager {
                 }
             }
 
+            let window_hiding_position = workspace.globals.window_hiding_position;
             if changed_focus && let Some(container) = workspace.focused_container_mut() {
-                container.load_focused_window()?;
+                container.load_focused_window(window_hiding_position)?;
                 if let Some(window) = container.focused_window() {
                     window.focus(mouse_follows_focus)?;
                 }
@@ -1204,6 +1206,7 @@ impl WindowManager {
         tracing::info!("cycling container windows");
 
         let mouse_follows_focus = self.mouse_follows_focus;
+        let window_hiding_position = self.focused_workspace()?.globals.window_hiding_position;
 
         let container = self.focused_container_mut()?;
 
@@ -1218,7 +1221,7 @@ impl WindowManager {
         let next_idx = direction.next_idx(current_idx, len);
 
         container.focus_window(next_idx);
-        container.load_focused_window()?;
+        container.load_focused_window(window_hiding_position)?;
 
         if let Some(window) = container.focused_window() {
             window.focus(mouse_follows_focus)?;
@@ -1280,11 +1283,16 @@ impl WindowManager {
     pub fn monocle_on(&mut self) -> eyre::Result<()> {
         tracing::info!("enabling monocle");
 
+        let hiding_position = self
+            .focused_monitor()
+            .ok_or_eyre("there is no monitor")?
+            .window_hiding_position;
+
         let workspace = self.focused_workspace_mut()?;
         workspace.new_monocle_container()?;
 
         for container in workspace.containers_mut() {
-            container.hide(None)?;
+            container.hide(hiding_position, None)?;
         }
 
         Ok(())
@@ -2161,6 +2169,7 @@ impl WindowManager {
         tracing::info!("cycling container window index");
 
         let mouse_follows_focus = self.mouse_follows_focus;
+        let window_hiding_position = self.focused_workspace()?.globals.window_hiding_position;
 
         let container =
             if let Some(container) = &mut self.focused_workspace_mut()?.monocle_container {
@@ -2181,7 +2190,7 @@ impl WindowManager {
         container.windows_mut().swap(current_idx, next_idx);
 
         container.focus_window(next_idx);
-        container.load_focused_window()?;
+        container.load_focused_window(window_hiding_position)?;
 
         if let Some(window) = container.focused_window() {
             window.focus(mouse_follows_focus)?;
@@ -2195,6 +2204,7 @@ impl WindowManager {
         tracing::info!("focusing container window at index {idx}");
 
         let mouse_follows_focus = self.mouse_follows_focus;
+        let window_hiding_position = self.focused_workspace()?.globals.window_hiding_position;
 
         let container =
             if let Some(container) = &mut self.focused_workspace_mut()?.monocle_container {
@@ -2215,7 +2225,7 @@ impl WindowManager {
         }
 
         container.focus_window(idx);
-        container.load_focused_window()?;
+        container.load_focused_window(window_hiding_position)?;
 
         if let Some(window) = container.focused_window() {
             window.focus(mouse_follows_focus)?;
@@ -2432,7 +2442,7 @@ impl WindowManager {
 
             // Hide the window we are about to remove if it is on the currently focused workspace
             if op.is_origin(focused_monitor_idx, focused_workspace_idx) {
-                window.hide()?;
+                window.hide(WindowHidingPosition::default())?;
                 should_update_focused_workspace = true;
             }
 

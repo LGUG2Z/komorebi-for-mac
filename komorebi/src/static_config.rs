@@ -17,6 +17,7 @@ use crate::core::OperationBehaviour;
 use crate::core::Placement;
 use crate::core::SocketMessage;
 use crate::core::WindowContainerBehaviour;
+use crate::core::WindowHidingPosition;
 use crate::core::WindowManagementBehaviour;
 use crate::core::arrangement::Axis;
 use crate::core::asc::ApplicationSpecificConfiguration;
@@ -305,6 +306,9 @@ pub struct MonitorConfig {
     /// Determine what happens to a new window when the Floating workspace layer is active (default: Tile)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub floating_layer_behaviour: Option<FloatingLayerBehaviour>,
+    /// Determine which position windows should be hidden at on this monitor
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub window_hiding_position: Option<WindowHidingPosition>,
 }
 
 impl From<&Monitor> for MonitorConfig {
@@ -342,6 +346,7 @@ impl From<&Monitor> for MonitorConfig {
             workspace_padding,
             wallpaper: value.wallpaper.clone(),
             floating_layer_behaviour: value.floating_layer_behaviour,
+            window_hiding_position: Some(value.window_hiding_position),
         }
     }
 }
@@ -1252,6 +1257,8 @@ impl StaticConfig {
                 monitor.workspace_padding = monitor_config.workspace_padding;
                 monitor.wallpaper = monitor_config.wallpaper.clone();
                 monitor.floating_layer_behaviour = monitor_config.floating_layer_behaviour;
+                monitor.window_hiding_position =
+                    monitor_config.window_hiding_position.unwrap_or_default();
 
                 monitor.update_workspaces_globals(offset);
                 for (j, ws) in monitor.workspaces_mut().iter_mut().enumerate() {
@@ -1333,6 +1340,8 @@ impl StaticConfig {
                     m.container_padding = monitor_config.container_padding;
                     m.workspace_padding = monitor_config.workspace_padding;
                     m.floating_layer_behaviour = monitor_config.floating_layer_behaviour;
+                    m.window_hiding_position =
+                        monitor_config.window_hiding_position.unwrap_or_default();
 
                     m.update_workspaces_globals(offset);
 
@@ -1418,6 +1427,8 @@ impl StaticConfig {
                 monitor.workspace_padding = monitor_config.workspace_padding;
                 monitor.wallpaper = monitor_config.wallpaper.clone();
                 monitor.floating_layer_behaviour = monitor_config.floating_layer_behaviour;
+                monitor.window_hiding_position =
+                    monitor_config.window_hiding_position.unwrap_or_default();
 
                 monitor.update_workspaces_globals(offset);
 
@@ -1491,6 +1502,8 @@ impl StaticConfig {
                     m.container_padding = monitor_config.container_padding;
                     m.workspace_padding = monitor_config.workspace_padding;
                     m.floating_layer_behaviour = monitor_config.floating_layer_behaviour;
+                    m.window_hiding_position =
+                        monitor_config.window_hiding_position.unwrap_or_default();
 
                     m.update_workspaces_globals(offset);
 

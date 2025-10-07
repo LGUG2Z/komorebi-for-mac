@@ -2,6 +2,7 @@ use crate::DEFAULT_CONTAINER_PADDING;
 use crate::DEFAULT_WORKSPACE_PADDING;
 use crate::container::Container;
 use crate::core::FloatingLayerBehaviour;
+use crate::core::WindowHidingPosition;
 use crate::core::default_layout::DefaultLayout;
 use crate::core::layout::Layout;
 use crate::core::operation_direction::OperationDirection;
@@ -70,6 +71,7 @@ pub struct Monitor {
     pub last_focused_workspace: Option<usize>,
     pub wallpaper: Option<Wallpaper>,
     pub floating_layer_behaviour: Option<FloatingLayerBehaviour>,
+    pub window_hiding_position: WindowHidingPosition,
 }
 
 pub fn new(
@@ -97,6 +99,7 @@ pub fn new(
         workspace_padding: None,
         wallpaper: None,
         floating_layer_behaviour: None,
+        window_hiding_position: WindowHidingPosition::default(),
     }
 }
 
@@ -127,6 +130,7 @@ impl Monitor {
             last_focused_workspace: None,
             wallpaper: None,
             floating_layer_behaviour: None,
+            window_hiding_position: WindowHidingPosition::default(),
         }
     }
 
@@ -147,6 +151,7 @@ impl Monitor {
             workspace_padding: None,
             wallpaper: None,
             floating_layer_behaviour: None,
+            window_hiding_position: WindowHidingPosition::default(),
         }
     }
 
@@ -181,6 +186,7 @@ impl Monitor {
         let window_based_work_area_offset = self.window_based_work_area_offset;
         let window_based_work_area_offset_limit = self.window_based_work_area_offset_limit;
         let floating_layer_behaviour = self.floating_layer_behaviour;
+        let window_hiding_position = self.window_hiding_position;
 
         if let Some(workspace) = self.workspaces_mut().get_mut(workspace_idx) {
             workspace.globals = WorkspaceGlobals {
@@ -193,6 +199,7 @@ impl Monitor {
                 window_based_work_area_offset,
                 window_based_work_area_offset_limit,
                 floating_layer_behaviour,
+                window_hiding_position,
             }
         }
     }
@@ -452,6 +459,7 @@ impl Monitor {
         let window_based_work_area_offset = self.window_based_work_area_offset;
         let window_based_work_area_offset_limit = self.window_based_work_area_offset_limit;
         let floating_layer_behaviour = self.floating_layer_behaviour;
+        let window_hiding_position = self.window_hiding_position;
 
         for workspace in self.workspaces_mut() {
             workspace.globals = WorkspaceGlobals {
@@ -464,6 +472,7 @@ impl Monitor {
                 window_based_work_area_offset,
                 window_based_work_area_offset_limit,
                 floating_layer_behaviour,
+                window_hiding_position,
             }
         }
     }

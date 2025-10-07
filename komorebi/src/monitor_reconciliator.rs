@@ -383,6 +383,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                                     workspace_padding: cached.workspace_padding,
                                     wallpaper: cached.wallpaper.clone(),
                                     floating_layer_behaviour: cached.floating_layer_behaviour,
+                                    window_hiding_position: cached.window_hiding_position,
                                 };
 
                                 let focused_workspace_idx = m.focused_workspace_idx();

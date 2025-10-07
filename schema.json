@@ -1244,6 +1244,25 @@
             "type": "integer",
             "format": "int"
           },
+          "window_hiding_position": {
+            "description": "Determine which position windows should be hidden at on this monitor",
+            "oneOf": [
+              {
+                "description": "Hide windows in the bottom left corner of the screen",
+                "type": "string",
+                "enum": [
+                  "BottomLeft"
+                ]
+              },
+              {
+                "description": "Hide windows in the bottom right corner of the screen",
+                "type": "string",
+                "enum": [
+                  "BottomRight"
+                ]
+              }
+            ]
+          },
           "work_area_offset": {
             "description": "Monitor-specific work area offset (default: None)",
             "type": "object",
