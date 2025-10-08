@@ -85,6 +85,7 @@ use std::str::FromStr;
 use strum::Display;
 use strum::EnumString;
 use tracing::instrument;
+use crate::reaper::ReaperNotification;
 
 const NOTIFICATIONS: &[&str] = &[
     kAXWindowMiniaturizedNotification,
@@ -223,6 +224,10 @@ impl Drop for Window {
                 self.title()
                     .unwrap_or_else(|| String::from("<NO TITLE FOUND>"))
             );
+
+            // Messages wouldn't close on click which is annoying, this handles that edge case
+            // for now - hopefully it doesn't break anything else
+            reaper::send_notification(ReaperNotification::InvalidWindow(self.id));
 
             // make sure the observer gets removed from any run loops
             AccessibilityApi::invalidate_observer(&self.observer);
