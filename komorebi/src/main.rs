@@ -20,6 +20,7 @@ use komorebi::static_config::StaticConfig;
 use komorebi::theme_manager;
 use komorebi::window_manager::WindowManager;
 use komorebi::window_manager_event_listener;
+use komorebi::workspace_reconciliator;
 use objc2::rc::autoreleasepool;
 use objc2_application_services::AXIsProcessTrusted;
 use objc2_core_foundation::CFRunLoop;
@@ -263,6 +264,7 @@ fn main() -> eyre::Result<()> {
     theme_manager::listen_for_notifications();
     monitor_reconciliator::listen_for_notifications(wm.clone())?;
     reaper::listen_for_notifications(wm.clone());
+    workspace_reconciliator::listen_for_notifications(wm.clone());
 
     listen_for_commands(wm.clone());
     listen_for_events(wm.clone());

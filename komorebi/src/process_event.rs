@@ -34,6 +34,7 @@ use crate::window_manager_event::SystemNotification;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::window_manager_event_listener;
 use crate::workspace::WorkspaceLayer;
+use crate::workspace_reconciliator;
 use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
 use parking_lot::Mutex;
@@ -176,6 +177,7 @@ impl WindowManager {
                 let application_name = application.name().unwrap_or_default().clone();
                 let mut should_switch_workspace_layer_to_tiling = true;
                 let mut tabbed_window = false;
+                let mut needs_reconciliation = false;
 
                 if let Some(window_id) = application.main_window_id()
                         && matches!(
@@ -350,20 +352,14 @@ impl WindowManager {
                                 }
                             }
 
-                            // maybe we don't need a separate reconciliator module?? this works pretty well!
-                            if !is_on_current_workspace && let Some((m_idx, w_idx)) = is_known {
-                                self.focus_monitor(m_idx)?;
-                                self.focus_workspace(w_idx)?;
-                                let event = WindowManagerEvent::from_system_notification(
-                                    SystemNotification::Manual(ManualNotification::FocusOnCmdTab),
-                                    process_id,
-                                    Some(window_id),
-                                );
-
-                                if let Some(manual_event) = event {
-                                    window_manager_event_listener::send_notification(manual_event);
+                            if !is_on_current_workspace && let Some((m_idx, w_idx)) = is_known
+                                && matches!(
+                                    notification,
+                                    SystemNotification::AppKitWorkspace(AppKitWorkspaceNotification::NSWorkspaceDidActivateApplicationNotification)
+                                ) {
+                                    workspace_reconciliator::send_notification(m_idx, w_idx, event);
+                                    needs_reconciliation = true;
                                 }
-                            }
                         }
                     }
 
@@ -373,6 +369,7 @@ impl WindowManager {
                         AccessibilityNotification::AXMainWindowChanged
                     )
                 ) && !tabbed_window
+                    && !needs_reconciliation
                 {
                     self.reap_invalid_windows_for_application(process_id)?;
                     self.update_focused_workspace(false, false)?;

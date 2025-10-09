@@ -41,6 +41,7 @@ use crate::hidden_frame_bottom_left;
 use crate::hidden_frame_bottom_right;
 use crate::macos_api::MacosApi;
 use crate::reaper;
+use crate::reaper::ReaperNotification;
 use crate::window_manager_event::SystemNotification;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::window_manager_event_listener;
@@ -85,7 +86,6 @@ use std::str::FromStr;
 use strum::Display;
 use strum::EnumString;
 use tracing::instrument;
-use crate::reaper::ReaperNotification;
 
 const NOTIFICATIONS: &[&str] = &[
     kAXWindowMiniaturizedNotification,

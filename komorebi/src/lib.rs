@@ -72,6 +72,7 @@ pub mod window_manager;
 pub mod window_manager_event;
 pub mod window_manager_event_listener;
 pub mod workspace;
+pub mod workspace_reconciliator;
 
 lazy_static! {
     pub static ref HOME_DIR: PathBuf = {
