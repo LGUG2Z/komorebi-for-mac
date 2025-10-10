@@ -35,6 +35,7 @@ define_class! {
             let mut process_id = None;
             let mut window_id = None;
             let mut valid_keys = vec![];
+            let mut application = None;
 
             if let Some(user_info) = notif.userInfo() {
                 let all_keys = user_info.allKeys();
@@ -46,19 +47,20 @@ define_class! {
 
                 if let Some(application_key) =
                     user_info.valueForKey(&NSString::from_str("NSWorkspaceApplicationKey"))
-                    && let Some(application) = application_key.downcast_ref::<NSRunningApplication>()
+                    && let Some(running_application) = application_key.downcast_ref::<NSRunningApplication>()
                 {
-                    process_id = Some(application.processIdentifier());
-                    if let Ok(application) = Application::new(application.processIdentifier()) {
-                        window_id = application.main_window_id();
+                    process_id = Some(running_application.processIdentifier());
+                    if let Ok(app) = Application::new(running_application.processIdentifier()) {
+                        window_id = app.main_window_id();
+                        application = Some(app);
                     }
                 }
             }
 
             tracing::trace!("received {} with keys {}", notif.name(), valid_keys.join(", "));
 
-        match process_id {
-            None => {
+            match process_id {
+                None => {
                     if let Ok(notification) =
                         AppKitWorkspaceNotification::from_str(&notif.name().to_string()) {
                         if matches!(notification, AppKitWorkspaceNotification::NSWorkspaceActiveSpaceDidChangeNotification) {
@@ -74,16 +76,38 @@ define_class! {
                 }
                 Some(process_id) => {
                     tracing::debug!("notification: {}, process: {process_id}", notif.name());
-                    if let Ok(notification) =
-                        AppKitWorkspaceNotification::from_str(&notif.name().to_string())
-                        && let Some(event) = WindowManagerEvent::from_system_notification(
-                            SystemNotification::AppKitWorkspace(notification),
-                            process_id,
-                            window_id,
-                        )
-                    {
-                        window_manager_event_listener::send_notification(event);
-                    };
+                    match AppKitWorkspaceNotification::from_str(&notif.name().to_string()) {
+                        Ok(AppKitWorkspaceNotification::NSWorkspaceDidActivateApplicationNotification) => {
+                            if application.is_some_and(|app| app.name().unwrap_or_default() == "loginwindow") {
+                                window_manager_event_listener::send_notification(
+                                    WindowManagerEvent::ScreenLock(
+                                        SystemNotification::AppKitWorkspace(AppKitWorkspaceNotification::NSWorkspaceDidDeactivateApplicationNotification),
+                                        process_id
+                                    )
+                                );
+                            }
+                        }
+                        Ok(AppKitWorkspaceNotification::NSWorkspaceDidDeactivateApplicationNotification) => {
+                            if application.is_some_and(|app| app.name().unwrap_or_default() == "loginwindow") {
+                                window_manager_event_listener::send_notification(
+                                    WindowManagerEvent::ScreenUnlock(
+                                        SystemNotification::AppKitWorkspace(AppKitWorkspaceNotification::NSWorkspaceDidDeactivateApplicationNotification),
+                                        process_id
+                                    )
+                                );
+                            }
+                        }
+                        Ok(notification) => {
+                            if let Some(event) = WindowManagerEvent::from_system_notification(
+                                SystemNotification::AppKitWorkspace(notification),
+                                process_id,
+                                window_id,
+                            ) {
+                                window_manager_event_listener::send_notification(event);
+                            }
+                        }
+                        _ => {}
+                    }
                 }
             }
         }

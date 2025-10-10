@@ -68,6 +68,22 @@ pub fn listen_for_events(wm: Arc<Mutex<WindowManager>>) {
 impl WindowManager {
     #[instrument(skip_all)]
     pub fn process_event(&mut self, event: WindowManagerEvent) -> eyre::Result<()> {
+        if matches!(event, WindowManagerEvent::ScreenLock(_, _)) {
+            let application = self.application(event.process_id())?;
+            if application.name().unwrap_or_default() == "loginwindow" {
+                tracing::debug!("pausing while screen is locked");
+                self.is_paused = true;
+            }
+        }
+
+        if matches!(event, WindowManagerEvent::ScreenUnlock(_, _)) {
+            let application = self.application(event.process_id())?;
+            if application.name().unwrap_or_default() == "loginwindow" {
+                tracing::debug!("unpausing on screen unlock");
+                self.is_paused = false;
+            }
+        }
+
         if self.is_paused {
             tracing::trace!("ignoring while paused");
             return Ok(());
@@ -942,7 +958,10 @@ impl WindowManager {
                     }
                 }
             }
-            WindowManagerEvent::SpaceChange(_, _) => {}
+            // handled before this match
+            WindowManagerEvent::SpaceChange(_, _)
+            | WindowManagerEvent::ScreenLock(_, _)
+            | WindowManagerEvent::ScreenUnlock(_, _) => {}
         }
 
         self.update_known_window_ids();

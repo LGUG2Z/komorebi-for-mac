@@ -43,6 +43,8 @@ pub enum WindowManagerEvent {
     ResizeStart(SystemNotification, i32, u32),
     ResizeEnd(SystemNotification, i32, u32),
     SpaceChange(SystemNotification, i32),
+    ScreenLock(SystemNotification, i32),
+    ScreenUnlock(SystemNotification, i32),
 }
 
 impl WindowManagerEvent {
@@ -143,6 +145,8 @@ impl WindowManagerEvent {
             | WindowManagerEvent::ResizeStart(_, process_id, _)
             | WindowManagerEvent::ResizeEnd(_, process_id, _)
             | WindowManagerEvent::SpaceChange(_, process_id)
+            | WindowManagerEvent::ScreenLock(_, process_id)
+            | WindowManagerEvent::ScreenUnlock(_, process_id)
             | WindowManagerEvent::Restore(_, process_id, _) => *process_id,
         }
     }
@@ -160,6 +164,8 @@ impl WindowManagerEvent {
             | WindowManagerEvent::ResizeEnd(n, _, _)
             | WindowManagerEvent::Unmanage(n, _, _)
             | WindowManagerEvent::SpaceChange(n, _)
+            | WindowManagerEvent::ScreenLock(n, _)
+            | WindowManagerEvent::ScreenUnlock(n, _)
             | WindowManagerEvent::Restore(n, _, _) => match n {
                 SystemNotification::Accessibility(a) => a.to_string(),
                 SystemNotification::AppKitWorkspace(a) => a.to_string(),
@@ -173,6 +179,8 @@ impl WindowManagerEvent {
             WindowManagerEvent::FocusChange(_, _, window_id) => *window_id,
             WindowManagerEvent::Show(_, _)
             | WindowManagerEvent::Destroy(_, _)
+            | WindowManagerEvent::ScreenLock(_, _)
+            | WindowManagerEvent::ScreenUnlock(_, _)
             | WindowManagerEvent::SpaceChange(_, _) => None,
             WindowManagerEvent::Minimize(_, _, window_id)
             | WindowManagerEvent::Manage(_, _, window_id)

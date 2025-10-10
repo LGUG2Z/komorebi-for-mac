@@ -57,8 +57,12 @@ fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result<()>
 
     let receiver = event_rx();
 
-    for notification in receiver {
+    'notification: for notification in receiver {
         let mut wm = wm.lock();
+        if wm.is_paused {
+            tracing::debug!("skipping reaper notification while wm is paused");
+            continue 'notification;
+        }
 
         match notification {
             ReaperNotification::InvalidWindow(window_id) => {
