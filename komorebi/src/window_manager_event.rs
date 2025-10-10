@@ -24,7 +24,6 @@ pub enum ManualNotification {
     ShowOnFocusChangeWindowlessAppRestored,
     Manage,
     Unmanage,
-    FocusOnCmdTab,
 }
 
 #[derive(Debug, Copy, Clone, Serialize, Deserialize, Display)]
@@ -60,10 +59,11 @@ impl WindowManagerEvent {
             )
             | SystemNotification::AppKitWorkspace(
                 AppKitWorkspaceNotification::NSWorkspaceDidActivateApplicationNotification,
-            )
-            | SystemNotification::Manual(ManualNotification::FocusOnCmdTab) => Some(
-                WindowManagerEvent::FocusChange(notification, process_id, window_id),
-            ),
+            ) => Some(WindowManagerEvent::FocusChange(
+                notification,
+                process_id,
+                window_id,
+            )),
             SystemNotification::Accessibility(AccessibilityNotification::AXWindowCreated)
             | SystemNotification::Accessibility(AccessibilityNotification::AXApplicationShown)
             | SystemNotification::AppKitWorkspace(

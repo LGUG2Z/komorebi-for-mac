@@ -107,7 +107,7 @@ pub fn listen_for_commands(wm: Arc<Mutex<WindowManager>>) {
 }
 
 impl WindowManager {
-    #[tracing::instrument(skip(self, reply))]
+    #[tracing::instrument(skip(self, reply, message))]
     pub fn process_command(
         &mut self,
         message: SocketMessage,
@@ -121,7 +121,11 @@ impl WindowManager {
             return Ok(());
         }
 
-        tracing::info!("processing command: {message}");
+        if matches!(message, SocketMessage::Theme(_)) {
+            tracing::trace!("processing command: {message}");
+        } else {
+            tracing::info!("processing command: {message}");
+        }
 
         #[allow(clippy::useless_asref)]
         // We don't have From implemented for &mut WindowManager
@@ -1730,7 +1734,11 @@ impl WindowManager {
 
         border_manager::send_notification(None, None);
 
-        tracing::info!("processed");
+        if matches!(message, SocketMessage::Theme(_)) {
+            tracing::trace!("processed command: {message}");
+        } else {
+            tracing::info!("processed command: {message}");
+        }
 
         Ok(())
     }
