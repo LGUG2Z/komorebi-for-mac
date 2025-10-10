@@ -18,6 +18,20 @@ using keyboard shortcuts.
 
 At this time users must compile `komorebi` from source.
 
+## System settings suggestions
+
+Go to `System Settings -> Desktop & Dock -> Mission Control -> Displays have
+separate Spaces` and disable this option if you are using more than one monitor.
+
+`komorebi` is scoped to a single macOS space (the one that is active when the
+process is started), which means that you can still use other Spaces as if
+`komorebi` were not running at all. If you are using monitors with the above
+option enabled, komorebi will only be listening to events from the Space on the
+monitor which it was launched on.
+
+Go to `System Settings -> Desktop & Dock -> Mission Control -> Group windows
+by application` and disable this option if you like to use mission control.
+
 ## Building from source
 
 Make sure you have installed [`rustup`](https://rustup.rs), and a stable `rust`
