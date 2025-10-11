@@ -115,12 +115,18 @@ impl Container {
     ) -> Result<(), AccessibilityError> {
         let focused_idx = self.focused_window_idx();
 
-        for (i, window) in self.windows_mut().iter_mut().enumerate() {
-            if i == focused_idx {
-                window.restore()?;
-            } else {
-                window.hide(hiding_position)?;
+        if !cfg!(test) {
+            for (i, window) in self.windows_mut().iter_mut().enumerate() {
+                if i == focused_idx {
+                    window.restore()?;
+                } else {
+                    window.hide(hiding_position)?;
+                }
             }
+        } else {
+            tracing::info!(
+                "not hiding/restoring windows to/from {hiding_position} during test execution"
+            )
         }
 
         Ok(())
