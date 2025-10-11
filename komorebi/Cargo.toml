@@ -47,6 +47,9 @@ tracing-subscriber = { workspace = true }
 [build-dependencies]
 shadow-rs = { workspace = true }
 
+[dev-dependencies]
+uuid = { version = "1", features = ["v4"] }
+
 [features]
 default = ["schemars"]
 deadlock_detection = ["parking_lot/deadlock_detection"]
