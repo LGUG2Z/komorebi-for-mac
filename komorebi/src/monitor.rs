@@ -255,8 +255,12 @@ impl Monitor {
         //     eyre::bail!("cannot move native maximized window to another monitor or workspace");
         // }
 
-        let foreground_hwnd =
-            MacosApi::foreground_window_id().ok_or_eyre("no foreground window")?;
+        let foreground_hwnd = if !cfg!(test) {
+            MacosApi::foreground_window_id().ok_or_eyre("no foreground window")?
+        } else {
+            0
+        };
+
         let floating_window_index = workspace
             .floating_windows()
             .iter()
@@ -535,5 +539,293 @@ impl Monitor {
                 None
             }
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_add_container() {
+        let mut m = Monitor::new(
+            0,
+            Rect::default(),
+            Rect::default(),
+            "TestDevice",
+            "TestDeviceId",
+        );
+
+        // Add container to the default workspace
+        m.add_container(Container::default(), Some(0)).unwrap();
+
+        // Should contain a container in the current focused workspace
+        let workspace = m.focused_workspace_mut().unwrap();
+        assert_eq!(workspace.containers().len(), 1);
+    }
+
+    #[test]
+    fn test_remove_workspace_by_idx() {
+        let mut m = Monitor::new(
+            0,
+            Rect::default(),
+            Rect::default(),
+            "TestDevice",
+            "TestDeviceId",
+        );
+
+        let new_workspace_index = m.new_workspace_idx();
+        assert_eq!(new_workspace_index, 1);
+
+        // Create workspace 2
+        m.focus_workspace(new_workspace_index).unwrap();
+
+        // Should have 2 workspaces
+        assert_eq!(m.workspaces().len(), 2);
+
+        // Create workspace 3
+        m.focus_workspace(new_workspace_index + 1).unwrap();
+
+        // Should have 3 workspaces
+        assert_eq!(m.workspaces().len(), 3);
+
+        // Remove workspace 1
+        m.remove_workspace_by_idx(1);
+
+        // Should have only 2 workspaces
+        assert_eq!(m.workspaces().len(), 2);
+    }
+
+    #[test]
+    fn test_remove_workspaces() {
+        let mut m = Monitor::new(
+            0,
+            Rect::default(),
+            Rect::default(),
+            "TestDevice",
+            "TestDeviceId",
+        );
+
+        let new_workspace_index = m.new_workspace_idx();
+        assert_eq!(new_workspace_index, 1);
+
+        // Create workspace 2
+        m.focus_workspace(new_workspace_index).unwrap();
+
+        // Should have 2 workspaces
+        assert_eq!(m.workspaces().len(), 2);
+
+        // Create workspace 3
+        m.focus_workspace(new_workspace_index + 1).unwrap();
+
+        // Should have 3 workspaces
+        assert_eq!(m.workspaces().len(), 3);
+
+        // Remove all workspaces
+        m.remove_workspaces();
+
+        // All workspaces should be removed
+        assert_eq!(m.workspaces().len(), 0);
+    }
+
+    #[test]
+    fn test_remove_nonexistent_workspace() {
+        let mut m = Monitor::new(
+            0,
+            Rect::default(),
+            Rect::default(),
+            "TestDevice",
+            "TestDeviceId",
+        );
+
+        // Try to remove a workspace that doesn't exist
+        let removed_workspace = m.remove_workspace_by_idx(1);
+
+        // Should return None since there is no workspace at index 1
+        assert!(removed_workspace.is_none());
+    }
+
+    #[test]
+    fn test_focus_workspace() {
+        let mut m = Monitor::new(
+            0,
+            Rect::default(),
+            Rect::default(),
+            "TestDevice",
+            "TestDeviceId",
+        );
+
+        let new_workspace_index = m.new_workspace_idx();
+        assert_eq!(new_workspace_index, 1);
+
+        // Focus workspace 2
+        m.focus_workspace(new_workspace_index).unwrap();
+
+        // Should have 2 workspaces
+        assert_eq!(m.workspaces().len(), 2);
+
+        // Should be focused on workspace 2
+        assert_eq!(m.focused_workspace_idx(), 1);
+    }
+
+    #[test]
+    fn test_new_workspace_idx() {
+        let m = Monitor::new(
+            0,
+            Rect::default(),
+            Rect::default(),
+            "TestDevice",
+            "TestDeviceId",
+        );
+
+        let new_workspace_index = m.new_workspace_idx();
+
+        // Should be the last workspace index: 1
+        assert_eq!(new_workspace_index, 1);
+    }
+
+    #[test]
+    fn test_move_container_to_workspace() {
+        let mut m = Monitor::new(
+            0,
+            Rect::default(),
+            Rect::default(),
+            "TestDevice",
+            "TestDeviceId",
+        );
+
+        let new_workspace_index = m.new_workspace_idx();
+        assert_eq!(new_workspace_index, 1);
+
+        {
+            // Create workspace 1 and add 3 containers
+            let workspace = m.focused_workspace_mut().unwrap();
+            for _ in 0..3 {
+                let container = Container::default();
+                workspace.add_container_to_back(container);
+            }
+
+            // Should have 3 containers in workspace 1
+            assert_eq!(m.focused_workspace().unwrap().containers().len(), 3);
+        }
+
+        // Create and focus workspace 2
+        m.focus_workspace(new_workspace_index).unwrap();
+
+        // Focus workspace 1
+        m.focus_workspace(0).unwrap();
+
+        // Move container to workspace 2
+        m.move_container_to_workspace(1, true, None).unwrap();
+
+        // Should be focused on workspace 2
+        assert_eq!(m.focused_workspace_idx(), 1);
+
+        // Workspace 2 should have 1 container now
+        assert_eq!(m.focused_workspace().unwrap().containers().len(), 1);
+
+        // Move to workspace 1
+        m.focus_workspace(0).unwrap();
+
+        // Workspace 1 should have 2 containers
+        assert_eq!(m.focused_workspace().unwrap().containers().len(), 2);
+
+        // Move a another container from workspace 1 to workspace 2 without following
+        m.move_container_to_workspace(1, false, None).unwrap();
+
+        // Should have 1 container
+        assert_eq!(m.focused_workspace().unwrap().containers().len(), 1);
+
+        // Should still be focused on workspace 1
+        assert_eq!(m.focused_workspace_idx(), 0);
+
+        // Switch to workspace 2
+        m.focus_workspace(1).unwrap();
+
+        // Workspace 2 should now have 2 containers
+        assert_eq!(m.focused_workspace().unwrap().containers().len(), 2);
+    }
+
+    #[test]
+    fn test_move_container_to_nonexistent_workspace() {
+        let mut m = Monitor::new(
+            0,
+            Rect::default(),
+            Rect::default(),
+            "TestDevice",
+            "TestDeviceId",
+        );
+
+        {
+            // Create workspace 1 and add 3 containers
+            let workspace = m.focused_workspace_mut().unwrap();
+            for _ in 0..3 {
+                let container = Container::default();
+                workspace.add_container_to_back(container);
+            }
+
+            // Should have 3 containers in workspace 1
+            assert_eq!(m.focused_workspace().unwrap().containers().len(), 3);
+        }
+
+        // Should only have 1 workspace
+        assert_eq!(m.workspaces().len(), 1);
+
+        // Try to move a container to a workspace that doesn't exist
+        m.move_container_to_workspace(8, true, None).unwrap();
+
+        // Should have 9 workspaces now
+        assert_eq!(m.workspaces().len(), 9);
+
+        // Should be focused on workspace 8
+        assert_eq!(m.focused_workspace_idx(), 8);
+
+        // Should have 1 container in workspace 8
+        assert_eq!(m.focused_workspace().unwrap().containers().len(), 1);
+    }
+
+    #[test]
+    fn test_ensure_workspace_count_workspace_contains_two_workspaces() {
+        let mut m = Monitor::new(
+            0,
+            Rect::default(),
+            Rect::default(),
+            "TestDevice",
+            "TestDeviceId",
+        );
+
+        // Create and focus another workspace
+        let new_workspace_index = m.new_workspace_idx();
+        m.focus_workspace(new_workspace_index).unwrap();
+
+        // Should have 2 workspaces now
+        assert_eq!(m.workspaces().len(), 2, "Monitor should have 2 workspaces");
+
+        // Ensure the monitor has at least 5 workspaces
+        m.ensure_workspace_count(5);
+
+        // Monitor should have 5 workspaces
+        assert_eq!(m.workspaces().len(), 5, "Monitor should have 5 workspaces");
+    }
+
+    #[test]
+    fn test_ensure_workspace_count_only_default_workspace() {
+        let mut m = Monitor::new(
+            0,
+            Rect::default(),
+            Rect::default(),
+            "TestDevice",
+            "TestDeviceId",
+        );
+
+        // Ensure the monitor has at least 5 workspaces
+        m.ensure_workspace_count(5);
+
+        // Monitor should have 5 workspaces
+        assert_eq!(m.workspaces().len(), 5, "Monitor should have 5 workspaces");
+
+        // Try to call the ensure workspace count again to ensure it doesn't change
+        m.ensure_workspace_count(3);
+        assert_eq!(m.workspaces().len(), 5, "Monitor should have 5 workspaces");
     }
 }
