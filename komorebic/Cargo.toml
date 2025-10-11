@@ -8,6 +8,7 @@ edition = "2024"
 komorebi-client = { path = "../komorebi-client", default-features = false }
 
 clap = { workspace = true }
+clap_complete = "4"
 chrono = { workspace = true }
 color-eyre = { workspace = true }
 dirs = { workspace = true }

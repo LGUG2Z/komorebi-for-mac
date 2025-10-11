@@ -9,6 +9,7 @@ with pkgs;
       alejandra
       cargo-deny
       cargo-udeps
+      cargo-nextest
       gcc
       jq
       just

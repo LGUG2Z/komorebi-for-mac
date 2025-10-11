@@ -648,6 +648,12 @@ struct BorderOffset {
 }
 
 #[derive(Parser)]
+struct Completions {
+    #[clap(value_enum)]
+    shell: clap_complete::Shell,
+}
+
+#[derive(Parser)]
 #[clap(author, about, version = build::CLAP_LONG_VERSION)]
 struct Opts {
     #[clap(subcommand)]
@@ -658,6 +664,8 @@ struct Opts {
 enum SubCommand {
     #[clap(hide = true)]
     Docgen,
+    /// Generate komorebic CLI completions for the target shell
+    Completions(Completions),
     /// Gather example configurations for a new-user quickstart
     Quickstart,
     /// Start komorebi as a background process
@@ -1219,6 +1227,10 @@ fn main() -> eyre::Result<()> {
                     println!("    - cli/{name}.md");
                 }
             }
+        }
+        SubCommand::Completions(arg) => {
+            let mut cli = Opts::command();
+            clap_complete::generate(arg.shell, &mut cli, "komorebic", &mut std::io::stdout());
         }
         SubCommand::Quickstart => {
             fn write_file_with_prompt(
