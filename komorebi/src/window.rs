@@ -192,6 +192,19 @@ pub struct Window {
     pub details: Option<WindowDetails>,
 }
 
+#[cfg(test)]
+impl From<u32> for Window {
+    fn from(id: u32) -> Self {
+        Self {
+            id,
+            element: Default::default(),
+            application: Default::default(),
+            observer: Default::default(),
+            details: None,
+        }
+    }
+}
+
 #[allow(clippy::module_name_repetitions)]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct WindowDetails {

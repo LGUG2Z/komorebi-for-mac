@@ -186,13 +186,27 @@ mod tests {
         );
         assert_eq!(resolve("/path/$ASD/to/d"), expected("/path/$ASD/to/d"));
 
-        // Set a $env:USERPROFILE variable for testing
-        unsafe {
-            std::env::set_var("USERPROFILE", "C:\\Users\\user");
+        #[cfg(target_os = "windows")]
+        {
+            // Set a $env:USERPROFILE variable for testing
+            unsafe {
+                std::env::set_var("USERPROFILE", "C:\\Users\\user");
+            }
+
+            // ~ and $HOME should be replaced with $Env:USERPROFILE
+            assert_eq!(resolve("~"), expected("C:\\Users\\user"));
+            assert_eq!(resolve("$HOME"), expected("C:\\Users\\user"));
         }
 
-        // ~ and $HOME should be replaced with $Env:USERPROFILE
-        assert_eq!(resolve("~"), expected("C:\\Users\\user"));
-        assert_eq!(resolve("$HOME"), expected("C:\\Users\\user"));
+        #[cfg(target_os = "macos")]
+        {
+            // Set a $env:USERPROFILE variable for testing
+            unsafe {
+                std::env::set_var("HOME", "/Users/user");
+            }
+
+            // ~ and $HOME should be replaced with $Env:USERPROFILE
+            assert_eq!(resolve("$HOME"), expected("/Users/user"));
+        }
     }
 }
