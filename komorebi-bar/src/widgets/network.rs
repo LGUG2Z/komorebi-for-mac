@@ -134,12 +134,13 @@ impl Network {
             if let Ok(interface) = netdev::get_default_interface()
                 && let Some(friendly_name) = &interface.friendly_name
             {
+                let target_name = interface.name.clone();
                 self.default_interface.clone_from(friendly_name);
 
                 self.networks_network_activity.refresh(true);
 
                 for (interface_name, data) in &self.networks_network_activity {
-                    if friendly_name.eq(interface_name) {
+                    if interface_name.eq(&target_name) {
                         if self.show_activity {
                             let received =
                                 Self::to_pretty_bytes(data.received(), self.data_refresh_interval);
