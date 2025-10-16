@@ -132,6 +132,12 @@ pub fn notify_on_error(
             should_reap = false;
         }
 
+        // calibre does some weird stuff when pressing on the menu options which cause
+        // layout updates to fail, I guess we should also do a generic is_valid check here
+        if window.is_valid() {
+            should_reap = false;
+        }
+
         if should_reap {
             send_notification(ReaperNotification::InvalidWindow(window.id));
         }
