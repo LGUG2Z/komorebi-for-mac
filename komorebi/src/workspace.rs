@@ -225,6 +225,7 @@ impl Workspace {
             self.layout_flip,
             self.focused_container_idx(),
             len,
+            self.layout_options,
         )
     }
 

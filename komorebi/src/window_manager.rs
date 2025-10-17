@@ -1082,6 +1082,7 @@ impl WindowManager {
                 workspace.layout_flip,
                 workspace.focused_container_idx(),
                 len,
+                workspace.layout_options,
             )
             .is_some();
 
@@ -1486,6 +1487,7 @@ impl WindowManager {
                                 workspace.layout_flip,
                                 focused_idx,
                                 len,
+                                workspace.layout_options,
                             )
                             .is_some()
                         {

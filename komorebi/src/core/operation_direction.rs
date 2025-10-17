@@ -1,4 +1,5 @@
 use crate::core::arrangement::Axis;
+use crate::core::default_layout::LayoutOptions;
 use crate::core::direction::Direction;
 use clap::ValueEnum;
 use serde::Deserialize;
@@ -53,7 +54,8 @@ impl OperationDirection {
         layout_flip: Option<Axis>,
         idx: usize,
         len: NonZeroUsize,
+        layout_options: Option<LayoutOptions>,
     ) -> Option<usize> {
-        layout.index_in_direction(self.flip(layout_flip), idx, len.get())
+        layout.index_in_direction(self.flip(layout_flip), idx, len.get(), layout_options)
     }
 }
