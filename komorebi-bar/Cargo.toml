@@ -23,7 +23,7 @@ hotwatch = { workspace = true }
 icns = "0.3"
 image = "0.25"
 lazy_static = { workspace = true }
-netdev = "0.36"
+netdev = "0.38"
 num = "0.4"
 num-derive = "0.4"
 num-traits = "0.2"
