@@ -7,53 +7,103 @@
   };
 
   outputs = inputs:
-    with inputs;
-      flake-utils.lib.eachDefaultSystem (
-        system: let
-          overlays = [
-            (import rust-overlay)
+    with inputs; let
+      komorebiBuild = system: let
+        overlays = [
+          (import rust-overlay)
+        ];
+
+        pkgs = (import nixpkgs) {
+          inherit system overlays;
+        };
+
+        inherit (pkgs) lib;
+
+        toolchain = pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
+        craneLib = (crane.mkLib pkgs).overrideToolchain toolchain;
+
+        src = lib.cleanSourceWith {
+          src = ./.;
+          filter = path: type:
+            (craneLib.filterCargoSources path type)
+            || (lib.hasInfix "/docs/" path)
+            || (builtins.match ".*/docs/.*" path != null);
+        };
+
+        version = "0.1.0";
+        pname = "komorebi";
+
+        commonArgs = {
+          inherit src version pname;
+          nativeBuildInputs = with pkgs; [];
+          doCheck = false;
+          buildInputs = with pkgs; [
+            gcc
+            libiconv
           ];
+        };
 
-          pkgs = (import nixpkgs) {
-            inherit system overlays;
-          };
+        cargoArtifacts = craneLib.buildDepsOnly commonArgs;
+      in {
+        komorebi = craneLib.buildPackage (
+          commonArgs
+          // {
+            cargoExtraArgs = "-p komorebi";
+          }
+        );
 
-          inherit (pkgs) lib;
+        komorebic = craneLib.buildPackage (
+          commonArgs
+          // {
+            cargoExtraArgs = "-p komorebic";
+          }
+        );
 
-          toolchain = pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
-          craneLib = (crane.mkLib pkgs).overrideToolchain toolchain;
+        komorebi-bar = craneLib.buildPackage (
+          commonArgs
+          // {
+            cargoExtraArgs = "-p komorebi-bar";
+          }
+        );
 
-          src = craneLib.cleanCargoSource ./.;
-          version = "0.1.0";
-          pname = "komorebi";
-
-          commonArgs = {
-            inherit src version pname;
-            nativeBuildInputs = with pkgs; [];
-            doCheck = false;
-            buildInputs = with pkgs; [
-              gcc
-              libiconv
-            ];
-          };
-
-          cargoArtifacts = craneLib.buildDepsOnly commonArgs;
-
-          komorebi = craneLib.buildPackage (
-            commonArgs
-            // {
-              cargoExtraArgs = "-p komorebi -p komorebic";
-            }
-          );
+        komorebi-full = craneLib.buildPackage (
+          commonArgs
+          // {
+            cargoExtraArgs = "-p komorebi -p komorebic -p komorebi-bar";
+          }
+        );
+      };
+    in
+      (flake-utils.lib.eachDefaultSystem (
+        system: let
+          packages = komorebiBuild system;
         in {
           devShells = flake-utils.lib.flattenTree {
-            default = import ./shell.nix {inherit pkgs;};
+            default = import ./shell.nix {
+              pkgs = (import nixpkgs) {
+                inherit system;
+                overlays = [(import rust-overlay)];
+              };
+            };
           };
 
-          packages = flake-utils.lib.flattenTree rec {
-            inherit komorebi;
-            default = komorebi;
+          packages = flake-utils.lib.flattenTree {
+            inherit (packages) komorebi komorebic komorebi-bar komorebi-full;
+            default = packages.komorebi-full;
           };
         }
-      );
+      ))
+      // {
+        overlays.default = final: prev: let
+          packages = komorebiBuild final.system;
+        in {
+          inherit (packages) komorebi komorebic komorebi-bar komorebi-full;
+        };
+
+        overlays.komorebi = final: prev: let
+          packages = komorebiBuild final.system;
+        in {
+          inherit (packages) komorebi komorebic komorebi-bar komorebi-full;
+        };
+      };
 }
