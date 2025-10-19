@@ -8,7 +8,7 @@ edition = "2024"
 komorebi-themes = { workspace = true }
 quickxml_to_serde = { git = "https://github.com/LGUG2Z/quickxml_to_serde.git", version = "0.6.1" }
 
-block2 = "0.3"
+block2 = "0.6"
 clap = { workspace = true }
 color-eyre = { workspace = true }
 crossbeam-channel = { workspace = true }
