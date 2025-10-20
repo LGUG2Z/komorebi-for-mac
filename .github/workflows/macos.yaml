@@ -13,31 +13,15 @@ on:
       - hotfix/*
     tags:
       - v*
-  schedule:
-    - cron: "30 0 * * 0" # Every day at 00:30 UTC
+#  schedule:
+#    - cron: "30 0 * * 0" # Every day at 00:30 UTC
   workflow_dispatch:
 
 jobs:
-  cargo-deny:
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-      - uses: EmbarkStudios/cargo-deny-action@v2
-
   build:
     strategy:
       fail-fast: true
-      matrix:
-        platform:
-          - os-name: darwin-x86_64
-            runs-on: macos-latest
-            target: x86_64-apple-darwin
-          - os-name: darwin-aarch64
-            runs-on: macos-latest
-            target: aarch64-apple-darwin
-    runs-on: ${{ matrix.platform.runs-on }}
+    runs-on: self-hosted
     permissions: write-all
     env:
       RUSTFLAGS: -Ctarget-feature=+crt-static -Dwarnings
@@ -49,22 +33,14 @@ jobs:
       - run: rustup toolchain install stable --profile minimal
       - run: rustup component add --toolchain stable clippy
       - run: rustup toolchain install nightly --allow-downgrade -c rustfmt
-      - uses: Swatinem/rust-cache@v2
-        with:
-          cache-on-failure: "true"
-          cache-all-crates: "true"
-          key: ${{ matrix.platform.target }}
       - run: cargo +nightly fmt --check
+      - run: cargo deny check
       - run: cargo clippy
       - run: cargo test
-      - uses: houseabsolute/actions-rust-cross@v1
-        with:
-          command: "build"
-          target: ${{ matrix.platform.target }}
-          args: "--locked --release"
+      - run: cargo build --locked --release
       - uses: actions/upload-artifact@v4
         with:
-          name: komorebi-${{ matrix.platform.target }}-${{ github.sha }}
+          name: komorebi-aarch64-apple-darwin-${{ github.sha }}
           path: |
-            target/${{ matrix.platform.target }}/release/komorebi*
+            target/release/komorebi*
           retention-days: 90
