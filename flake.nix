@@ -1,109 +1,199 @@
 {
+  description = "Build komorebi workspace";
+
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    crane.url = "github:ipetkov/crane";
     flake-utils.url = "github:numtide/flake-utils";
     rust-overlay.url = "github:oxalica/rust-overlay";
-    crane.url = "github:ipetkov/crane";
   };
 
-  outputs = inputs:
-    with inputs; let
-      komorebiBuild = system: let
-        overlays = [
-          (import rust-overlay)
+  outputs = {
+    nixpkgs,
+    crane,
+    flake-utils,
+    rust-overlay,
+    ...
+  }: let
+    komorebiBuild = system: let
+      overlays = [(import rust-overlay)];
+      pkgs = import nixpkgs {
+        inherit system overlays;
+      };
+
+      inherit (pkgs) lib;
+
+      toolchain = pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
+      craneLib = (crane.mkLib pkgs).overrideToolchain toolchain;
+      version = "0.1.0";
+
+      src = lib.cleanSourceWith {
+        src = ./.;
+        filter = path: type:
+          (craneLib.filterCargoSources path type)
+          || (lib.hasInfix "/docs/" path)
+          || (builtins.match ".*/docs/.*" path != null);
+      };
+
+      cargoArtifacts = craneLib.buildDepsOnly commonArgs;
+
+      commonArgs = {
+        inherit src version cargoArtifacts;
+        strictDeps = true;
+
+        buildInputs = [
+          pkgs.gcc
+          pkgs.libiconv
         ];
+      };
 
-        pkgs = (import nixpkgs) {
-          inherit system overlays;
-        };
-
-        inherit (pkgs) lib;
-
-        toolchain = pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
-        craneLib = (crane.mkLib pkgs).overrideToolchain toolchain;
-
-        src = lib.cleanSourceWith {
-          src = ./.;
-          filter = path: type:
-            (craneLib.filterCargoSources path type)
-            || (lib.hasInfix "/docs/" path)
-            || (builtins.match ".*/docs/.*" path != null);
-        };
-
-        version = "0.1.0";
-        pname = "komorebi";
-
-        commonArgs = {
-          inherit src version pname;
-          nativeBuildInputs = with pkgs; [];
+      individualCrateArgs =
+        commonArgs
+        // {
           doCheck = false;
-          buildInputs = with pkgs; [
-            gcc
-            libiconv
-          ];
         };
 
-        cargoArtifacts = craneLib.buildDepsOnly commonArgs;
-      in {
+      packages = {
         komorebi = craneLib.buildPackage (
-          commonArgs
+          individualCrateArgs
           // {
+            inherit version;
+            pname = "komorebi";
             cargoExtraArgs = "-p komorebi";
           }
         );
 
         komorebic = craneLib.buildPackage (
-          commonArgs
+          individualCrateArgs
           // {
+            inherit version;
+            pname = "komorebic";
             cargoExtraArgs = "-p komorebic";
           }
         );
 
         komorebi-bar = craneLib.buildPackage (
-          commonArgs
+          individualCrateArgs
           // {
+            inherit version;
+            pname = "komorebi-bar";
             cargoExtraArgs = "-p komorebi-bar";
           }
         );
 
         komorebi-full = craneLib.buildPackage (
-          commonArgs
+          individualCrateArgs
           // {
+            inherit version;
+            pname = "komorebi-full";
             cargoExtraArgs = "-p komorebi -p komorebic -p komorebi-bar";
           }
         );
       };
     in
-      (flake-utils.lib.eachDefaultSystem (
-        system: let
-          packages = komorebiBuild system;
-        in {
-          devShells = flake-utils.lib.flattenTree {
-            default = import ./shell.nix {
-              pkgs = (import nixpkgs) {
-                inherit system;
-                overlays = [(import rust-overlay)];
-              };
-            };
-          };
-
-          packages = flake-utils.lib.flattenTree {
-            inherit (packages) komorebi komorebic komorebi-bar komorebi-full;
-            default = packages.komorebi-full;
-          };
-        }
-      ))
+      packages
       // {
-        overlays.default = final: prev: let
-          packages = komorebiBuild final.system;
-        in {
-          inherit (packages) komorebi komorebic komorebi-bar komorebi-full;
+        inherit
+          pkgs
+          craneLib
+          commonArgs
+          cargoArtifacts
+          individualCrateArgs
+          src
+          ;
+      };
+  in
+    flake-utils.lib.eachSystem ["aarch64-darwin"] (
+      system: let
+        buildResult = komorebiBuild system;
+        inherit
+          (buildResult)
+          komorebi
+          komorebic
+          komorebi-bar
+          komorebi-full
+          pkgs
+          craneLib
+          commonArgs
+          src
+          ;
+      in {
+        checks = {
+          komorebi-workspace-clippy = craneLib.cargoClippy (
+            commonArgs
+            // {
+              cargoClippyExtraArgs = "--all-targets -- --deny warnings";
+            }
+          );
+
+          komorebi-workspace-fmt = craneLib.cargoFmt {
+            inherit src;
+          };
+
+          komorebi-workspace-toml-fmt = craneLib.taploFmt {
+            src = pkgs.lib.sources.sourceFilesBySuffices src [".toml"];
+          };
+
+          komorebi-workspace-deny = craneLib.cargoDeny {
+            inherit src;
+          };
+
+          komorebi-workspace-nextest = craneLib.cargoNextest commonArgs;
         };
 
-        overlays.komorebi = final: prev: let
-          packages = komorebiBuild final.system;
-        in {
-          inherit (packages) komorebi komorebic komorebi-bar komorebi-full;
+        packages = {
+          inherit
+            komorebi
+            komorebic
+            komorebi-bar
+            komorebi-full
+            ;
+          default = komorebi-full;
         };
+
+        apps = {
+          komorebi = flake-utils.lib.mkApp {
+            drv = komorebi;
+          };
+          komorebic = flake-utils.lib.mkApp {
+            drv = komorebic;
+          };
+          komorebi-bar = flake-utils.lib.mkApp {
+            drv = komorebi-bar;
+          };
+          default = flake-utils.lib.mkApp {
+            drv = komorebi-full;
+          };
+        };
+
+        devShells.default = import ./shell.nix {
+          inherit pkgs;
+        };
+      }
+    )
+    // {
+      overlays.default = final: _: let
+        buildResult = komorebiBuild final.system;
+      in {
+        inherit
+          (buildResult)
+          komorebi
+          komorebic
+          komorebi-bar
+          komorebi-full
+          ;
       };
+
+      overlays.komorebi = final: _: let
+        buildResult = komorebiBuild final.system;
+      in {
+        inherit
+          (buildResult)
+          komorebi
+          komorebic
+          komorebi-bar
+          komorebi-full
+          ;
+      };
+    };
 }

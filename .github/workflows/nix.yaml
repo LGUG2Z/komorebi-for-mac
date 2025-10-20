@@ -1,6 +1,6 @@
 # Adapted from https://github.com/rust-lang/rustup/blob/master/.github/workflows/windows-builds-on-master.yaml
 
-name: macOS
+name: nix
 
 on:
   pull_request:
@@ -13,8 +13,8 @@ on:
       - hotfix/*
     tags:
       - v*
-#  schedule:
-#    - cron: "30 0 * * 0" # Every day at 00:30 UTC
+  #  schedule:
+  #    - cron: "30 0 * * 0" # Every day at 00:30 UTC
   workflow_dispatch:
 
 jobs:
@@ -24,23 +24,16 @@ jobs:
     runs-on: self-hosted
     permissions: write-all
     env:
-      RUSTFLAGS: -Ctarget-feature=+crt-static -Dwarnings
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
-      - run: rustup toolchain install stable --profile minimal
-      - run: rustup component add --toolchain stable clippy
-      - run: rustup toolchain install nightly --allow-downgrade -c rustfmt
-      - run: cargo +nightly fmt --check
-      - run: cargo deny check
-      - run: cargo clippy
-      - run: cargo test
-      - run: cargo build --locked --release
+      - run: nix flake check
+      - run: nix build
       - uses: actions/upload-artifact@v4
         with:
           name: komorebi-aarch64-apple-darwin-${{ github.sha }}
           path: |
-            target/release/komorebi*
+            result/bin/komorebi*
           retention-days: 90

@@ -42,4 +42,8 @@ tracing-subscriber = { workspace = true }
 
 [features]
 default = ["schemars"]
-schemars = ["dep:schemars", "komorebi-client/default", "komorebi-themes/default"]
+schemars = [
+  "dep:schemars",
+  "komorebi-client/default",
+  "komorebi-themes/default",
+]
