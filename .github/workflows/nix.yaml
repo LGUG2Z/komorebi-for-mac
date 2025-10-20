@@ -1,0 +1,39 @@
+# Adapted from https://github.com/rust-lang/rustup/blob/master/.github/workflows/windows-builds-on-master.yaml
+
+name: nix
+
+on:
+  pull_request:
+    branches:
+      - "*"
+  push:
+    branches:
+      - master
+      - feature/*
+      - hotfix/*
+    tags:
+      - v*
+  #  schedule:
+  #    - cron: "30 0 * * 0" # Every day at 00:30 UTC
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: true
+    runs-on: self-hosted
+    permissions: write-all
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - run: nix flake check
+      - run: nix build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: komorebi-aarch64-apple-darwin-${{ github.sha }}-nix
+          path: |
+            result/bin/komorebi*
+          retention-days: 90

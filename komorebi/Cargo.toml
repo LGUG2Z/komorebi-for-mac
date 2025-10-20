@@ -22,7 +22,10 @@ nanoid = "0.4"
 objc2 = "0.6"
 objc2-app-kit = "0.3"
 objc2-application-services = "0.3"
-objc2-core-foundation = { version = "0.3", features = ["CFDictionary", "CFString"] }
+objc2-core-foundation = { version = "0.3", features = [
+  "CFDictionary",
+  "CFString",
+] }
 objc2-core-graphics = { version = "0.3", features = ["CGWindow", "alloc"] }
 objc2-core-services = "0.3"
 objc2-core-video = "0.3"

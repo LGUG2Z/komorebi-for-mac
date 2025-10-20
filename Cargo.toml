@@ -1,11 +1,10 @@
 [workspace]
 
 resolver = "2"
-members = [
-    "komorebi", "komorebi-client",
-    "komorebic", "komorebi-bar"
-]
+members = ["komorebi", "komorebi-bar", "komorebi-client", "komorebic"]
 
+[workspace.package]
+version = "0.1.0"
 
 [workspace.dependencies]
 komorebi-themes = { git = "https://github.com/LGUG2Z/komorebi", rev = "1c23439f959bcfddf0f71918fc03a97dd4f30727" }
@@ -34,3 +33,6 @@ tracing = "0.1"
 tracing-appender = "0.2"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 which = "8"
+
+[workspace.metadata.crane]
+name = "komorebi-workspace"
