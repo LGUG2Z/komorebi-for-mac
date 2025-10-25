@@ -13,14 +13,12 @@ on:
       - hotfix/*
     tags:
       - v*
-  #  schedule:
-  #    - cron: "30 0 * * 0" # Every day at 00:30 UTC
+  schedule:
+    - cron: "30 0 * * 0" # Every day at 00:30 UTC
   workflow_dispatch:
 
 jobs:
   build:
-    strategy:
-      fail-fast: true
     runs-on: self-hosted
     permissions: write-all
     env:
@@ -37,3 +35,27 @@ jobs:
           path: |
             result/bin/komorebi*
           retention-days: 90
+      - if: ${{ github.ref == 'refs/heads/master' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' ) }}
+        run: echo "VERSION=nightly" >> $GITHUB_ENV
+      - if: ${{ github.ref == 'refs/heads/master' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' ) }}
+        run: |
+          zip -j komorebi-${VERSION}-aarch64-apple-darwin.zip result/bin/*
+          echo "$(sha256sum komorebi-${VERSION}-aarch64-apple-darwin.zip | cut -d' ' -f1)  komorebi-${VERSION}-aarch64-apple-darwin.zip" > checksums.txt
+      - if: ${{ github.ref == 'refs/heads/master' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' ) }}
+        run: |
+          git tag -d nightly || true
+          git tag nightly
+          kokai release --no-emoji --add-links github:commits,issues --ref nightly >"CHANGELOG.md"
+      - if: ${{ github.ref == 'refs/heads/master' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' ) }}
+        shell: bash
+        run: |
+          gh release delete nightly --yes || true
+          git push origin :nightly || true
+
+          gh release create nightly \
+            --target $GITHUB_SHA \
+            --prerelease \
+            --title "komorebi for Mac nightly (${GITHUB_SHA})" \
+            --notes-file CHANGELOG.md \
+            komorebi-nightly-aarch64-apple-darwin.zip \
+            checksums.txt
