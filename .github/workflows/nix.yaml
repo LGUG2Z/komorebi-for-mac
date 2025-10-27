@@ -35,7 +35,7 @@ jobs:
           path: |
             result/bin/komorebi*
           retention-days: 90
-      - if: ${{ github.repository == 'KomoCorp/komorebi-for-mac' }}
+      - if: ${{ github.ref == 'refs/heads/master' && github.repository == 'KomoCorp/komorebi-for-mac' }}
         uses: exuanbo/actions-deploy-gist@v1
         with:
           token: ${{ secrets.GH_USER_API_TOKEN }}
