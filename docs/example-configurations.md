@@ -19,8 +19,9 @@ komorebic quickstart
 
 ### Granting Permissions
 
-The `quickstart` command will also prompt you to grant komorebi the permissions
-it requires to run, and will open the following System Settings tabs for you:
+The `quickstart` command will also prompt you to grant komorebi and the terminal
+emulator you are start komorebi with the permissions it requires to run, and
+will open the following System Settings tabs for you:
 
 * Settings -> Privacy & Security -> Accessibility
 * Settings -> Privacy & Security -> Screen & System Audio Recording

@@ -16,7 +16,12 @@ using keyboard shortcuts.
 
 ## Installation
 
-At this time users must compile `komorebi` from source.
+Nightly builds are available to install
+via [Homebrew](https://github.com/LGUG2Z/homebrew-tap), and you may also build
+from source if you would prefer.
+
+- [Homebrew](#homebrew)
+- [Building from source](#building-from-source)
 
 ## System settings suggestions
 
@@ -31,6 +36,73 @@ monitor which it was launched on.
 
 Go to `System Settings -> Desktop & Dock -> Mission Control -> Group windows
 by application` and disable this option if you like to use mission control.
+
+## Homebrew
+
+First add the `lgug2z/tap` Homebrew Tap
+
+```shell
+brew tap lgug2z/tap
+```
+
+Then install the `komorebi-for-mac-nightly` package
+
+```shell
+brew install lgug2z/tap/komorebi-for-mac-nightly
+```
+
+You may also optionally install the `skhd` package
+
+```shell
+brew install skhd
+```
+
+## Nix Flake
+
+Ensure that your system Flake is configured to use your GitHub token so that you can add a private repository as an input
+
+```nix
+{
+  nix = {
+    settings = {
+      access-tokens = [
+        "github.com=YOUR ACCESS TOKEN"
+      ];
+    };
+  };
+}
+```
+
+Add the repository as an input
+
+```nix
+{
+  inputs.komorebi-for-mac.url = "github:KomoCorp/komorebi-for-mac";
+}
+```
+
+Add the overlay to your system's nixpkgs configuration
+
+```nix
+{
+  pkgs = import nixpkgs {
+    inherit system;
+    overlays = [ komorebi-for-mac.overlays.default ];
+    # the rest of your pkgs configuration
+  };
+}
+```
+
+Add `pkgs.komorebi-full` to `environment.systemPackages` (you may also add
+`pkgs.komorebi`, `pkgs.komorebic` and `pkgs.komorebi-bar` individually)
+
+```nix
+{
+  environment.systemPackages = [
+    pkgs.komorebi-full
+  ];
+}
+```
 
 ## Building from source
 

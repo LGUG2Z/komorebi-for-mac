@@ -1,5 +1,5 @@
 {
-  "$schema": "https://raw.githubusercontent.com/LGUG2Z/komorebi/v0.1.38/schema.json",
+  "$schema": "https://gist.githubusercontent.com/LGUG2Z/78b3dd12a7b7069f1d1c60621fe50730/raw",
   "app_specific_configuration_path": "$HOME/.config/komorebi/applications.json",
   "cross_monitor_move_behaviour": "Insert",
   "default_workspace_padding": 15,

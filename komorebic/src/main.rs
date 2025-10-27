@@ -1302,8 +1302,10 @@ fn main() -> eyre::Result<()> {
             current_exe.pop();
             let komorebi_exe = current_exe.join("komorebi");
 
+            let term_program = std::env::var("TERM_PROGRAM").unwrap_or_default();
+
             println!(
-                "\nPlease grant Accessibility permissions to \"{}\"",
+                "\nPlease grant Accessibility permissions to \"{}\" and \"{term_program}\"",
                 komorebi_exe.display()
             );
             println!("Accessibility permissions are required for komorebi to to manage windows");
@@ -1319,7 +1321,7 @@ fn main() -> eyre::Result<()> {
             std::io::stdin().read_line(&mut input)?;
 
             println!(
-                "Please grant Screen Recording permissions to \"{}\"",
+                "Please grant Screen Recording permissions to \"{}\" and \"{term_program}\"",
                 komorebi_exe.display()
             );
             println!(
