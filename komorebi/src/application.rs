@@ -188,7 +188,10 @@ impl Application {
             let window = Window::new(element, self.clone()).ok()?;
 
             if let Some(window_title) = window.title()
-                && window_title.eq(title)
+                && (window_title.eq(title)
+                    // TODO: find a better way to deal with these hacks
+                    || (self.name().unwrap_or_default() == "Activity Monitor"
+                        && window_title.starts_with(title)))
             {
                 target = Some(window);
             }
