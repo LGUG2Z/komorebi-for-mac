@@ -21,7 +21,7 @@
       ]
     },
     "border": {
-      "description": "Display an active window border (default: true)",
+      "description": "Display window borders (default: true)",
       "type": "boolean"
     },
     "border_colours": {
@@ -351,6 +351,11 @@
           }
         ]
       }
+    },
+    "border_radius": {
+      "description": "Radius of the window border (default: 10)",
+      "type": "integer",
+      "format": "int32"
     },
     "border_width": {
       "description": "Width of the window border (default: 6)",

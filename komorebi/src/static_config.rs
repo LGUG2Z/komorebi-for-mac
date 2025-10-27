@@ -425,7 +425,10 @@ pub struct StaticConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(alias = "active_window_border_offset")]
     pub border_offset: Option<i32>,
-    /// Display an active window border (default: true)
+    /// Radius of the window border (default: 10)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub border_radius: Option<i32>,
+    /// Display window borders (default: true)
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(alias = "active_window_border")]
     pub border: Option<bool>,
@@ -754,6 +757,7 @@ impl From<&WindowManager> for StaticConfig {
             app_specific_configuration_path: None,
             border_width: Option::from(border_manager::BORDER_WIDTH.load(Ordering::SeqCst)),
             border_offset: Option::from(border_manager::BORDER_OFFSET.load(Ordering::SeqCst)),
+            border_radius: Option::from(border_manager::BORDER_RADIUS.load(Ordering::SeqCst)),
             border: Option::from(border_manager::BORDER_ENABLED.load(Ordering::SeqCst)),
             border_colours,
             // transparency: Option::from(
@@ -881,6 +885,7 @@ impl StaticConfig {
 
         border_manager::BORDER_WIDTH.store(self.border_width.unwrap_or(6), Ordering::SeqCst);
         border_manager::BORDER_OFFSET.store(self.border_offset.unwrap_or(5), Ordering::SeqCst);
+        border_manager::BORDER_RADIUS.store(self.border_radius.unwrap_or(10), Ordering::SeqCst);
         border_manager::BORDER_ENABLED.store(self.border.unwrap_or(true), Ordering::SeqCst);
 
         if let Some(colours) = &self.border_colours {
