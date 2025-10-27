@@ -65,7 +65,9 @@ nav:
       - Komorebi Configuration:
           - Schema: https://komorebi.lgug2z.com/schema
   - CLI reference:
+      - cli/completions.md
       - cli/quickstart.md
+      - cli/license.md
       - cli/start.md
       - cli/stop.md
       - cli/configuration.md
@@ -189,6 +191,10 @@ nav:
       - cli/clear-named-workspace-rules.md
       - cli/clear-all-workspace-rules.md
       - cli/enforce-workspace-rules.md
+      - cli/border.md
+      - cli/border-colour.md
+      - cli/border-width.md
+      - cli/border-offset.md
       - cli/mouse-follows-focus.md
       - cli/toggle-mouse-follows-focus.md
       - cli/fetch-app-specific-configuration.md

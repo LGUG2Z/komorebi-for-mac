@@ -16,6 +16,8 @@ use komorebi::notification_center_listener::NotificationCenterListener;
 use komorebi::process_command::listen_for_commands;
 use komorebi::process_event::listen_for_events;
 use komorebi::reaper;
+use komorebi::splash;
+use komorebi::splash::mdm_enrollment;
 use komorebi::static_config::StaticConfig;
 use komorebi::theme_manager;
 use komorebi::window_manager::WindowManager;
@@ -74,11 +76,11 @@ fn setup(log_level: LogLevel) -> eyre::Result<(WorkerGuard, WorkerGuard)> {
             std::env::set_var(
                 "RUST_LOG",
                 match log_level {
-                    LogLevel::Error => "error",
-                    LogLevel::Warn => "warn",
-                    LogLevel::Info => "info",
-                    LogLevel::Debug => "debug",
-                    LogLevel::Trace => "trace",
+                    LogLevel::Error => "komorebi=error",
+                    LogLevel::Warn => "komorebi=warn",
+                    LogLevel::Info => "komorebi=info",
+                    LogLevel::Debug => "komorebi=debug",
+                    LogLevel::Trace => "komorebi=trace",
                 },
             );
         }
@@ -190,6 +192,10 @@ struct Opts {
 fn main() -> eyre::Result<()> {
     let opts: Opts = Opts::parse();
     let (_guard, _color_guard) = setup(opts.log_level)?;
+    let (mdm, server) = mdm_enrollment()?;
+    if mdm && splash::should().unwrap_or(true) {
+        splash::show(server)?;
+    }
 
     let mut system = sysinfo::System::new();
     system.refresh_processes(ProcessesToUpdate::All, true);

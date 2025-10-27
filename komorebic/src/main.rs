@@ -19,6 +19,7 @@ use komorebi_client::Sizing;
 use komorebi_client::SocketMessage;
 use komorebi_client::StateQuery;
 use komorebi_client::WindowKind;
+use komorebi_client::mdm_enrollment;
 use komorebi_client::replace_env_in_path;
 use komorebi_client::send_message;
 use komorebi_client::send_query;
@@ -654,6 +655,12 @@ struct Completions {
 }
 
 #[derive(Parser)]
+struct License {
+    /// Email address associated with an Individual Commercial Use License
+    email: String,
+}
+
+#[derive(Parser)]
 #[clap(author, about, version = build::CLAP_LONG_VERSION)]
 struct Opts {
     #[clap(subcommand)]
@@ -665,9 +672,13 @@ enum SubCommand {
     #[clap(hide = true)]
     Docgen,
     /// Generate komorebic CLI completions for the target shell
+    #[clap(arg_required_else_help = true)]
     Completions(Completions),
     /// Gather example configurations for a new-user quickstart
     Quickstart,
+    /// Specify an email associated with an Individual Commercial Use License
+    #[clap(arg_required_else_help = true)]
+    License(License),
     /// Start komorebi as a background process
     Start(Start),
     /// Stop the komorebi process and restore all hidden windows
@@ -1232,6 +1243,9 @@ fn main() -> eyre::Result<()> {
             let mut cli = Opts::command();
             clap_complete::generate(arg.shell, &mut cli, "komorebic", &mut std::io::stdout());
         }
+        SubCommand::License(arg) => {
+            std::fs::write(HOME_DIR.join("icul"), arg.email)?;
+        }
         SubCommand::Quickstart => {
             fn write_file_with_prompt(
                 path: &PathBuf,
@@ -1337,6 +1351,30 @@ fn main() -> eyre::Result<()> {
             std::io::stdout().flush()?;
             let mut input = String::new();
             std::io::stdin().read_line(&mut input)?;
+
+            if let Ok((mdm, server)) = mdm_enrollment()
+                && mdm
+            {
+                if let Some(server) = server {
+                    println!(
+                        "\nIt looks like you are using a corporate device enrolled in mobile device management ({server})"
+                    );
+                } else {
+                    println!(
+                        "\nIt looks like you are using a corporate device enrolled in mobile device management"
+                    );
+                }
+                println!("The Komorebi License does not permit any kind of commercial use");
+                println!(
+                    "A dedicated Individual Commercial Use License is available if you wish to use this software at work"
+                );
+                println!(
+                    "You are strongly encouraged to make your employer pay for your license, either directly or via reimbursement"
+                );
+                println!(
+                    "If you already have a license, you can run \"komorebic license <email>\" with the email address your license is associated with"
+                );
+            }
 
             println!("You can now run: komorebic start");
             println!(
@@ -1509,12 +1547,25 @@ fn main() -> eyre::Result<()> {
 
             println!("\nThank you for using komorebi!\n");
             println!("# Commercial Use License");
+            if let Ok((mdm, server)) = mdm_enrollment()
+                && mdm
+            {
+                if let Some(server) = server {
+                    println!(
+                        "* It looks like you are using a corporate device enrolled in mobile device management ({server})"
+                    );
+                } else {
+                    println!(
+                        "* It looks like you are using a corporate device enrolled in mobile device management"
+                    );
+                }
+            }
             println!(
                 "* View licensing options https://lgug2z.com/software/komorebi - A commercial use license is required to use komorebi at work"
             );
             println!("\n# Personal Use Sponsorship");
             println!(
-                "* Become a sponsor https://github.com/sponsors/LGUG2Z - $5/month makes a big difference"
+                "* Become a sponsor https://github.com/sponsors/LGUG2Z - $10/month makes a big difference"
             );
             println!("* Leave a tip https://ko-fi.com/lgug2z - An alternative to GitHub Sponsors");
             println!("\n# Community");
