@@ -9,6 +9,7 @@ use objc2::MainThreadMarker;
 use objc2::MainThreadOnly;
 use objc2::msg_send;
 use objc2::rc::Retained;
+use objc2::rc::autoreleasepool;
 use objc2_app_kit::NSBackingStoreType;
 use objc2_app_kit::NSColor;
 use objc2_app_kit::NSNormalWindowLevel;
@@ -47,81 +48,84 @@ impl NsWindow {
         let (tx, rx) = mpsc::channel();
 
         DispatchQueue::main().exec_async(move || {
-            let mtm = unsafe { MainThreadMarker::new_unchecked() };
+            autoreleasepool(|_| {
+                let mtm = unsafe { MainThreadMarker::new_unchecked() };
 
-            // Create window
-            let window_frame = ns_rect;
+                // Create window
+                let window_frame = ns_rect;
 
-            let window = unsafe {
-                let window = NSWindow::alloc(mtm);
-                NSWindow::initWithContentRect_styleMask_backing_defer(
-                    window,
-                    window_frame,
-                    NSWindowStyleMask::Borderless,
-                    NSBackingStoreType::Buffered,
-                    false,
-                )
-            };
+                let window = unsafe {
+                    let window = NSWindow::alloc(mtm);
+                    NSWindow::initWithContentRect_styleMask_backing_defer(
+                        window,
+                        window_frame,
+                        NSWindowStyleMask::Borderless,
+                        NSBackingStoreType::Buffered,
+                        false,
+                    )
+                };
 
-            // Make transparent
-            window.setBackgroundColor(Some(&NSColor::clearColor()));
-            window.setAnimationBehavior(NSWindowAnimationBehavior::None);
-            window.disableSnapshotRestoration();
-            window.setPreservesContentDuringLiveResize(false);
-            window.setRestorable(false);
+                // Make transparent
+                window.setBackgroundColor(Some(&NSColor::clearColor()));
+                window.setAnimationBehavior(NSWindowAnimationBehavior::None);
+                window.disableSnapshotRestoration();
+                window.setPreservesContentDuringLiveResize(false);
+                window.setRestorable(false);
 
-            window.setHasShadow(false);
-            window.setOpaque(false);
-            window.setLevel(NSNormalWindowLevel);
-            window.setIgnoresMouseEvents(true);
+                window.setHasShadow(false);
+                window.setOpaque(false);
+                window.setLevel(NSNormalWindowLevel);
+                window.setIgnoresMouseEvents(true);
 
-            window.setCollectionBehavior(
-                NSWindowCollectionBehavior::CanJoinAllSpaces |
-                    NSWindowCollectionBehavior::Stationary |
-                    NSWindowCollectionBehavior::IgnoresCycle |
-                    NSWindowCollectionBehavior::Transient
-            );
+                window.setCollectionBehavior(
+                    NSWindowCollectionBehavior::CanJoinAllSpaces |
+                        NSWindowCollectionBehavior::Stationary |
+                        NSWindowCollectionBehavior::IgnoresCycle |
+                        NSWindowCollectionBehavior::Transient
+                );
 
-            let content_view = {
-                let view = NSView::alloc(mtm);
-                NSView::initWithFrame(view, window_frame)
-            };
+                let content_view = {
+                    let view = NSView::alloc(mtm);
+                    NSView::initWithFrame(view, window_frame)
+                };
 
-            content_view.setWantsLayer(true);
-            content_view.setAutoresizesSubviews(false);
+                content_view.setWantsLayer(true);
+                content_view.setAutoresizesSubviews(false);
 
-            // Create and configure the layer for the border
-            let layer = {
-                let layer = CALayer::new();
-                layer.setFrame(ns_rect);
-                layer.setActions(Some(&NSDictionary::new()));
+                // Create and configure the layer for the border
+                let layer = {
+                    let layer = CALayer::new();
+                    layer.setFrame(ns_rect);
+                    layer.setActions(Some(&NSDictionary::new()));
 
-                unsafe {
-                    // transparent
-                    let clear = CGColor::new_generic_rgb(0.0, 0.0, 0.0, 0.0);
-                    let clear_ptr = clear.deref() as *const _;
-                    let _: () = msg_send![&layer, setBackgroundColor: clear_ptr];
+                    unsafe {
+                        // transparent
+                        let clear = CGColor::new_generic_rgb(0.0, 0.0, 0.0, 0.0);
+                        let clear_ptr = clear.deref() as *const _;
+                        let _: () = msg_send![&layer, setBackgroundColor: clear_ptr];
 
-                    let red = CGColor::new_generic_rgb(1.0, 0.0, 0.0, 1.0);
-                    let red_ptr = red.deref() as *const _;
-                    let _: () = msg_send![&layer, setBorderColor: red_ptr];
-                    let _: () = msg_send![&layer, setBorderWidth: BORDER_WIDTH.load(Ordering::Relaxed) as f64];
+                        let red = CGColor::new_generic_rgb(1.0, 0.0, 0.0, 1.0);
+                        let red_ptr = red.deref() as *const _;
+                        let _: () = msg_send![&layer, setBorderColor: red_ptr];
+                        let _: () = msg_send![&layer, setBorderWidth: BORDER_WIDTH.load(Ordering::Relaxed) as f64];
 
-                    let corner_radius: f64 = BORDER_RADIUS.load(Ordering::Relaxed) as f64;
-                    let _: () = msg_send![&layer, setCornerRadius: corner_radius];
+                        let corner_radius: f64 = BORDER_RADIUS.load(Ordering::Relaxed) as f64;
+                        let _: () = msg_send![&layer, setCornerRadius: corner_radius];
 
-                    layer
+                        layer
+                    }
+                };
+
+                content_view.setLayer(Some(&layer));
+
+                window.setContentView(Some(&content_view));
+                window.setMovableByWindowBackground(false);
+                window.makeKeyAndOrderFront(None);
+                if let Err(error) = tx.send(NsWindow { window, layer }) {
+                    tracing::error!("could not send NSWindow created for border: {error}")
                 }
-            };
 
-            content_view.setLayer(Some(&layer));
-
-            window.setContentView(Some(&content_view));
-            window.setMovableByWindowBackground(false);
-            window.makeKeyAndOrderFront(None);
-            if let Err(error) = tx.send(NsWindow { window, layer }) {
-                tracing::error!("could not send NSWindow created for border: {error}")
-            }
+            })
         });
 
         rx.recv()

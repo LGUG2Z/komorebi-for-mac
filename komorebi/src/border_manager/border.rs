@@ -16,6 +16,7 @@ use crate::macos_api::MacosApi;
 use color_eyre::eyre;
 use dispatch2::DispatchQueue;
 use komorebi_themes::colour::Rgb;
+use objc2::rc::autoreleasepool;
 use objc2_application_services::AXObserver;
 use objc2_application_services::AXUIElement;
 use objc2_core_foundation::CFString;
@@ -141,19 +142,23 @@ impl Border {
     }
 
     pub fn update(&self) {
-        let colour = Rgb::from(window_kind_colour(self.window_kind));
+        autoreleasepool(|_| {
+            let colour = Rgb::from(window_kind_colour(self.window_kind));
 
-        CATransaction::begin();
-        CATransaction::setDisableActions(true);
-        self.ns_window.set_border_color(colour);
-        self.ns_window
-            .set_border_width(BORDER_WIDTH.load(Ordering::Relaxed) as f64);
-        // TODO: why does this crash?
-        // self.ns_window.window.setFrame_display(ns_rect, true);
-        CATransaction::commit();
+            CATransaction::begin();
+            CATransaction::setDisableActions(true);
+            self.ns_window.set_border_color(colour);
+            self.ns_window
+                .set_border_width(BORDER_WIDTH.load(Ordering::Relaxed) as f64);
+            // TODO: why does this crash?
+            // self.ns_window.window.setFrame_display(ns_rect, true);
+            CATransaction::commit();
+        })
     }
 
     pub fn destroy(&self) {
-        self.ns_window.window.close();
+        autoreleasepool(|_| {
+            self.ns_window.window.close();
+        })
     }
 }
