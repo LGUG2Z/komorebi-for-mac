@@ -35,6 +35,12 @@ jobs:
           path: |
             result/bin/komorebi*
           retention-days: 90
+      - if: ${{ github.repository == 'KomoCorp/komorebi-for-mac' }}
+        uses: exuanbo/actions-deploy-gist@v1
+        with:
+          token: ${{ secrets.GH_USER_API_TOKEN }}
+          gist_id: 78b3dd12a7b7069f1d1c60621fe50730
+          file_path: schema.json
       - if: ${{ github.ref == 'refs/heads/master' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' ) }}
         run: echo "VERSION=nightly" >> $GITHUB_ENV
       - if: ${{ github.ref == 'refs/heads/master' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' ) }}
