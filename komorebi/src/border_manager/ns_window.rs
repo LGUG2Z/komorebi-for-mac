@@ -7,6 +7,7 @@ use dispatch2::DispatchQueue;
 use komorebi_themes::colour::Rgb;
 use objc2::MainThreadMarker;
 use objc2::MainThreadOnly;
+use objc2::ffi::NSInteger;
 use objc2::msg_send;
 use objc2::rc::Retained;
 use objc2::rc::autoreleasepool;
@@ -17,6 +18,7 @@ use objc2_app_kit::NSView;
 use objc2_app_kit::NSWindow;
 use objc2_app_kit::NSWindowAnimationBehavior;
 use objc2_app_kit::NSWindowCollectionBehavior;
+use objc2_app_kit::NSWindowOrderingMode;
 use objc2_app_kit::NSWindowStyleMask;
 use objc2_core_graphics::CGColor;
 use objc2_foundation::NSDictionary;
@@ -35,7 +37,7 @@ pub struct NsWindow {
 unsafe impl Send for NsWindow {}
 
 impl NsWindow {
-    pub fn new(ns_rect: NSRect) -> eyre::Result<NsWindow> {
+    pub fn new(ns_rect: NSRect, target_window_id: u32) -> eyre::Result<NsWindow> {
         let offset = BORDER_OFFSET.load(Ordering::Relaxed) as f64;
 
         let mut ns_rect = ns_rect;
@@ -121,6 +123,7 @@ impl NsWindow {
                 window.setContentView(Some(&content_view));
                 window.setMovableByWindowBackground(false);
                 window.makeKeyAndOrderFront(None);
+                window.orderWindow_relativeTo(NSWindowOrderingMode::Below, NSInteger::from(target_window_id as i16));
                 if let Err(error) = tx.send(NsWindow { window, layer }) {
                     tracing::error!("could not send NSWindow created for border: {error}")
                 }

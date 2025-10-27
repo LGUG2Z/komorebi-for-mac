@@ -117,7 +117,7 @@ impl Border {
             monitor_idx,
             observer: observer.clone(),
             tracking_element: element.clone(),
-            ns_window: NsWindow::new(ns_rect)?,
+            ns_window: NsWindow::new(ns_rect, tracking_window_id)?,
             window_kind: WindowKind::Unfocused,
         });
 
