@@ -64,6 +64,7 @@ pub mod process_command;
 pub mod process_event;
 pub mod reaper;
 pub mod skylight;
+pub mod splash;
 pub mod state;
 pub mod static_config;
 pub mod theme_manager;
@@ -140,8 +141,11 @@ lazy_static! {
         "Finder".to_string(),
         "Ghostty".to_string()
     ]));
-    static ref DO_NOT_OBSERVE_APPLICATIONS: Arc<Mutex<Vec<String>>> =
-        Arc::new(Mutex::new(vec!["Spotlight".to_string(),]));
+    static ref DO_NOT_OBSERVE_APPLICATIONS: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![
+        "Spotlight".to_string(),
+        "komorebi".to_string(),
+        "komorebic".to_string()
+    ]));
     static ref UNMANAGED_WINDOW_IDS: Arc<Mutex<Vec<u32>>> = Arc::new(Mutex::new(vec![]));
 }
 
@@ -149,6 +153,21 @@ shadow_rs::shadow!(build);
 
 pub static DEFAULT_WORKSPACE_PADDING: AtomicI32 = AtomicI32::new(5);
 pub static DEFAULT_CONTAINER_PADDING: AtomicI32 = AtomicI32::new(5);
+
+pub const PUBLIC_KEY: [u8; 32] = [
+    0x5a, 0x69, 0x4a, 0xe1, 0x3c, 0x4b, 0xc8, 0x4e, 0xc3, 0x79, 0x0f, 0xab, 0x27, 0x6b, 0x7e, 0xdd,
+    0x6b, 0x39, 0x6f, 0xa2, 0xc3, 0x9f, 0x3d, 0x48, 0xf2, 0x72, 0x56, 0x41, 0x1b, 0xc8, 0x08, 0xdb,
+];
+
+#[derive(Default, Debug, Clone, PartialEq, Deserialize)]
+pub struct License {
+    #[serde(rename = "hasValidSubscription")]
+    pub has_valid_subscription: bool,
+    pub timestamp: i64,
+    #[serde(rename = "currentEndPeriod")]
+    pub current_end_period: Option<i64>,
+    pub signature: String,
+}
 
 #[must_use]
 pub fn current_space_id() -> Option<u64> {

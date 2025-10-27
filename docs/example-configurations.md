@@ -16,7 +16,6 @@ the example files have been downloaded. For most new users this will be in the
 komorebic quickstart
 ```
 
-
 ### Granting Permissions
 
 The `quickstart` command will also prompt you to grant komorebi and the terminal
@@ -25,6 +24,19 @@ will open the following System Settings tabs for you:
 
 * Settings -> Privacy & Security -> Accessibility
 * Settings -> Privacy & Security -> Screen & System Audio Recording
+
+### Corporate Devices Enrolled in MDM
+
+If you are using `komorebi` on a corporate device enrolled in mobile device
+management, you will receive a pop-up when you run `komorebic start` reminding
+you that the [Komorebi License](https://github.com/LGUG2Z/komorebi-license) does
+not permit any kind of commercial use.
+
+You can remove this pop-up by running `komorebic license <email>` with the email
+associated with your Individual Commercial Use License. A single HTTP request
+will be sent with the given email address to verify license validity.
+
+## Starting komorebi
 
 With the example configurations downloaded and permissions granted, you can now
 start `komorebi`:
@@ -38,6 +50,9 @@ Alternatively, if you also want to start with the status bar, you can run:
 ```powershell
 komorebic start --bar
 ```
+
+Before running the status bar, it is recommended to set the system's status bar
+to autohide.
 
 ## komorebi.json
 

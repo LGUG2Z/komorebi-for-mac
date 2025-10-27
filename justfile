@@ -27,16 +27,16 @@ build target:
 run target:
     cargo +stable run --bin {{ target }} --locked
 
-warn target $RUST_LOG="warn":
+warn target $RUST_LOG="komorebi=warn":
     just run {{ target }}
 
-info target $RUST_LOG="info":
+info target $RUST_LOG="komorebi=info":
     just run {{ target }}
 
-debug target $RUST_LOG="debug":
+debug target $RUST_LOG="komorebi=debug":
     just run {{ target }}
 
-trace target $RUST_LOG="trace":
+trace target $RUST_LOG="komorebi=trace":
     just run {{ target }}
 
 deadlock $RUST_LOG="trace":

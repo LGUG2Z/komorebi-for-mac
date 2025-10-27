@@ -20,6 +20,7 @@ pub use komorebi::core::pathext::PathExt;
 pub use komorebi::core::pathext::replace_env_in_path;
 pub use komorebi::core::rect::Rect;
 pub use komorebi::monitor_reconciliator::MonitorNotification;
+pub use komorebi::splash;
 pub use komorebi::state::State;
 pub use komorebi::static_config::KomorebiTheme;
 pub use komorebi::static_config::StaticConfig;

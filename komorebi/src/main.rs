@@ -74,11 +74,11 @@ fn setup(log_level: LogLevel) -> eyre::Result<(WorkerGuard, WorkerGuard)> {
             std::env::set_var(
                 "RUST_LOG",
                 match log_level {
-                    LogLevel::Error => "error",
-                    LogLevel::Warn => "warn",
-                    LogLevel::Info => "info",
-                    LogLevel::Debug => "debug",
-                    LogLevel::Trace => "trace",
+                    LogLevel::Error => "komorebi=error",
+                    LogLevel::Warn => "komorebi=warn",
+                    LogLevel::Info => "komorebi=info",
+                    LogLevel::Debug => "komorebi=debug",
+                    LogLevel::Trace => "komorebi=trace",
                 },
             );
         }
