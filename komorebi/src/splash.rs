@@ -20,6 +20,7 @@ use objc2_app_kit::NSFloatingWindowLevel;
 use objc2_app_kit::NSWorkspace;
 use objc2_foundation::NSString;
 use objc2_foundation::NSURL;
+use std::path::PathBuf;
 use std::process::Command;
 
 pub fn mdm_enrollment() -> eyre::Result<(bool, Option<String>)> {
@@ -100,13 +101,31 @@ fn is_valid_payload(raw: &str, fresh: bool) -> eyre::Result<bool> {
     Ok(validation_successful)
 }
 
-pub fn should() -> eyre::Result<bool> {
+pub enum ValidationFeedback {
+    Successful(PathBuf),
+    Unsuccessful(String),
+    NoEmail,
+    NoConnectivity,
+}
+
+impl From<ValidationFeedback> for bool {
+    fn from(value: ValidationFeedback) -> Self {
+        match value {
+            ValidationFeedback::Successful(_) => false,
+            ValidationFeedback::Unsuccessful(_)
+            | ValidationFeedback::NoEmail
+            | ValidationFeedback::NoConnectivity => true,
+        }
+    }
+}
+
+pub fn should() -> eyre::Result<ValidationFeedback> {
     let icul_validation = DATA_DIR.join("icul.validation");
     if icul_validation.exists() {
         tracing::debug!("found local individual commercial use license validation payload");
         let raw_payload = std::fs::read_to_string(&icul_validation)?;
         if is_valid_payload(&raw_payload, false)? {
-            return Ok(false);
+            return Ok(ValidationFeedback::Successful(icul_validation));
         } else {
             std::fs::remove_file(&icul_validation)?;
         }
@@ -114,7 +133,7 @@ pub fn should() -> eyre::Result<bool> {
 
     let icul = DATA_DIR.join("icul");
     if !icul.exists() {
-        return Ok(true);
+        return Ok(ValidationFeedback::NoEmail);
     }
 
     let email = std::fs::read_to_string(icul)?;
@@ -129,16 +148,16 @@ pub fn should() -> eyre::Result<bool> {
         Ok(response) => response,
         Err(error) => {
             tracing::error!("{error}");
-            return Ok(true);
+            return Ok(ValidationFeedback::NoConnectivity);
         }
     };
 
     let raw_payload = response.text()?;
     if is_valid_payload(&raw_payload, true)? {
-        std::fs::write(icul_validation, &raw_payload)?;
-        Ok(false)
+        std::fs::write(&icul_validation, &raw_payload)?;
+        Ok(ValidationFeedback::Successful(icul_validation))
     } else {
-        Ok(true)
+        Ok(ValidationFeedback::Unsuccessful(raw_payload))
     }
 }
 

@@ -23,6 +23,7 @@ use komorebi_client::replace_env_in_path;
 use komorebi_client::send_message;
 use komorebi_client::send_query;
 use komorebi_client::splash;
+use komorebi_client::splash::ValidationFeedback;
 use lazy_static::lazy_static;
 use std::fs::File;
 use std::fs::OpenOptions;
@@ -1254,8 +1255,35 @@ fn main() -> eyre::Result<()> {
             clap_complete::generate(arg.shell, &mut cli, "komorebic", &mut std::io::stdout());
         }
         SubCommand::License(arg) => {
-            std::fs::write(DATA_DIR.join("icul"), arg.email)?;
-            splash::should()?;
+            let _ = std::fs::remove_file(DATA_DIR.join("icul.validation"));
+            std::fs::write(DATA_DIR.join("icul"), &arg.email)?;
+            match splash::should()? {
+                ValidationFeedback::Successful(icul_validation) => {
+                    println!("Individual commercial use license validation successful");
+                    println!(
+                        "Local validation file saved to {}",
+                        icul_validation.display()
+                    );
+                    println!("\n{}", std::fs::read_to_string(&icul_validation)?);
+                }
+                ValidationFeedback::Unsuccessful(invalid_payload) => {
+                    println!(
+                        "No active individual commercial use license found for {}",
+                        arg.email
+                    );
+                    println!("\n{invalid_payload}");
+                    println!(
+                        "\nYou can purchase an individual commercial use license at https://lgug2z.com/software/komorebi"
+                    );
+                }
+                ValidationFeedback::NoEmail => {}
+                ValidationFeedback::NoConnectivity => {
+                    println!(
+                        "Could not make a connection to validate an individual commercial use license for {}",
+                        arg.email
+                    );
+                }
+            }
         }
         SubCommand::Quickstart => {
             fn write_file_with_prompt(
