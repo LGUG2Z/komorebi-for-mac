@@ -225,12 +225,19 @@ impl Monitor {
         let focused_idx = self.focused_workspace_idx();
         let monitor_id = self.id;
         let monitor_wp = self.wallpaper.clone();
+
+        let mut restore = None;
+
         for (i, workspace) in self.workspaces_mut().iter_mut().enumerate() {
             if i == focused_idx {
-                workspace.restore(mouse_follows_focus, monitor_id, &monitor_wp)?;
+                restore = Some(workspace);
             } else {
                 workspace.hide(None)?;
             }
+        }
+
+        if let Some(workspace) = restore {
+            workspace.restore(mouse_follows_focus, monitor_id, &monitor_wp)?;
         }
 
         Ok(())

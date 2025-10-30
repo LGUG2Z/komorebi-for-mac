@@ -69,10 +69,17 @@ impl Rect {
         CoreGraphicsApi::contains_rect(other.into(), self.into())
     }
 
-    pub fn contains_within_horizontal_bounds(&self, other: &Rect) -> bool {
-        let within_left_bound = other.left >= self.left;
-        let within_right_bound = other.left < self.left + self.right;
-        within_left_bound && within_right_bound
+    pub fn percentage_within_horizontal_bounds(&self, other: &Rect) -> f64 {
+        let overlap_left = self.left.max(other.left);
+        let overlap_right = (self.left + self.right).min(other.left + other.right);
+
+        let overlap_width = overlap_right - overlap_left;
+
+        if overlap_width <= 0 {
+            0.0
+        } else {
+            (overlap_width as f64) / (other.right as f64) * 100.0
+        }
     }
 
     /// Decrease the size of self by the padding amount.

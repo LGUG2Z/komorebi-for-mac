@@ -690,8 +690,23 @@ impl Workspace {
             }
         }
 
+        let mut resize_dimensions = None;
+        if matches!(self.layout, Layout::Default(DefaultLayout::Scrolling))
+            && self.resize_dimensions.iter().any(|r| r.is_some())
+        {
+            resize_dimensions = Some(self.resize_dimensions.clone());
+            self.resize_dimensions = Vec::new();
+            if let Err(error) = self.update() {
+                tracing::error!("{error}");
+            }
+        }
+
         for container in self.containers_mut() {
             container.hide(window_hiding_position, omit)?;
+        }
+
+        if let Some(resize_dimensions) = resize_dimensions {
+            self.resize_dimensions = resize_dimensions;
         }
 
         // if let Some(window) = self.maximized_window() {
@@ -1135,6 +1150,7 @@ impl Workspace {
 
                 let is_scrolling = matches!(self.layout, Layout::Default(DefaultLayout::Scrolling));
                 let window_hiding_position = self.globals.window_hiding_position;
+                let resize_dimensions_is_empty = self.resize_dimensions.is_empty();
 
                 let containers = self.containers_mut();
 
@@ -1144,11 +1160,25 @@ impl Workspace {
                         layout.add_padding(border_width);
 
                         for window in container.windows_mut() {
-                            if is_scrolling && !work_area.contains_within_horizontal_bounds(layout)
-                            {
+                            let current_percentage = work_area.percentage_within_horizontal_bounds(
+                                &Rect::from(MacosApi::window_rect(&window.element)?),
+                            );
+                            let proposed_percentage =
+                                work_area.percentage_within_horizontal_bounds(layout);
+
+                            let percentage_override = proposed_percentage == 0.0
+                                && current_percentage > 0.1
+                                && current_percentage < 100.0
+                                && resize_dimensions_is_empty;
+
+                            if is_scrolling && proposed_percentage < 0.1 && !percentage_override {
                                 if let Err(error) = window.hide(window_hiding_position) {
-                                    tracing::warn!("failed to set window position: {error}")
+                                    tracing::warn!(
+                                        "failed to set hide window for scrolling layout: {error}"
+                                    )
                                 }
+                            } else if percentage_override {
+                                window.center(&work_area, false)?;
                             } else if let Err(error) = window.set_position(layout) {
                                 tracing::warn!("failed to set window position: {error}")
                             }
