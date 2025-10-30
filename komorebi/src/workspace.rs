@@ -1133,6 +1133,9 @@ impl Workspace {
                     &self.latest_layout,
                 );
 
+                let is_scrolling = matches!(self.layout, Layout::Default(DefaultLayout::Scrolling));
+                let window_hiding_position = self.globals.window_hiding_position;
+
                 let containers = self.containers_mut();
 
                 for (i, container) in containers.iter_mut().enumerate() {
@@ -1140,8 +1143,13 @@ impl Workspace {
                         layout.add_padding(border_offset);
                         layout.add_padding(border_width);
 
-                        for window in container.windows() {
-                            if let Err(error) = window.set_position(layout) {
+                        for window in container.windows_mut() {
+                            if is_scrolling && !work_area.contains_within_horizontal_bounds(layout)
+                            {
+                                if let Err(error) = window.hide(window_hiding_position) {
+                                    tracing::warn!("failed to set window position: {error}")
+                                }
+                            } else if let Err(error) = window.set_position(layout) {
                                 tracing::warn!("failed to set window position: {error}")
                             }
                         }

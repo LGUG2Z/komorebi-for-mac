@@ -69,6 +69,12 @@ impl Rect {
         CoreGraphicsApi::contains_rect(other.into(), self.into())
     }
 
+    pub fn contains_within_horizontal_bounds(&self, other: &Rect) -> bool {
+        let within_left_bound = other.left >= self.left;
+        let within_right_bound = other.left < self.left + self.right;
+        within_left_bound && within_right_bound
+    }
+
     /// Decrease the size of self by the padding amount.
     pub fn add_padding<T>(&mut self, padding: T)
     where
