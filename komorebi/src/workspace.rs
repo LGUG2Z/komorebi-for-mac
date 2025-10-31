@@ -65,6 +65,8 @@ pub struct Workspace {
     pub wallpaper: Option<Wallpaper>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub workspace_config: Option<WorkspaceConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub preselected_container_idx: Option<usize>,
 }
 
 #[derive(Debug, Default, Copy, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -116,6 +118,7 @@ impl Default for Workspace {
             floating_layer_behaviour: None,
             wallpaper: None,
             workspace_config: None,
+            preselected_container_idx: None,
         }
     }
 }
@@ -217,6 +220,10 @@ impl Workspace {
         self.focus_container(j);
     }
 
+    pub fn preselect_container_index(&mut self, insertion_index: usize) {
+        self.preselected_container_idx = Some(insertion_index);
+    }
+
     pub fn new_idx_for_direction(&self, direction: OperationDirection) -> Option<usize> {
         let len = NonZeroUsize::new(self.containers().len())?;
 
@@ -287,7 +294,11 @@ impl Workspace {
     }
 
     pub fn new_container_for_window(&mut self, window: &Window) -> eyre::Result<()> {
-        let next_idx = if self.containers().is_empty() {
+        let next_idx = if let Some(idx) = self.preselected_container_idx {
+            let next = idx;
+            self.preselected_container_idx = None;
+            next
+        } else if self.containers().is_empty() {
             0
         } else {
             self.focused_container_idx() + 1

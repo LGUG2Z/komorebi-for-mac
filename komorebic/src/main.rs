@@ -96,6 +96,7 @@ macro_rules! gen_enum_subcommand_args {
 gen_enum_subcommand_args! {
     Focus: OperationDirection,
     Move: OperationDirection,
+    PreselectDirection: OperationDirection,
     CycleFocus: CycleDirection,
     CycleMove: CycleDirection,
     CycleMoveToWorkspace: CycleDirection,
@@ -760,6 +761,9 @@ enum SubCommand {
     /// Move the focused window in the specified direction
     #[clap(arg_required_else_help = true)]
     Move(Move),
+    /// Preselect the specified direction for the next window to be spawned on supported layouts
+    #[clap(arg_required_else_help = true)]
+    PreselectDirection(PreselectDirection),
     /// Minimize the focused window
     Minimize,
     /// Close the focused window
@@ -1224,6 +1228,7 @@ fn main() -> eyre::Result<()> {
 
             let ignore = [
                 "docgen",
+                "splash",
                 "alt-focus-hack",
                 "identify-border-overflow-application",
                 "load-custom-layout",
@@ -1671,6 +1676,9 @@ fn main() -> eyre::Result<()> {
         }
         SubCommand::Move(arg) => {
             send_message(&SocketMessage::MoveWindow(arg.operation_direction))?;
+        }
+        SubCommand::PreselectDirection(arg) => {
+            send_message(&SocketMessage::PreselectDirection(arg.operation_direction))?;
         }
         SubCommand::CycleFocus(arg) => {
             send_message(&SocketMessage::CycleFocusWindow(arg.cycle_direction))?;
