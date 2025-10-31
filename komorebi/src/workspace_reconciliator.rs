@@ -8,7 +8,10 @@ use parking_lot::Mutex;
 use std::sync::Arc;
 use std::sync::OnceLock;
 use std::sync::atomic::AtomicBool;
+use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
+use std::time::SystemTime;
+use std::time::UNIX_EPOCH;
 
 #[derive(Copy, Clone, Debug)]
 pub struct Notification {
@@ -18,6 +21,8 @@ pub struct Notification {
 }
 
 static RECONCILIATION_IN_PROGRESS: AtomicBool = AtomicBool::new(false);
+static LAST_RECONCILIATION: AtomicU64 = AtomicU64::new(0);
+const COOLDOWN_MS: u64 = 1000; // 1 second cooldown
 
 static CHANNEL: OnceLock<(Sender<Notification>, Receiver<Notification>)> = OnceLock::new();
 
@@ -38,6 +43,16 @@ pub fn send_notification(
     workspace_idx: usize,
     triggered_by: WindowManagerEvent,
 ) {
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64;
+
+    if now - LAST_RECONCILIATION.load(Ordering::SeqCst) < COOLDOWN_MS {
+        tracing::debug!("within cooldown period, dropping notification");
+        return;
+    }
+
     if !RECONCILIATION_IN_PROGRESS.load(Ordering::Relaxed) {
         tracing::debug!("sending reconciliation request");
         if event_tx()
@@ -101,6 +116,12 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
             }
         }
 
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as u64;
+
+        LAST_RECONCILIATION.store(now, Ordering::SeqCst);
         RECONCILIATION_IN_PROGRESS.store(false, Ordering::Relaxed);
     }
 
