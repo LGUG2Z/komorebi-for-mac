@@ -189,9 +189,9 @@ impl Application {
 
             if let Some(window_title) = window.title()
                 && (window_title.eq(title)
-                    // TODO: find a better way to deal with these hacks
-                    || (self.name().unwrap_or_default() == "Activity Monitor"
-                        && window_title.starts_with(title)))
+                    // a hack for handling already-launched apps with inconsistent titles when
+                    // komorebi launches, such as Activity Monitor, Google Chrome, and counting...
+                    || window_title.contains(title))
             {
                 target = Some(window);
             }

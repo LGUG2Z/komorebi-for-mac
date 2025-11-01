@@ -371,6 +371,7 @@ impl MacosApi {
         )?)
     }
 
+    // #[track_caller] // use this to with std::panic::Location::caller() to debug failures
     #[tracing::instrument(skip_all)]
     pub fn window_rect(element: &AXUIElement) -> Result<CGRect, AccessibilityError> {
         let mut position_receiver = std::ptr::null();

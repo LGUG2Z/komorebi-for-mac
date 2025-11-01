@@ -1171,9 +1171,10 @@ impl Workspace {
                         layout.add_padding(border_width);
 
                         for window in container.windows_mut() {
-                            let current_percentage = work_area.percentage_within_horizontal_bounds(
-                                &Rect::from(MacosApi::window_rect(&window.element)?),
-                            );
+                            let current_rect =
+                                MacosApi::window_rect(&window.element).unwrap_or_default();
+                            let current_percentage = work_area
+                                .percentage_within_horizontal_bounds(&Rect::from(current_rect));
                             let proposed_percentage =
                                 work_area.percentage_within_horizontal_bounds(layout);
 
