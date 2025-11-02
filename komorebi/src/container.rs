@@ -40,6 +40,18 @@ impl Lockable for Container {
 }
 
 impl Container {
+    pub fn preselect() -> Self {
+        Self {
+            id: "PRESELECT".to_string(),
+            locked: false,
+            windows: Default::default(),
+        }
+    }
+
+    pub fn is_preselect(&self) -> bool {
+        self.id == "PRESELECT"
+    }
+
     pub fn idx_from_exe(&self, exe: &str) -> Option<usize> {
         for (idx, window) in self.windows().iter().enumerate() {
             if let Some(window_exe) = window.exe()

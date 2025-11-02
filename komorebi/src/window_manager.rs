@@ -482,7 +482,7 @@ impl WindowManager {
                     _ => new_idx,
                 };
 
-                workspace.preselect_container_index(adjusted_idx);
+                workspace.preselect_container_idx(adjusted_idx);
             }
 
             None => {
