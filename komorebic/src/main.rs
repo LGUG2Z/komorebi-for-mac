@@ -932,9 +932,11 @@ enum SubCommand {
     /// Flip the layout on the focused workspace
     #[clap(arg_required_else_help = true)]
     FlipLayout(FlipLayout),
-    /// Promote the focused window to the top of the tree
+    /// Promote the focused window to the largest tile via container removal and re-insertion
     Promote,
-    /// Promote the user focus to the top of the tree
+    /// Promote the focused window to the largest tile by swapping container indices with the largest tile
+    PromoteSwap,
+    /// Promote the user focus to the largest window container
     PromoteFocus,
     /// Promote the window in the specified direction
     PromoteWindow(PromoteWindow),
@@ -1759,6 +1761,9 @@ fn main() -> eyre::Result<()> {
         }
         SubCommand::Promote => {
             send_message(&SocketMessage::Promote)?;
+        }
+        SubCommand::PromoteSwap => {
+            send_message(&SocketMessage::PromoteSwap)?;
         }
         SubCommand::PromoteFocus => {
             send_message(&SocketMessage::PromoteFocus)?;
