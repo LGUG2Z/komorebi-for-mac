@@ -1656,6 +1656,7 @@ impl WindowManager {
     pub fn promote_container_swap(&mut self) -> eyre::Result<()> {
         let workspace = self.focused_workspace_mut()?;
         let focused_container_idx = workspace.focused_container_idx();
+
         let primary_idx = match workspace.layout {
             Layout::Default(_) => 0,
         };
@@ -1665,7 +1666,14 @@ impl WindowManager {
             return Ok(());
         }
 
-        workspace.swap_containers(focused_container_idx, primary_idx);
+        let primary_tile_is_focused = focused_container_idx == primary_idx;
+
+        if primary_tile_is_focused && let Some(swap_idx) = workspace.promotion_swap_container_idx {
+            workspace.swap_containers(focused_container_idx, swap_idx);
+        } else {
+            workspace.promotion_swap_container_idx = Some(focused_container_idx);
+            workspace.swap_containers(focused_container_idx, primary_idx);
+        }
 
         self.update_focused_workspace(self.mouse_follows_focus, true)
     }
