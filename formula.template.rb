@@ -7,7 +7,7 @@ class KomorebiForMacNightly < Formula
         "X-GitHub-Api-Version: 2022-11-28",
         "Authorization: bearer #{ENV.fetch("HOMEBREW_GITHUB_API_TOKEN")}",
       ]
-  version "nightly"
+  version "REPLACE_NIGHTLY"
   sha256 "REPLACE_SHA_256"
   license "Komorebi License 2.0.0"
 

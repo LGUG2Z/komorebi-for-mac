@@ -86,7 +86,7 @@ jobs:
           GIT_COMMITTER_NAME: "JeezyBot"
           GIT_COMMITTER_EMAIL: "lgug2z@fastmail.com"
         run: |
-          sed "s/REPLACE_ASSET_ID/$ASSET_ID/g; s/REPLACE_SHA_256/$SHA256/g" formula.template.rb > komorebi-for-mac-nightly.rb
+          sed "s/REPLACE_ASSET_ID/$ASSET_ID/g; s/REPLACE_SHA_256/$SHA256/g; s/REPLACE_NIGHTLY/0.1.0-nightly-$(date +%Y-%m-%d-%H:%M:%S)/g" formula.template.rb > komorebi-for-mac-nightly.rb
           cat komorebi-for-mac-nightly.rb
           gh release upload nightly komorebi-for-mac-nightly.rb
 
