@@ -13,6 +13,10 @@ class KomorebiForMacNightly < Formula
 
   def install
     bin.install Dir["*"]
+
+    system "codesign", "--force", "-s", "-", "#{bin}/komorebi"
+    system "codesign", "--force", "-s", "-", "#{bin}/komorebic"
+    system "codesign", "--force", "-s", "-", "#{bin}/komorebi-bar"
   end
 
   def caveats
