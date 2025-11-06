@@ -9,6 +9,7 @@
   };
 
   outputs = {
+    self,
     nixpkgs,
     crane,
     flake-utils,
@@ -40,6 +41,8 @@
       commonArgs = {
         inherit src version cargoArtifacts;
         strictDeps = true;
+
+        COMMIT_HASH = self.rev or (lib.removeSuffix "-dirty" self.dirtyRev);
 
         buildInputs = [
           pkgs.gcc

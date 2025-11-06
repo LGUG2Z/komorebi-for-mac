@@ -8,13 +8,14 @@ with pkgs;
     buildInputs = [
       alejandra
       cargo-deny
-      cargo-udeps
       cargo-nextest
+      cargo-udeps
       gcc
       jq
       just
       libiconv
       prettier
+      taplo
 
       python311Packages.mkdocs-material
       python311Packages.mkdocs-macros

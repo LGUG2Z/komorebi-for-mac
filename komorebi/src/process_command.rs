@@ -12,7 +12,6 @@ use crate::WORKSPACE_MATCHING_RULES;
 use crate::accessibility::AccessibilityApi;
 use crate::application::Application;
 use crate::border_manager;
-use crate::build;
 use crate::cf_array_as;
 use crate::core::ApplicationIdentifier;
 use crate::core::MoveBehaviour;
@@ -64,6 +63,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
+use version::build;
 
 #[tracing::instrument]
 pub fn listen_for_commands(wm: Arc<Mutex<WindowManager>>) {
