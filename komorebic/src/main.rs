@@ -61,8 +61,6 @@ lazy_static! {
         .join("komorebi");
 }
 
-shadow_rs::shadow!(build);
-
 #[derive(Copy, Clone, ValueEnum)]
 enum BooleanState {
     Enable,
@@ -668,7 +666,7 @@ struct Splash {
 }
 
 #[derive(Parser)]
-#[clap(author, about, version = build::CLAP_LONG_VERSION)]
+#[clap(author, about, version = version::LONG_VERSION)]
 struct Opts {
     #[clap(subcommand)]
     subcmd: SubCommand,

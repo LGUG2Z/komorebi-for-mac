@@ -63,6 +63,11 @@ expression = "LicenseRef-Komorebi-2.0"
 license-files = []
 
 [[licenses.clarify]]
+crate = "version"
+expression = "LicenseRef-Komorebi-2.0"
+license-files = []
+
+[[licenses.clarify]]
 crate = "base16-egui-themes"
 expression = "MIT"
 license-files = []

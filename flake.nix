@@ -9,6 +9,7 @@
   };
 
   outputs = {
+    self,
     nixpkgs,
     crane,
     flake-utils,
@@ -35,11 +36,11 @@
           || (builtins.match ".*/docs/.*" path != null);
       };
 
-      cargoArtifacts = craneLib.buildDepsOnly commonArgs;
-
       commonArgs = {
-        inherit src version cargoArtifacts;
+        inherit src version;
         strictDeps = true;
+
+        COMMIT_HASH = self.rev or (lib.removeSuffix "-dirty" self.dirtyRev);
 
         buildInputs = [
           pkgs.gcc
@@ -47,48 +48,38 @@
         ];
       };
 
+      cargoArtifacts = craneLib.buildDepsOnly commonArgs;
+
       individualCrateArgs =
         commonArgs
         // {
+          inherit cargoArtifacts;
           doCheck = false;
+          doDoc = false;
         };
 
-      packages = {
-        komorebi = craneLib.buildPackage (
+      packages = let
+        fullBuild = craneLib.buildPackage (
           individualCrateArgs
           // {
-            inherit version;
-            pname = "komorebi";
-            cargoExtraArgs = "-p komorebi";
+            pname = "komorebi-workspace";
           }
         );
 
-        komorebic = craneLib.buildPackage (
-          individualCrateArgs
-          // {
-            inherit version;
-            pname = "komorebic";
-            cargoExtraArgs = "-p komorebic";
+        extractBinary = binaryName:
+          pkgs.runCommand "komorebi-${binaryName}"
+          {
+            meta = fullBuild.meta // {};
           }
-        );
-
-        komorebi-bar = craneLib.buildPackage (
-          individualCrateArgs
-          // {
-            inherit version;
-            pname = "komorebi-bar";
-            cargoExtraArgs = "-p komorebi-bar";
-          }
-        );
-
-        komorebi-full = craneLib.buildPackage (
-          individualCrateArgs
-          // {
-            inherit version;
-            pname = "komorebi-full";
-            cargoExtraArgs = "-p komorebi -p komorebic -p komorebi-bar";
-          }
-        );
+          ''
+            mkdir -p $out/bin
+            cp ${fullBuild}/bin/${binaryName} $out/bin/
+          '';
+      in {
+        komorebi-full = fullBuild;
+        komorebi = extractBinary "komorebi";
+        komorebic = extractBinary "komorebic";
+        komorebi-bar = extractBinary "komorebi-bar";
       };
     in
       packages
@@ -108,23 +99,18 @@
         buildResult = komorebiBuild system;
         inherit
           (buildResult)
+          individualCrateArgs
           komorebi
           komorebic
           komorebi-bar
           komorebi-full
           pkgs
           craneLib
-          commonArgs
           src
           ;
       in {
         checks = {
-          komorebi-workspace-clippy = craneLib.cargoClippy (
-            commonArgs
-            // {
-              cargoClippyExtraArgs = "--all-targets -- --deny warnings";
-            }
-          );
+          komorebi-workspace-clippy = craneLib.cargoClippy individualCrateArgs;
 
           komorebi-workspace-fmt = craneLib.cargoFmt {
             inherit src;
@@ -138,7 +124,7 @@
             inherit src;
           };
 
-          komorebi-workspace-nextest = craneLib.cargoNextest commonArgs;
+          komorebi-workspace-nextest = craneLib.cargoNextest individualCrateArgs;
         };
 
         packages = {
