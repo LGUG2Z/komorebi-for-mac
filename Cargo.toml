@@ -29,7 +29,7 @@ hotwatch = "0.5"
 lazy_static = "1"
 parking_lot = "0.12"
 pastey = "0.1"
-schemars = "0.8"
+schemars = "1.1"
 serde = { version = "1", features = ["derive"] }
 serde_json = { package = "serde_json_lenient", version = "0.2" }
 shadow-rs = "1"
