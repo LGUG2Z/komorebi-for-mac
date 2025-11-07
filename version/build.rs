@@ -5,17 +5,15 @@ use shadow_rs::SdResult;
 use shadow_rs::ShadowBuilder;
 
 fn main() {
-    let is_flake_build = ShadowBuilder::builder()
-        .build()
-        .unwrap()
+    let shadow_build = ShadowBuilder::builder().hook(raw_hook).build().unwrap();
+
+    let is_flake_build = shadow_build
         .map
         .get("BRANCH")
         .map_or_else(|| true, |entry| entry.v.is_empty());
 
     if is_flake_build {
         ShadowBuilder::builder().hook(flake_hook).build().unwrap();
-    } else {
-        ShadowBuilder::builder().hook(raw_hook).build().unwrap();
     }
 }
 
