@@ -9,7 +9,7 @@ komorebi-themes = { workspace = true }
 quickxml_to_serde = { git = "https://github.com/LGUG2Z/quickxml_to_serde.git", version = "0.6.1" }
 version = { path = "../version" }
 
-base64 = "0.21"
+base64 = "0.22"
 block2 = "0.6"
 clap = { workspace = true }
 chrono = { workspace = true }

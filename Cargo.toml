@@ -13,7 +13,7 @@ members = [
 version = "0.1.0"
 
 [workspace.dependencies]
-komorebi-themes = { git = "https://github.com/LGUG2Z/komorebi", rev = "1c23439f959bcfddf0f71918fc03a97dd4f30727" }
+komorebi-themes = { git = "https://github.com/LGUG2Z/komorebi", rev = "c8c4c3507c3cb9cdd94e1a40d366320531455d75" }
 
 chrono = "0.4"
 chrono-tz = "0.10"
@@ -23,8 +23,8 @@ crossbeam-channel = "0.5"
 crossbeam-utils = "0.8"
 dirs = "6"
 dunce = "1"
-eframe = "0.32"
-egui_extras = "0.32"
+eframe = "0.33"
+egui_extras = "0.33"
 hotwatch = "0.5"
 lazy_static = "1"
 parking_lot = "0.12"

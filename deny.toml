@@ -89,5 +89,6 @@ allow-git = [
   "https://github.com/LGUG2Z/flavours",
   "https://github.com/LGUG2Z/komorebi",
   "https://github.com/LGUG2Z/base16_color_scheme",
-
+  "https://github.com/LGUG2Z/catppuccin-egui",
+  "https://github.com/amPerl/egui-phosphor",
 ]
