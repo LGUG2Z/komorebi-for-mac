@@ -821,18 +821,20 @@ impl Workspace {
     }
 
     pub fn promote_container(&mut self) -> eyre::Result<()> {
-        let resize = self.resize_dimensions.remove(0);
+        let focused_idx = self.focused_container_idx();
         let container = self
-            .remove_focused_container()
+            .containers_mut()
+            .remove_respecting_locks(focused_idx)
             .ok_or_eyre("there is no container")?;
 
-        let primary_idx = match self.layout {
+        let primary_idx = match &self.layout {
             Layout::Default(_) => 0,
         };
 
-        let insertion_idx = self.insert_container_at_idx(primary_idx, container);
-        self.resize_dimensions[insertion_idx] = resize;
-        self.focus_container(primary_idx);
+        let insertion_idx = self
+            .containers_mut()
+            .insert_respecting_locks(primary_idx, container);
+        self.focus_container(insertion_idx);
 
         Ok(())
     }
