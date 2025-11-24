@@ -34,7 +34,7 @@ jobs:
           name: komorebi-aarch64-apple-darwin-${{ github.sha }}
           path: |
             result/bin/komorebi*
-          retention-days: 90
+          retention-days: 14
       - if: ${{ github.ref == 'refs/heads/master' && github.repository == 'KomoCorp/komorebi-for-mac' }}
         uses: exuanbo/actions-deploy-gist@v1
         with:
