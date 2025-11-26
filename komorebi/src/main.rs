@@ -21,12 +21,17 @@ use komorebi::theme_manager;
 use komorebi::window_manager::WindowManager;
 use komorebi::window_manager_event_listener;
 use komorebi::workspace_reconciliator;
+use objc2::MainThreadMarker;
 use objc2::rc::autoreleasepool;
+use objc2_app_kit::NSApplication;
+use objc2_app_kit::NSEventMask;
 use objc2_application_services::AXIsProcessTrusted;
 use objc2_core_foundation::CFRunLoop;
 use objc2_core_foundation::kCFRunLoopDefaultMode;
 use objc2_core_graphics::CGPreflightScreenCaptureAccess;
 use objc2_core_graphics::CGRequestScreenCaptureAccess;
+use objc2_foundation::NSDate;
+use objc2_foundation::NSDefaultRunLoopMode;
 use parking_lot::Mutex;
 use serde::Deserialize;
 use std::net::Shutdown;
@@ -211,6 +216,12 @@ fn main() -> eyre::Result<()> {
         std::fs::create_dir_all(&*DATA_DIR)?;
     }
 
+    let mtm = MainThreadMarker::new().ok_or_eyre("failed to create main thread marker")?;
+    // apparently this establishes the window server connection which is needed super early on tahoe
+    let app = NSApplication::sharedApplication(mtm);
+    // this lets us complete initialization without using a blocking method like run
+    app.finishLaunching();
+
     let _notification_center_listener = NotificationCenterListener::init();
     let _display_reconfiguration_listener = DisplayReconfigurationListener::init();
 
@@ -297,8 +308,23 @@ fn main() -> eyre::Result<()> {
             break;
         }
 
-        // this gets our observer notification callbacks firing
-        autoreleasepool(|_| unsafe { CFRunLoop::run_in_mode(kCFRunLoopDefaultMode, 0.1, false) });
+        autoreleasepool(|_| {
+            // process NSApplication events explicitly - this is what makes display
+            // reconfiguration callbacks work on tahoe
+            if let Some(event) = unsafe {
+                app.nextEventMatchingMask_untilDate_inMode_dequeue(
+                    NSEventMask::Any,
+                    Some(&NSDate::dateWithTimeIntervalSinceNow(0.1)),
+                    NSDefaultRunLoopMode,
+                    true,
+                )
+            } {
+                app.sendEvent(&event);
+            }
+
+            // this gets our observer notification callbacks firing
+            unsafe { CFRunLoop::run_in_mode(kCFRunLoopDefaultMode, 0.1, false) };
+        });
     }
 
     wm.lock().restore_all_windows(false)?;
