@@ -1362,7 +1362,8 @@ fn main() -> eyre::Result<()> {
             current_exe.pop();
             let komorebi_exe = current_exe.join("komorebi");
 
-            let term_program = std::env::var("TERM_PROGRAM").unwrap_or_default();
+            let term_program = std::env::var("TERM_PROGRAM")
+                .unwrap_or_else(|_| String::from("this terminal emulator"));
 
             println!(
                 "\nPlease grant Accessibility permissions to \"{}\" and \"{term_program}\"",
@@ -1403,22 +1404,22 @@ fn main() -> eyre::Result<()> {
             {
                 if let Some(server) = server {
                     println!(
-                        "\nIt looks like you are using a corporate device enrolled in mobile device management ({server})"
+                        "It looks like you are using a corporate device enrolled in mobile device management ({server})\n"
                     );
                 } else {
                     println!(
-                        "\nIt looks like you are using a corporate device enrolled in mobile device management"
+                        "It looks like you are using a corporate device enrolled in mobile device management\n"
                     );
                 }
-                println!("The Komorebi License does not permit any kind of commercial use");
+                println!("The Komorebi License does not permit any kind of commercial use\n");
                 println!(
-                    "A dedicated Individual Commercial Use License is available if you wish to use this software at work"
+                    "A dedicated Individual Commercial Use License is available if you wish to use this software at work\n"
                 );
                 println!(
-                    "You are strongly encouraged to make your employer pay for your license, either directly or via reimbursement"
+                    "You are strongly encouraged to make your employer pay for your license, either directly or via reimbursement\n"
                 );
                 println!(
-                    "If you already have a license, you can run \"komorebic license <email>\" with the email address your license is associated with"
+                    "If you already have a license, you can run \"komorebic license <email>\" with the email address your license is associated with\n"
                 );
             }
 
