@@ -3,183 +3,198 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    flake-parts.url = "github:hercules-ci/flake-parts";
     crane.url = "github:ipetkov/crane";
-    flake-utils.url = "github:numtide/flake-utils";
     rust-overlay.url = "github:oxalica/rust-overlay";
+    treefmt-nix.url = "github:numtide/treefmt-nix";
   };
 
-  outputs = {
-    self,
-    nixpkgs,
-    crane,
-    flake-utils,
-    rust-overlay,
-    ...
-  }: let
-    komorebiBuild = system: let
-      overlays = [(import rust-overlay)];
-      pkgs = import nixpkgs {
-        inherit system overlays;
-      };
+  outputs =
+    inputs@{
+      self,
+      nixpkgs,
+      flake-parts,
+      crane,
+      rust-overlay,
+      ...
+    }:
+    let
+      mkKomorebiPackages =
+        { pkgs }:
+        let
+          toolchain = pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
+          craneLib = (crane.mkLib pkgs).overrideToolchain toolchain;
+          version = "0.1.0";
 
-      inherit (pkgs) lib;
-
-      toolchain = pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
-      craneLib = (crane.mkLib pkgs).overrideToolchain toolchain;
-      version = "0.1.0";
-
-      src = lib.cleanSourceWith {
-        src = ./.;
-        filter = path: type:
-          (craneLib.filterCargoSources path type)
-          || (lib.hasInfix "/docs/" path)
-          || (builtins.match ".*/docs/.*" path != null);
-      };
-
-      commonArgs = {
-        inherit src version;
-        strictDeps = true;
-
-        COMMIT_HASH = self.rev or (lib.removeSuffix "-dirty" self.dirtyRev);
-
-        buildInputs = [
-          pkgs.gcc
-          pkgs.libiconv
-        ];
-      };
-
-      cargoArtifacts = craneLib.buildDepsOnly commonArgs;
-
-      individualCrateArgs =
-        commonArgs
-        // {
-          inherit cargoArtifacts;
-          doCheck = false;
-          doDoc = false;
-        };
-
-      packages = let
-        fullBuild = craneLib.buildPackage (
-          individualCrateArgs
-          // {
-            pname = "komorebi-workspace";
-          }
-        );
-
-        extractBinary = binaryName:
-          pkgs.runCommand "komorebi-${binaryName}"
-          {
-            meta = fullBuild.meta // {};
-          }
-          ''
-            mkdir -p $out/bin
-            cp ${fullBuild}/bin/${binaryName} $out/bin/
-          '';
-      in {
-        komorebi-full = fullBuild;
-        komorebi = extractBinary "komorebi";
-        komorebic = extractBinary "komorebic";
-        komorebi-bar = extractBinary "komorebi-bar";
-      };
-    in
-      packages
-      // {
-        inherit
-          pkgs
-          craneLib
-          commonArgs
-          cargoArtifacts
-          individualCrateArgs
-          src
-          ;
-      };
-  in
-    flake-utils.lib.eachSystem ["aarch64-darwin"] (
-      system: let
-        buildResult = komorebiBuild system;
-        inherit
-          (buildResult)
-          individualCrateArgs
-          komorebi
-          komorebic
-          komorebi-bar
-          komorebi-full
-          pkgs
-          craneLib
-          src
-          ;
-      in {
-        checks = {
-          komorebi-workspace-clippy = craneLib.cargoClippy individualCrateArgs;
-
-          komorebi-workspace-fmt = craneLib.cargoFmt {
-            inherit src;
+          src = pkgs.lib.cleanSourceWith {
+            src = ./.;
+            filter =
+              path: type:
+              (craneLib.filterCargoSources path type)
+              || (pkgs.lib.hasInfix "/docs/" path)
+              || (builtins.match ".*/docs/.*" path != null);
           };
 
-          komorebi-workspace-toml-fmt = craneLib.taploFmt {
-            src = pkgs.lib.sources.sourceFilesBySuffices src [".toml"];
+          commonArgs = {
+            inherit src version;
+            strictDeps = true;
+            COMMIT_HASH = self.rev or (pkgs.lib.removeSuffix "-dirty" self.dirtyRev);
+            buildInputs = [
+              pkgs.gcc
+              pkgs.libiconv
+            ];
           };
 
-          komorebi-workspace-deny = craneLib.cargoDeny {
-            inherit src;
+          cargoArtifacts = craneLib.buildDepsOnly commonArgs;
+
+          individualCrateArgs = commonArgs // {
+            inherit cargoArtifacts;
+            doCheck = false;
+            doDoc = false;
           };
 
-          komorebi-workspace-nextest = craneLib.cargoNextest individualCrateArgs;
-        };
+          fullBuild = craneLib.buildPackage (
+            individualCrateArgs
+            // {
+              pname = "komorebi-workspace";
+            }
+          );
 
-        packages = {
+          extractBinary =
+            binaryName:
+            pkgs.runCommand "komorebi-${binaryName}"
+              {
+                meta = fullBuild.meta // { };
+              }
+              ''
+                mkdir -p $out/bin
+                cp ${fullBuild}/bin/${binaryName} $out/bin/
+              '';
+        in
+        {
           inherit
-            komorebi
-            komorebic
-            komorebi-bar
-            komorebi-full
+            craneLib
+            src
+            individualCrateArgs
+            fullBuild
             ;
-          default = komorebi-full;
+          komorebi = extractBinary "komorebi";
+          komorebic = extractBinary "komorebic";
+          komorebi-bar = extractBinary "komorebi-bar";
         };
 
-        apps = {
-          komorebi = flake-utils.lib.mkApp {
-            drv = komorebi;
+      mkPkgs =
+        system:
+        import nixpkgs {
+          inherit system;
+          overlays = [ (import rust-overlay) ];
+        };
+    in
+    flake-parts.lib.mkFlake { inherit inputs; } {
+      systems = [
+        "aarch64-darwin"
+        "x86_64-darwin"
+      ];
+
+      imports = [
+        inputs.treefmt-nix.flakeModule
+      ];
+
+      perSystem =
+        {
+          system,
+          ...
+        }:
+        let
+          pkgs = mkPkgs system;
+          build = mkKomorebiPackages { inherit pkgs; };
+        in
+        {
+          treefmt = {
+            projectRootFile = "flake.nix";
+            programs = {
+              deadnix.enable = true;
+              just.enable = true;
+              nixfmt.enable = true;
+              rustfmt.enable = true;
+              taplo.enable = true;
+            };
           };
-          komorebic = flake-utils.lib.mkApp {
-            drv = komorebic;
+
+          checks = {
+            komorebi-workspace-clippy = build.craneLib.cargoClippy build.individualCrateArgs;
+
+            komorebi-workspace-fmt = build.craneLib.cargoFmt {
+              inherit (build) src;
+            };
+
+            komorebi-workspace-toml-fmt = build.craneLib.taploFmt {
+              src = pkgs.lib.sources.sourceFilesBySuffices build.src [ ".toml" ];
+            };
+
+            komorebi-workspace-deny = build.craneLib.cargoDeny {
+              inherit (build) src;
+            };
+
+            komorebi-workspace-nextest = build.craneLib.cargoNextest build.individualCrateArgs;
           };
-          komorebi-bar = flake-utils.lib.mkApp {
-            drv = komorebi-bar;
+
+          packages = {
+            inherit (build) komorebi komorebic komorebi-bar;
+            komorebi-full = build.fullBuild;
+            default = build.fullBuild;
           };
-          default = flake-utils.lib.mkApp {
-            drv = komorebi-full;
+
+          apps = {
+            komorebi = {
+              type = "app";
+              program = "${build.komorebi}/bin/komorebi";
+            };
+            komorebic = {
+              type = "app";
+              program = "${build.komorebic}/bin/komorebic";
+            };
+            komorebi-bar = {
+              type = "app";
+              program = "${build.komorebi-bar}/bin/komorebi-bar";
+            };
+            default = {
+              type = "app";
+              program = "${build.fullBuild}/bin/komorebi";
+            };
+          };
+
+          devShells.default = import ./shell.nix {
+            inherit pkgs;
           };
         };
 
-        devShells.default = import ./shell.nix {
-          inherit pkgs;
-        };
-      }
-    )
-    // {
-      overlays.default = final: _: let
-        buildResult = komorebiBuild final.system;
-      in {
-        inherit
-          (buildResult)
-          komorebi
-          komorebic
-          komorebi-bar
-          komorebi-full
-          ;
-      };
+      flake = {
+        overlays.default =
+          final: _:
+          let
+            pkgs = mkPkgs final.system;
+            build = mkKomorebiPackages {
+              inherit pkgs;
+            };
+          in
+          {
+            inherit (build) komorebi komorebic komorebi-bar;
+            komorebi-full = build.fullBuild;
+          };
 
-      overlays.komorebi = final: _: let
-        buildResult = komorebiBuild final.system;
-      in {
-        inherit
-          (buildResult)
-          komorebi
-          komorebic
-          komorebi-bar
-          komorebi-full
-          ;
+        overlays.komorebi =
+          final: _:
+          let
+            pkgs = mkPkgs final.system;
+            build = mkKomorebiPackages {
+              inherit pkgs;
+            };
+          in
+          {
+            inherit (build) komorebi komorebic komorebi-bar;
+            komorebi-full = build.fullBuild;
+          };
       };
     };
 }
