@@ -27,6 +27,9 @@ build target:
 run target:
     cargo +stable run --bin {{ target }} --locked
 
+error target $RUST_LOG="komorebi=error":
+    just run {{ target }}
+
 warn target $RUST_LOG="komorebi=warn":
     just run {{ target }}
 

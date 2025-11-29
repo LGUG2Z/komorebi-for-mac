@@ -80,6 +80,22 @@ fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result<()>
                             });
                         }
 
+                        if let Some(container) = &mut workspace.monocle_container {
+                            container.windows_mut().retain(|w| {
+                                if w.id == window_id {
+                                    should_update = true;
+                                    tracing::info!("reaping window: {window_id}");
+                                }
+
+                                w.id != window_id
+                            });
+
+                            if container.windows().is_empty() {
+                                workspace.monocle_container = None;
+                                workspace.monocle_container_restore_idx = None;
+                            }
+                        }
+
                         workspace.floating_windows_mut().retain(|w| {
                             if w.id == window_id {
                                 should_update = true;
@@ -91,9 +107,11 @@ fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result<()>
                     }
                 }
 
-                // If an invalid window was cleaned up, we update the workspace
-                wm.update_focused_workspace(false, false)?;
-                border_manager::send_notification(None, Some(window_id));
+                if should_update {
+                    // If an invalid window was cleaned up, we update the workspace
+                    wm.update_focused_workspace(false, false)?;
+                    border_manager::send_notification(None, Some(window_id));
+                }
             }
             ReaperNotification::MouseUpKeyUp => {
                 // this first one will do a "nothing" update to check if any windows failed
