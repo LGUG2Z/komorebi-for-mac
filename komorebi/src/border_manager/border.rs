@@ -16,7 +16,9 @@ use crate::macos_api::MacosApi;
 use color_eyre::eyre;
 use dispatch2::DispatchQueue;
 use komorebi_themes::colour::Rgb;
+use objc2::rc::Retained;
 use objc2::rc::autoreleasepool;
+use objc2_app_kit::NSWindow;
 use objc2_application_services::AXObserver;
 use objc2_application_services::AXUIElement;
 use objc2_core_foundation::CFString;
@@ -157,8 +159,13 @@ impl Border {
     }
 
     pub fn destroy(&self) {
-        autoreleasepool(|_| {
-            self.ns_window.window.close();
-        })
+        let window_ptr = Retained::as_ptr(&self.ns_window.window) as usize;
+
+        DispatchQueue::main().exec_sync(|| {
+            autoreleasepool(|_| unsafe {
+                let window = window_ptr as *const NSWindow;
+                (*window).close();
+            });
+        });
     }
 }

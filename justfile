@@ -5,10 +5,9 @@ fmt:
     test -z "$(rg 'dbg!' --type rust)" || (echo "dbg! macro not allowed"; false)
     test -z "$(rg 'println!' --type rust ./komorebi)" || (echo "println! macro not allowed"; false)
     taplo fmt Cargo.toml */Cargo.toml
-    cargo +nightly fmt
     cargo +stable clippy
-    alejandra .
     prettier --write README.md
+    nix fmt
 
 fix:
     cargo clippy --fix --allow-dirty

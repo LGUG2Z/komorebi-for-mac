@@ -116,8 +116,11 @@
               deadnix.enable = true;
               just.enable = true;
               nixfmt.enable = true;
-              rustfmt.enable = true;
               taplo.enable = true;
+              rustfmt = {
+                enable = true;
+                package = pkgs.rust-bin.nightly.latest.rustfmt;
+              };
             };
           };
 
