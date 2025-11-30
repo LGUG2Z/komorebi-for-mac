@@ -39,10 +39,19 @@
             inherit src version;
             strictDeps = true;
             COMMIT_HASH = self.rev or (pkgs.lib.removeSuffix "-dirty" self.dirtyRev);
-            buildInputs = [
-              pkgs.gcc
-              pkgs.libiconv
+            nativeBuildInputs = [
+              pkgs.darwin.cctools
             ];
+            postFixup = ''
+              for bin in $out/bin/*; do
+                if [ -f "$bin" ] && [ -x "$bin" ]; then
+                  # Get all linked libraries and fix libiconv references
+                  otool -L "$bin" | grep -o '/nix/store/[^/]*/lib/libiconv[^ ]*' | while read -r lib; do
+                    install_name_tool -change "$lib" /usr/lib/libiconv.dylib "$bin"
+                  done
+                fi
+              done
+            '';
           };
 
           cargoArtifacts = craneLib.buildDepsOnly commonArgs;
@@ -101,10 +110,7 @@
       ];
 
       perSystem =
-        {
-          system,
-          ...
-        }:
+        { system, ... }:
         let
           pkgs = mkPkgs system;
           build = mkKomorebiPackages { inherit pkgs; };

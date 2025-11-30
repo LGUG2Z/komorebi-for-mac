@@ -8,16 +8,12 @@ mkShell {
   RUST_BACKTRACE = "full";
 
   buildInputs = [
-    alejandra
     cargo-deny
     cargo-nextest
     cargo-udeps
-    gcc
     jq
     just
-    libiconv
     prettier
-    taplo
 
     python311Packages.mkdocs-material
     python311Packages.mkdocs-macros
