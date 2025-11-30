@@ -173,6 +173,9 @@
         };
 
       flake = {
+        darwinModules.default = ./modules/darwin/komorebi.nix;
+        darwinModules.komorebi = ./modules/darwin/komorebi.nix;
+
         overlays.default =
           final: _:
           let
