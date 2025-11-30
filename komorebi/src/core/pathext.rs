@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::env;
 use std::ffi::OsStr;
 use std::path::Component;
 use std::path::Path;
@@ -34,6 +33,12 @@ impl<P: AsRef<Path>> PathExt for P {
                         c = OsStr::new("$Env:USERPROFILE");
                     }
 
+                    #[cfg(target_os = "macos")]
+                    // Special case for ~, replace with $HOME
+                    if c == OsStr::new("~") {
+                        c = OsStr::new("$HOME");
+                    }
+
                     let bytes = c.as_encoded_bytes();
 
                     // %LOCALAPPDATA%
@@ -60,7 +65,7 @@ impl<P: AsRef<Path>> PathExt for P {
                     // if component is a variable, get the value from the environment
                     if let Some(var) = var {
                         let var = unsafe { OsStr::from_encoded_bytes_unchecked(var) };
-                        if let Some(value) = env::var_os(var) {
+                        if let Some(value) = std::env::var_os(var) {
                             out.push(value);
                             continue;
                         }
@@ -206,6 +211,7 @@ mod tests {
             }
 
             // ~ and $HOME should be replaced with $Env:USERPROFILE
+            assert_eq!(resolve("~"), expected("/Users/user"));
             assert_eq!(resolve("$HOME"), expected("/Users/user"));
         }
     }
