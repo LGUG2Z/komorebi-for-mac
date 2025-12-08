@@ -1254,16 +1254,16 @@ fn main() -> eyre::Result<()> {
                 }
             }
         }
-        SubCommand::Splash(arg) => {
-            splash::show(arg.mdm_server)?;
+        SubCommand::Splash(args) => {
+            splash::show(args.mdm_server)?;
         }
-        SubCommand::Completions(arg) => {
+        SubCommand::Completions(args) => {
             let mut cli = Opts::command();
-            clap_complete::generate(arg.shell, &mut cli, "komorebic", &mut std::io::stdout());
+            clap_complete::generate(args.shell, &mut cli, "komorebic", &mut std::io::stdout());
         }
-        SubCommand::License(arg) => {
+        SubCommand::License(args) => {
             let _ = std::fs::remove_file(DATA_DIR.join("icul.validation"));
-            std::fs::write(DATA_DIR.join("icul"), &arg.email)?;
+            std::fs::write(DATA_DIR.join("icul"), &args.email)?;
             match splash::should()? {
                 ValidationFeedback::Successful(icul_validation) => {
                     println!("Individual commercial use license validation successful");
@@ -1276,7 +1276,7 @@ fn main() -> eyre::Result<()> {
                 ValidationFeedback::Unsuccessful(invalid_payload) => {
                     println!(
                         "No active individual commercial use license found for {}",
-                        arg.email
+                        args.email
                     );
                     println!("\n{invalid_payload}");
                     println!(
@@ -1287,7 +1287,7 @@ fn main() -> eyre::Result<()> {
                 ValidationFeedback::NoConnectivity => {
                     println!(
                         "Could not make a connection to validate an individual commercial use license for {}",
-                        arg.email
+                        args.email
                     );
                 }
             }
@@ -1522,10 +1522,10 @@ fn main() -> eyre::Result<()> {
             std::fs::remove_file(&target)?;
             println!("Deleted {}", target.display());
         }
-        SubCommand::Start(arg) => {
+        SubCommand::Start(args) => {
             let mut command = &mut Command::new("komorebi");
 
-            if let Some(config) = &arg.config {
+            if let Some(config) = &args.config {
                 command =
                     command.args(["--config", &format!("'--config=\"{}\"'", config.display())])
             };
@@ -1567,7 +1567,7 @@ fn main() -> eyre::Result<()> {
 
             if !running {
                 println!("\nRunning komorebi directly for detailed error output\n");
-                if let Some(config) = &arg.config {
+                if let Some(config) = &args.config {
                     if let Ok(output) = Command::new("komorebi")
                         .arg(format!("'--config=\"{}\"'", config.display()))
                         .output()
@@ -1581,7 +1581,7 @@ fn main() -> eyre::Result<()> {
                 return Ok(());
             }
 
-            if arg.bar {
+            if args.bar {
                 let mut command = &mut Command::new("komorebi-bar");
 
                 command = command
@@ -1630,14 +1630,14 @@ fn main() -> eyre::Result<()> {
                 "* Read the docs https://lgug2z.github.io/komorebi - Quickly search through all komorebic commands"
             );
         }
-        SubCommand::Stop(arg) => {
-            if arg.ignore_restore {
+        SubCommand::Stop(args) => {
+            if args.ignore_restore {
                 send_message(&SocketMessage::StopIgnoreRestore)?;
             } else {
                 send_message(&SocketMessage::Stop)?;
             }
 
-            if arg.bar {
+            if args.bar {
                 Command::new("pkill").arg("komorebi-bar").spawn()?;
             }
 
@@ -1674,38 +1674,38 @@ fn main() -> eyre::Result<()> {
                 println!("{line}");
             }
         }
-        SubCommand::Focus(arg) => {
-            send_message(&SocketMessage::FocusWindow(arg.operation_direction))?;
+        SubCommand::Focus(args) => {
+            send_message(&SocketMessage::FocusWindow(args.operation_direction))?;
         }
-        SubCommand::Move(arg) => {
-            send_message(&SocketMessage::MoveWindow(arg.operation_direction))?;
+        SubCommand::Move(args) => {
+            send_message(&SocketMessage::MoveWindow(args.operation_direction))?;
         }
-        SubCommand::PreselectDirection(arg) => {
-            send_message(&SocketMessage::PreselectDirection(arg.operation_direction))?;
+        SubCommand::PreselectDirection(args) => {
+            send_message(&SocketMessage::PreselectDirection(args.operation_direction))?;
         }
         SubCommand::CancelPreselect => {
             send_message(&SocketMessage::CancelPreselect)?;
         }
-        SubCommand::CycleFocus(arg) => {
-            send_message(&SocketMessage::CycleFocusWindow(arg.cycle_direction))?;
+        SubCommand::CycleFocus(args) => {
+            send_message(&SocketMessage::CycleFocusWindow(args.cycle_direction))?;
         }
-        SubCommand::CycleMove(arg) => {
-            send_message(&SocketMessage::CycleMoveWindow(arg.cycle_direction))?;
+        SubCommand::CycleMove(args) => {
+            send_message(&SocketMessage::CycleMoveWindow(args.cycle_direction))?;
         }
         SubCommand::TogglePause => {
             send_message(&SocketMessage::TogglePause)?;
         }
-        SubCommand::ChangeLayout(arg) => {
-            send_message(&SocketMessage::ChangeLayout(arg.default_layout))?;
+        SubCommand::ChangeLayout(args) => {
+            send_message(&SocketMessage::ChangeLayout(args.default_layout))?;
         }
-        SubCommand::CycleLayout(arg) => {
-            send_message(&SocketMessage::CycleLayout(arg.cycle_direction))?;
+        SubCommand::CycleLayout(args) => {
+            send_message(&SocketMessage::CycleLayout(args.cycle_direction))?;
         }
-        SubCommand::FlipLayout(arg) => {
-            send_message(&SocketMessage::FlipLayout(arg.axis))?;
+        SubCommand::FlipLayout(args) => {
+            send_message(&SocketMessage::FlipLayout(args.axis))?;
         }
-        SubCommand::Stack(arg) => {
-            send_message(&SocketMessage::StackWindow(arg.operation_direction))?;
+        SubCommand::Stack(args) => {
+            send_message(&SocketMessage::StackWindow(args.operation_direction))?;
         }
         SubCommand::StackAll => {
             send_message(&SocketMessage::StackAll)?;
@@ -1716,17 +1716,17 @@ fn main() -> eyre::Result<()> {
         SubCommand::UnstackAll => {
             send_message(&SocketMessage::UnstackAll)?;
         }
-        SubCommand::FocusStackWindow(arg) => {
-            send_message(&SocketMessage::FocusStackWindow(arg.target))?;
+        SubCommand::FocusStackWindow(args) => {
+            send_message(&SocketMessage::FocusStackWindow(args.target))?;
         }
-        SubCommand::CycleStack(arg) => {
-            send_message(&SocketMessage::CycleStack(arg.cycle_direction))?;
+        SubCommand::CycleStack(args) => {
+            send_message(&SocketMessage::CycleStack(args.cycle_direction))?;
         }
-        SubCommand::CycleStackIndex(arg) => {
-            send_message(&SocketMessage::CycleStackIndex(arg.cycle_direction))?;
+        SubCommand::CycleStackIndex(args) => {
+            send_message(&SocketMessage::CycleStackIndex(args.cycle_direction))?;
         }
-        SubCommand::FocusWorkspace(arg) => {
-            send_message(&SocketMessage::FocusWorkspaceNumber(arg.target))?;
+        SubCommand::FocusWorkspace(args) => {
+            send_message(&SocketMessage::FocusWorkspaceNumber(args.target))?;
         }
         SubCommand::ToggleMonocle => {
             send_message(&SocketMessage::ToggleMonocle)?;
@@ -1737,11 +1737,11 @@ fn main() -> eyre::Result<()> {
         SubCommand::ToggleWorkspaceLayer => {
             send_message(&SocketMessage::ToggleWorkspaceLayer)?;
         }
-        SubCommand::ResizeEdge(arg) => {
-            send_message(&SocketMessage::ResizeWindowEdge(arg.edge, arg.sizing))?;
+        SubCommand::ResizeEdge(args) => {
+            send_message(&SocketMessage::ResizeWindowEdge(args.edge, args.sizing))?;
         }
-        SubCommand::ResizeAxis(arg) => {
-            send_message(&SocketMessage::ResizeWindowAxis(arg.axis, arg.sizing))?;
+        SubCommand::ResizeAxis(args) => {
+            send_message(&SocketMessage::ResizeWindowAxis(args.axis, args.sizing))?;
         }
         SubCommand::Retile => {
             send_message(&SocketMessage::Retile)?;
@@ -1767,8 +1767,8 @@ fn main() -> eyre::Result<()> {
         SubCommand::PromoteFocus => {
             send_message(&SocketMessage::PromoteFocus)?;
         }
-        SubCommand::PromoteWindow(arg) => {
-            send_message(&SocketMessage::PromoteWindow(arg.operation_direction))?;
+        SubCommand::PromoteWindow(args) => {
+            send_message(&SocketMessage::PromoteWindow(args.operation_direction))?;
         }
         SubCommand::ToggleWindowBasedWorkAreaOffset => {
             send_message(&SocketMessage::ToggleWindowBasedWorkAreaOffset)?;
@@ -1794,8 +1794,8 @@ fn main() -> eyre::Result<()> {
         SubCommand::ToggleCrossMonitorMoveBehaviour => {
             send_message(&SocketMessage::ToggleCrossMonitorMoveBehaviour)?;
         }
-        SubCommand::FocusMonitor(arg) => {
-            send_message(&SocketMessage::FocusMonitorNumber(arg.target))?;
+        SubCommand::FocusMonitor(args) => {
+            send_message(&SocketMessage::FocusMonitorNumber(args.target))?;
         }
         SubCommand::FocusMonitorAtCursor => {
             send_message(&SocketMessage::FocusMonitorAtCursor)?;
@@ -1803,88 +1803,92 @@ fn main() -> eyre::Result<()> {
         SubCommand::FocusLastWorkspace => {
             send_message(&SocketMessage::FocusLastWorkspace)?;
         }
-        SubCommand::FocusWorkspaces(arg) => {
-            send_message(&SocketMessage::FocusWorkspaceNumbers(arg.target))?;
+        SubCommand::FocusWorkspaces(args) => {
+            send_message(&SocketMessage::FocusWorkspaceNumbers(args.target))?;
         }
-        SubCommand::FocusMonitorWorkspace(arg) => {
+        SubCommand::FocusMonitorWorkspace(args) => {
             send_message(&SocketMessage::FocusMonitorWorkspaceNumber(
-                arg.target_monitor,
-                arg.target_workspace,
+                args.target_monitor,
+                args.target_workspace,
             ))?;
         }
-        SubCommand::FocusNamedWorkspace(arg) => {
-            send_message(&SocketMessage::FocusNamedWorkspace(arg.workspace))?;
+        SubCommand::FocusNamedWorkspace(args) => {
+            send_message(&SocketMessage::FocusNamedWorkspace(args.workspace))?;
         }
         SubCommand::CloseWorkspace => {
             send_message(&SocketMessage::CloseWorkspace)?;
         }
-        SubCommand::CycleMonitor(arg) => {
-            send_message(&SocketMessage::CycleFocusMonitor(arg.cycle_direction))?;
+        SubCommand::CycleMonitor(args) => {
+            send_message(&SocketMessage::CycleFocusMonitor(args.cycle_direction))?;
         }
-        SubCommand::CycleWorkspace(arg) => {
-            send_message(&SocketMessage::CycleFocusWorkspace(arg.cycle_direction))?;
+        SubCommand::CycleWorkspace(args) => {
+            send_message(&SocketMessage::CycleFocusWorkspace(args.cycle_direction))?;
         }
-        SubCommand::CycleEmptyWorkspace(arg) => {
+        SubCommand::CycleEmptyWorkspace(args) => {
             send_message(&SocketMessage::CycleFocusEmptyWorkspace(
-                arg.cycle_direction,
+                args.cycle_direction,
             ))?;
         }
-        SubCommand::MoveToMonitor(arg) => {
-            send_message(&SocketMessage::MoveContainerToMonitorNumber(arg.target))?;
+        SubCommand::MoveToMonitor(args) => {
+            send_message(&SocketMessage::MoveContainerToMonitorNumber(args.target))?;
         }
-        SubCommand::CycleMoveToMonitor(arg) => {
+        SubCommand::CycleMoveToMonitor(args) => {
             send_message(&SocketMessage::CycleMoveContainerToMonitor(
-                arg.cycle_direction,
+                args.cycle_direction,
             ))?;
         }
-        SubCommand::MoveToWorkspace(arg) => {
-            send_message(&SocketMessage::MoveContainerToWorkspaceNumber(arg.target))?;
+        SubCommand::MoveToWorkspace(args) => {
+            send_message(&SocketMessage::MoveContainerToWorkspaceNumber(args.target))?;
         }
-        SubCommand::MoveToNamedWorkspace(arg) => {
-            send_message(&SocketMessage::MoveContainerToNamedWorkspace(arg.workspace))?;
+        SubCommand::MoveToNamedWorkspace(args) => {
+            send_message(&SocketMessage::MoveContainerToNamedWorkspace(
+                args.workspace,
+            ))?;
         }
-        SubCommand::CycleMoveToWorkspace(arg) => {
+        SubCommand::CycleMoveToWorkspace(args) => {
             send_message(&SocketMessage::CycleMoveContainerToWorkspace(
-                arg.cycle_direction,
+                args.cycle_direction,
             ))?;
         }
-        SubCommand::SendToMonitor(arg) => {
-            send_message(&SocketMessage::SendContainerToMonitorNumber(arg.target))?;
+        SubCommand::SendToMonitor(args) => {
+            send_message(&SocketMessage::SendContainerToMonitorNumber(args.target))?;
         }
-        SubCommand::CycleSendToMonitor(arg) => {
+        SubCommand::CycleSendToMonitor(args) => {
             send_message(&SocketMessage::CycleSendContainerToMonitor(
-                arg.cycle_direction,
+                args.cycle_direction,
             ))?;
         }
-        SubCommand::SendToWorkspace(arg) => {
-            send_message(&SocketMessage::SendContainerToWorkspaceNumber(arg.target))?;
+        SubCommand::SendToWorkspace(args) => {
+            send_message(&SocketMessage::SendContainerToWorkspaceNumber(args.target))?;
         }
-        SubCommand::SendToNamedWorkspace(arg) => {
-            send_message(&SocketMessage::SendContainerToNamedWorkspace(arg.workspace))?;
+        SubCommand::SendToNamedWorkspace(args) => {
+            send_message(&SocketMessage::SendContainerToNamedWorkspace(
+                args.workspace,
+            ))?;
         }
-        SubCommand::CycleSendToWorkspace(arg) => {
+        SubCommand::CycleSendToWorkspace(args) => {
             send_message(&SocketMessage::CycleSendContainerToWorkspace(
-                arg.cycle_direction,
+                args.cycle_direction,
             ))?;
         }
-        SubCommand::SendToMonitorWorkspace(arg) => {
+        SubCommand::SendToMonitorWorkspace(args) => {
             send_message(&SocketMessage::SendContainerToMonitorWorkspaceNumber(
-                arg.target_monitor,
-                arg.target_workspace,
+                args.target_monitor,
+                args.target_workspace,
             ))?;
         }
-        SubCommand::MoveToMonitorWorkspace(arg) => {
+        SubCommand::MoveToMonitorWorkspace(args) => {
             send_message(&SocketMessage::MoveContainerToMonitorWorkspaceNumber(
-                arg.target_monitor,
-                arg.target_workspace,
+                args.target_monitor,
+                args.target_workspace,
             ))?;
         }
-        SubCommand::MoveWorkspaceToMonitor(arg) => {
-            send_message(&SocketMessage::MoveWorkspaceToMonitorNumber(arg.target))?;
+        SubCommand::MoveWorkspaceToMonitor(args) => {
+            send_message(&SocketMessage::MoveWorkspaceToMonitorNumber(args.target))?;
         }
-        SubCommand::CycleMoveWorkspaceToMonitor(arg) => {
+        SubCommand::CycleMoveWorkspaceToMonitor(args) => {
             send_message(&SocketMessage::CycleMoveWorkspaceToMonitor(
-                arg.cycle_direction,
+                args.cycle_direction,
             ))?;
         }
         SubCommand::MoveToLastWorkspace => {
@@ -1893,8 +1897,8 @@ fn main() -> eyre::Result<()> {
         SubCommand::SendToLastWorkspace => {
             send_message(&SocketMessage::SendContainerToLastWorkspace)?;
         }
-        SubCommand::SwapWorkspacesWithMonitor(arg) => {
-            send_message(&SocketMessage::SwapWorkspacesToMonitorNumber(arg.target))?;
+        SubCommand::SwapWorkspacesWithMonitor(args) => {
+            send_message(&SocketMessage::SwapWorkspacesToMonitorNumber(args.target))?;
         }
         SubCommand::State => {
             print_query(&SocketMessage::State);
@@ -1902,8 +1906,8 @@ fn main() -> eyre::Result<()> {
         SubCommand::GlobalState => {
             print_query(&SocketMessage::GlobalState);
         }
-        SubCommand::Query(arg) => {
-            print_query(&SocketMessage::Query(arg.state_query));
+        SubCommand::Query(args) => {
+            print_query(&SocketMessage::Query(args.state_query));
         }
         SubCommand::VisibleWindows => {
             print_query(&SocketMessage::VisibleWindows);
@@ -1942,50 +1946,50 @@ fn main() -> eyre::Result<()> {
         SubCommand::ClearSessionFloatRules => {
             send_message(&SocketMessage::ClearSessionFloatRules)?;
         }
-        SubCommand::IgnoreRule(arg) => {
-            send_message(&SocketMessage::IgnoreRule(arg.identifier, arg.id))?;
+        SubCommand::IgnoreRule(args) => {
+            send_message(&SocketMessage::IgnoreRule(args.identifier, args.id))?;
         }
-        SubCommand::ManageRule(arg) => {
-            send_message(&SocketMessage::ManageRule(arg.identifier, arg.id))?;
+        SubCommand::ManageRule(args) => {
+            send_message(&SocketMessage::ManageRule(args.identifier, args.id))?;
         }
-        SubCommand::InitialWorkspaceRule(arg) => {
+        SubCommand::InitialWorkspaceRule(args) => {
             send_message(&SocketMessage::InitialWorkspaceRule(
-                arg.identifier,
-                arg.id,
-                arg.monitor,
-                arg.workspace,
+                args.identifier,
+                args.id,
+                args.monitor,
+                args.workspace,
             ))?;
         }
-        SubCommand::InitialNamedWorkspaceRule(arg) => {
+        SubCommand::InitialNamedWorkspaceRule(args) => {
             send_message(&SocketMessage::InitialNamedWorkspaceRule(
-                arg.identifier,
-                arg.id,
-                arg.workspace,
+                args.identifier,
+                args.id,
+                args.workspace,
             ))?;
         }
-        SubCommand::WorkspaceRule(arg) => {
+        SubCommand::WorkspaceRule(args) => {
             send_message(&SocketMessage::WorkspaceRule(
-                arg.identifier,
-                arg.id,
-                arg.monitor,
-                arg.workspace,
+                args.identifier,
+                args.id,
+                args.monitor,
+                args.workspace,
             ))?;
         }
-        SubCommand::NamedWorkspaceRule(arg) => {
+        SubCommand::NamedWorkspaceRule(args) => {
             send_message(&SocketMessage::NamedWorkspaceRule(
-                arg.identifier,
-                arg.id,
-                arg.workspace,
+                args.identifier,
+                args.id,
+                args.workspace,
             ))?;
         }
-        SubCommand::ClearWorkspaceRules(arg) => {
+        SubCommand::ClearWorkspaceRules(args) => {
             send_message(&SocketMessage::ClearWorkspaceRules(
-                arg.monitor,
-                arg.workspace,
+                args.monitor,
+                args.workspace,
             ))?;
         }
-        SubCommand::ClearNamedWorkspaceRules(arg) => {
-            send_message(&SocketMessage::ClearNamedWorkspaceRules(arg.workspace))?;
+        SubCommand::ClearNamedWorkspaceRules(args) => {
+            send_message(&SocketMessage::ClearNamedWorkspaceRules(args.workspace))?;
         }
         SubCommand::ClearAllWorkspaceRules => {
             send_message(&SocketMessage::ClearAllWorkspaceRules)?;
@@ -1993,8 +1997,8 @@ fn main() -> eyre::Result<()> {
         SubCommand::EnforceWorkspaceRules => {
             send_message(&SocketMessage::EnforceWorkspaceRules)?;
         }
-        SubCommand::EagerFocus(arg) => {
-            send_message(&SocketMessage::EagerFocus(arg.exe))?;
+        SubCommand::EagerFocus(args) => {
+            send_message(&SocketMessage::EagerFocus(args.exe))?;
         }
         SubCommand::NewWorkspace => {
             send_message(&SocketMessage::NewWorkspace)?;
@@ -2006,124 +2010,124 @@ fn main() -> eyre::Result<()> {
                 name.value,
             ))?;
         }
-        SubCommand::ResizeDelta(arg) => {
-            send_message(&SocketMessage::ResizeDelta(arg.pixels))?;
+        SubCommand::ResizeDelta(args) => {
+            send_message(&SocketMessage::ResizeDelta(args.pixels))?;
         }
-        SubCommand::MonitorWorkAreaOffset(arg) => {
+        SubCommand::MonitorWorkAreaOffset(args) => {
             send_message(&SocketMessage::MonitorWorkAreaOffset(
-                arg.monitor,
+                args.monitor,
                 Rect {
-                    left: arg.left,
-                    top: arg.top,
-                    right: arg.right,
-                    bottom: arg.bottom,
+                    left: args.left,
+                    top: args.top,
+                    right: args.right,
+                    bottom: args.bottom,
                 },
             ))?;
         }
-        SubCommand::GlobalWorkAreaOffset(arg) => {
+        SubCommand::GlobalWorkAreaOffset(args) => {
             send_message(&SocketMessage::WorkAreaOffset(Rect {
-                left: arg.left,
-                top: arg.top,
-                right: arg.right,
-                bottom: arg.bottom,
+                left: args.left,
+                top: args.top,
+                right: args.right,
+                bottom: args.bottom,
             }))?;
         }
 
-        SubCommand::WorkspaceWorkAreaOffset(arg) => {
+        SubCommand::WorkspaceWorkAreaOffset(args) => {
             send_message(&SocketMessage::WorkspaceWorkAreaOffset(
-                arg.monitor,
-                arg.workspace,
+                args.monitor,
+                args.workspace,
                 Rect {
-                    left: arg.left,
-                    top: arg.top,
-                    right: arg.right,
-                    bottom: arg.bottom,
+                    left: args.left,
+                    top: args.top,
+                    right: args.right,
+                    bottom: args.bottom,
                 },
             ))?;
         }
-        SubCommand::ContainerPadding(arg) => {
+        SubCommand::ContainerPadding(args) => {
             send_message(&SocketMessage::ContainerPadding(
-                arg.monitor,
-                arg.workspace,
-                arg.size,
+                args.monitor,
+                args.workspace,
+                args.size,
             ))?;
         }
-        SubCommand::NamedWorkspaceContainerPadding(arg) => {
+        SubCommand::NamedWorkspaceContainerPadding(args) => {
             send_message(&SocketMessage::NamedWorkspaceContainerPadding(
-                arg.workspace,
-                arg.size,
+                args.workspace,
+                args.size,
             ))?;
         }
-        SubCommand::WorkspacePadding(arg) => {
+        SubCommand::WorkspacePadding(args) => {
             send_message(&SocketMessage::WorkspacePadding(
-                arg.monitor,
-                arg.workspace,
-                arg.size,
+                args.monitor,
+                args.workspace,
+                args.size,
             ))?;
         }
-        SubCommand::NamedWorkspacePadding(arg) => {
+        SubCommand::NamedWorkspacePadding(args) => {
             send_message(&SocketMessage::NamedWorkspacePadding(
-                arg.workspace,
-                arg.size,
+                args.workspace,
+                args.size,
             ))?;
         }
-        SubCommand::FocusedWorkspacePadding(arg) => {
-            send_message(&SocketMessage::FocusedWorkspacePadding(arg.size))?;
+        SubCommand::FocusedWorkspacePadding(args) => {
+            send_message(&SocketMessage::FocusedWorkspacePadding(args.size))?;
         }
-        SubCommand::FocusedWorkspaceContainerPadding(arg) => {
-            send_message(&SocketMessage::FocusedWorkspaceContainerPadding(arg.size))?;
+        SubCommand::FocusedWorkspaceContainerPadding(args) => {
+            send_message(&SocketMessage::FocusedWorkspaceContainerPadding(args.size))?;
         }
-        SubCommand::AdjustWorkspacePadding(arg) => {
+        SubCommand::AdjustWorkspacePadding(args) => {
             send_message(&SocketMessage::AdjustWorkspacePadding(
-                arg.sizing,
-                arg.adjustment,
+                args.sizing,
+                args.adjustment,
             ))?;
         }
-        SubCommand::AdjustContainerPadding(arg) => {
+        SubCommand::AdjustContainerPadding(args) => {
             send_message(&SocketMessage::AdjustContainerPadding(
-                arg.sizing,
-                arg.adjustment,
+                args.sizing,
+                args.adjustment,
             ))?;
         }
-        SubCommand::WorkspaceLayout(arg) => {
+        SubCommand::WorkspaceLayout(args) => {
             send_message(&SocketMessage::WorkspaceLayout(
-                arg.monitor,
-                arg.workspace,
-                arg.value,
+                args.monitor,
+                args.workspace,
+                args.value,
             ))?;
         }
-        SubCommand::NamedWorkspaceLayout(arg) => {
+        SubCommand::NamedWorkspaceLayout(args) => {
             send_message(&SocketMessage::NamedWorkspaceLayout(
-                arg.workspace,
-                arg.value,
+                args.workspace,
+                args.value,
             ))?;
         }
 
-        SubCommand::WorkspaceTiling(arg) => {
+        SubCommand::WorkspaceTiling(args) => {
             send_message(&SocketMessage::WorkspaceTiling(
-                arg.monitor,
-                arg.workspace,
-                arg.value.into(),
+                args.monitor,
+                args.workspace,
+                args.value.into(),
             ))?;
         }
-        SubCommand::NamedWorkspaceTiling(arg) => {
+        SubCommand::NamedWorkspaceTiling(args) => {
             send_message(&SocketMessage::NamedWorkspaceTiling(
-                arg.workspace,
-                arg.value.into(),
+                args.workspace,
+                args.value.into(),
             ))?;
         }
-        SubCommand::ScrollingLayoutColumns(arg) => {
-            send_message(&SocketMessage::ScrollingLayoutColumns(arg.count))?;
+        SubCommand::ScrollingLayoutColumns(args) => {
+            send_message(&SocketMessage::ScrollingLayoutColumns(args.count))?;
         }
-        SubCommand::ClearWorkspaceLayoutRules(arg) => {
+        SubCommand::ClearWorkspaceLayoutRules(args) => {
             send_message(&SocketMessage::ClearWorkspaceLayoutRules(
-                arg.monitor,
-                arg.workspace,
+                args.monitor,
+                args.workspace,
             ))?;
         }
-        SubCommand::ClearNamedWorkspaceLayoutRules(arg) => {
+        SubCommand::ClearNamedWorkspaceLayoutRules(args) => {
             send_message(&SocketMessage::ClearNamedWorkspaceLayoutRules(
-                arg.workspace,
+                args.workspace,
             ))?;
         }
         SubCommand::EnsureWorkspaces(workspaces) => {
@@ -2132,42 +2136,42 @@ fn main() -> eyre::Result<()> {
                 workspaces.workspace_count,
             ))?;
         }
-        SubCommand::EnsureNamedWorkspaces(arg) => {
+        SubCommand::EnsureNamedWorkspaces(args) => {
             send_message(&SocketMessage::EnsureNamedWorkspaces(
-                arg.monitor,
-                arg.names,
+                args.monitor,
+                args.names,
             ))?;
         }
-        SubCommand::WorkspaceLayoutRule(arg) => {
+        SubCommand::WorkspaceLayoutRule(args) => {
             send_message(&SocketMessage::WorkspaceLayoutRule(
-                arg.monitor,
-                arg.workspace,
-                arg.at_container_count,
-                arg.layout,
+                args.monitor,
+                args.workspace,
+                args.at_container_count,
+                args.layout,
             ))?;
         }
-        SubCommand::NamedWorkspaceLayoutRule(arg) => {
+        SubCommand::NamedWorkspaceLayoutRule(args) => {
             send_message(&SocketMessage::NamedWorkspaceLayoutRule(
-                arg.workspace,
-                arg.at_container_count,
-                arg.layout,
+                args.workspace,
+                args.at_container_count,
+                args.layout,
             ))?;
         }
-        SubCommand::CrossMonitorMoveBehaviour(arg) => {
+        SubCommand::CrossMonitorMoveBehaviour(args) => {
             send_message(&SocketMessage::CrossMonitorMoveBehaviour(
-                arg.move_behaviour,
+                args.move_behaviour,
             ))?;
         }
-        SubCommand::UnmanagedWindowOperationBehaviour(arg) => {
+        SubCommand::UnmanagedWindowOperationBehaviour(args) => {
             send_message(&SocketMessage::UnmanagedWindowOperationBehaviour(
-                arg.operation_behaviour,
+                args.operation_behaviour,
             ))?;
         }
         SubCommand::ToggleMouseFollowsFocus => {
             send_message(&SocketMessage::ToggleMouseFollowsFocus)?;
         }
-        SubCommand::MouseFollowsFocus(arg) => {
-            send_message(&SocketMessage::MouseFollowsFocus(arg.boolean_state.into()))?;
+        SubCommand::MouseFollowsFocus(args) => {
+            send_message(&SocketMessage::MouseFollowsFocus(args.boolean_state.into()))?;
         }
         SubCommand::ApplicationSpecificConfigurationSchema => {
             #[cfg(feature = "schemars")]
@@ -2209,11 +2213,11 @@ fn main() -> eyre::Result<()> {
                 println!("{schema}");
             }
         }
-        SubCommand::SubscribeSocket(arg) => {
-            send_message(&SocketMessage::AddSubscriberSocket(arg.socket))?;
+        SubCommand::SubscribeSocket(args) => {
+            send_message(&SocketMessage::AddSubscriberSocket(args.socket))?;
         }
-        SubCommand::UnsubscribeSocket(arg) => {
-            send_message(&SocketMessage::RemoveSubscriberSocket(arg.socket))?;
+        SubCommand::UnsubscribeSocket(args) => {
+            send_message(&SocketMessage::RemoveSubscriberSocket(args.socket))?;
         }
         SubCommand::GenerateStaticConfig => {
             print_query(&SocketMessage::GenerateStaticConfig);
@@ -2224,37 +2228,37 @@ fn main() -> eyre::Result<()> {
         SubCommand::QuickLoadResize => {
             send_message(&SocketMessage::QuickLoad)?;
         }
-        SubCommand::SaveResize(arg) => {
-            send_message(&SocketMessage::Save(arg.path))?;
+        SubCommand::SaveResize(args) => {
+            send_message(&SocketMessage::Save(args.path))?;
         }
-        SubCommand::LoadResize(arg) => {
-            send_message(&SocketMessage::Load(arg.path))?;
+        SubCommand::LoadResize(args) => {
+            send_message(&SocketMessage::Load(args.path))?;
         }
-        SubCommand::DisplayIndexPreference(arg) => {
+        SubCommand::DisplayIndexPreference(args) => {
             send_message(&SocketMessage::DisplayIndexPreference(
-                arg.index_preference,
-                arg.display,
+                args.index_preference,
+                args.display,
             ))?;
         }
-        SubCommand::ReplaceConfiguration(arg) => {
-            send_message(&SocketMessage::ReplaceConfiguration(arg.path))?;
+        SubCommand::ReplaceConfiguration(args) => {
+            send_message(&SocketMessage::ReplaceConfiguration(args.path))?;
         }
-        SubCommand::Border(arg) => {
-            send_message(&SocketMessage::Border(arg.boolean_state.into()))?;
+        SubCommand::Border(args) => {
+            send_message(&SocketMessage::Border(args.boolean_state.into()))?;
         }
-        SubCommand::BorderColour(arg) => {
+        SubCommand::BorderColour(args) => {
             send_message(&SocketMessage::BorderColour(
-                arg.window_kind,
-                arg.r,
-                arg.g,
-                arg.b,
+                args.window_kind,
+                args.r,
+                args.g,
+                args.b,
             ))?;
         }
-        SubCommand::BorderWidth(arg) => {
-            send_message(&SocketMessage::BorderWidth(arg.width))?;
+        SubCommand::BorderWidth(args) => {
+            send_message(&SocketMessage::BorderWidth(args.width))?;
         }
-        SubCommand::BorderOffset(arg) => {
-            send_message(&SocketMessage::BorderOffset(arg.offset))?;
+        SubCommand::BorderOffset(args) => {
+            send_message(&SocketMessage::BorderOffset(args.offset))?;
         }
     }
 
