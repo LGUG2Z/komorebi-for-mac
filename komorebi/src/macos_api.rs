@@ -182,15 +182,16 @@ impl MacosApi {
         let all_devices = Self::latest_monitor_information()?;
         for device in all_devices {
             for monitor in wm.monitors_mut() {
-                if monitor.id == device.id {
+                if monitor.serial_number_id == device.serial_number_id {
+                    monitor.id = device.id;
                     monitor.size = device.size;
                     monitor.work_area_size = device.work_area_size;
-                }
 
-                tracing::info!(
-                    "updated monitor size and work area for monitor {}",
-                    monitor.serial_number_id
-                );
+                    tracing::info!(
+                        "updated monitor size and work area for monitor {}",
+                        monitor.serial_number_id
+                    );
+                }
             }
 
             let focus_follows_mouse = wm.mouse_follows_focus;

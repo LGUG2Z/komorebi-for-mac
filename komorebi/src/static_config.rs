@@ -5,6 +5,7 @@ use crate::DEFAULT_WORKSPACE_PADDING;
 use crate::DISPLAY_INDEX_PREFERENCES;
 use crate::FLOATING_APPLICATIONS;
 use crate::FLOATING_WINDOW_TOGGLE_ASPECT_RATIO;
+use crate::HOME_DIR;
 use crate::IGNORE_IDENTIFIERS;
 use crate::MANAGE_IDENTIFIERS;
 use crate::REGEX_IDENTIFIERS;
@@ -1557,6 +1558,84 @@ impl StaticConfig {
 
         // to update the borders
         wm.retile_all(true)?;
+
+        Ok(())
+    }
+
+    pub fn apply_config_for_monitor(
+        monitor: &mut Monitor,
+        monitor_index: usize,
+        offset: Option<Rect>,
+    ) -> eyre::Result<()> {
+        let config_path = HOME_DIR.join("komorebi.json");
+        if !config_path.exists() {
+            return Ok(());
+        }
+
+        let mut value = Self::read(&config_path)?;
+
+        let preferred_config_idx = {
+            let display_index_preferences = DISPLAY_INDEX_PREFERENCES.read();
+            display_index_preferences.iter().find_map(|(c_idx, id)| {
+                if monitor.serial_number_id.eq(id) {
+                    Some(*c_idx)
+                } else {
+                    None
+                }
+            })
+        };
+
+        if let Some(idx) = preferred_config_idx {
+            if let Some(monitor_config) = value.monitors.as_mut().and_then(|ms| ms.get_mut(idx)) {
+                monitor.ensure_workspace_count(monitor_config.workspaces.len());
+                monitor.work_area_offset = monitor_config.work_area_offset;
+                monitor.window_based_work_area_offset =
+                    monitor_config.window_based_work_area_offset;
+                monitor.window_based_work_area_offset_limit = monitor_config
+                    .window_based_work_area_offset_limit
+                    .unwrap_or(1);
+                monitor.container_padding = monitor_config.container_padding;
+                monitor.workspace_padding = monitor_config.workspace_padding;
+                monitor.wallpaper = monitor_config.wallpaper.clone();
+                monitor.floating_layer_behaviour = monitor_config.floating_layer_behaviour;
+                monitor.window_hiding_position =
+                    monitor_config.window_hiding_position.unwrap_or_default();
+
+                monitor.update_workspaces_globals(offset);
+                for (j, ws) in monitor.workspaces_mut().iter_mut().enumerate() {
+                    if let Some(workspace_config) = monitor_config.workspaces.get_mut(j) {
+                        ws.load_static_config(workspace_config)?;
+                    }
+                }
+
+                // NOTE: Do not call insert_in_monitor_cache here - caller handles caching
+
+                let mut workspace_matching_rules = WORKSPACE_MATCHING_RULES.lock();
+                for (j, ws) in monitor_config.workspaces.iter().enumerate() {
+                    if let Some(rules) = &ws.workspace_rules {
+                        for r in rules {
+                            workspace_matching_rules.push(WorkspaceMatchingRule {
+                                monitor_index,
+                                workspace_index: j,
+                                matching_rule: r.clone(),
+                                initial_only: false,
+                            });
+                        }
+                    }
+
+                    if let Some(rules) = &ws.initial_workspace_rules {
+                        for r in rules {
+                            workspace_matching_rules.push(WorkspaceMatchingRule {
+                                monitor_index,
+                                workspace_index: j,
+                                matching_rule: r.clone(),
+                                initial_only: true,
+                            });
+                        }
+                    }
+                }
+            }
+        }
 
         Ok(())
     }

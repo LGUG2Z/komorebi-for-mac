@@ -8,6 +8,7 @@ use crate::macos_api::MacosApi;
 use crate::monitor::Monitor;
 use crate::notify_subscribers;
 use crate::state::State;
+use crate::static_config::StaticConfig;
 use crate::window_manager::WindowManager;
 use crossbeam_channel::Receiver;
 use crossbeam_channel::Sender;
@@ -143,11 +144,26 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                     }
                 }
 
-                if initial_monitor_count == attached_devices.len() {
-                    tracing::debug!("monitor counts match, reconciliation not required");
+                // Check if the monitors in state actually match the attached devices
+                let state_serial_ids: std::collections::HashSet<_> =
+                    wm.monitors().iter().map(|m| &m.serial_number_id).collect();
+
+                let attached_serial_ids: std::collections::HashSet<_> = attached_devices
+                    .iter()
+                    .map(|d| &d.serial_number_id)
+                    .collect();
+
+                if state_serial_ids == attached_serial_ids {
+                    tracing::debug!("monitor serial IDs match, reconciliation not required");
                     drop(wm);
                     continue 'receiver;
                 }
+
+                // if initial_monitor_count == attached_devices.len() {
+                //     tracing::debug!("monitor counts match, reconciliation not required");
+                //     drop(wm);
+                //     continue 'receiver;
+                // }
 
                 if attached_devices.is_empty() {
                     tracing::debug!(
@@ -526,6 +542,34 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                             // Entries in the cache should only be used once; remove the entry there was a cache hit
                             if cache_hit && !cached_id.is_empty() {
                                 monitor_cache.remove(&cached_id);
+                            } else {
+                                // No cache hit - apply static config from komorebi.json
+                                tracing::info!(
+                                    "no cache entry for monitor {}, applying static configuration",
+                                    serial_id
+                                );
+                                if let Err(error) =
+                                    StaticConfig::apply_config_for_monitor(m, i, offset)
+                                {
+                                    tracing::warn!(
+                                        "failed to apply static config for monitor: {error}"
+                                    );
+                                } else {
+                                    // Cache the configured monitor using the already-held lock
+                                    let display_index_preferences =
+                                        DISPLAY_INDEX_PREFERENCES.read();
+                                    let preferred_id = if display_index_preferences
+                                        .values()
+                                        .any(|id| m.serial_number_id.eq(id))
+                                    {
+                                        m.serial_number_id.clone()
+                                    } else {
+                                        serial_id.clone()
+                                    };
+                                    monitor_cache.insert(preferred_id, m.clone());
+                                }
+                                m.load_focused_workspace(mouse_follows_focus)?;
+                                m.update_focused_workspace(offset)?;
                             }
                         }
                     }
