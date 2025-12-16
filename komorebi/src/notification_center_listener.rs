@@ -78,23 +78,51 @@ define_class! {
                     tracing::debug!("notification: {}, process: {process_id}", notif.name());
                     match AppKitWorkspaceNotification::from_str(&notif.name().to_string()) {
                         Ok(AppKitWorkspaceNotification::NSWorkspaceDidActivateApplicationNotification) => {
-                            if application.is_some_and(|app| app.name().unwrap_or_default() == "loginwindow") {
-                                window_manager_event_listener::send_notification(
-                                    WindowManagerEvent::ScreenLock(
-                                        SystemNotification::AppKitWorkspace(AppKitWorkspaceNotification::NSWorkspaceDidDeactivateApplicationNotification),
-                                        process_id
-                                    )
-                                );
+                            if let Some(app) = &application {
+                                match app.name().unwrap_or_default().as_str() {
+                                    "loginwindow" => {
+                                        window_manager_event_listener::send_notification(
+                                            WindowManagerEvent::ScreenLock(
+                                                SystemNotification::AppKitWorkspace(AppKitWorkspaceNotification::NSWorkspaceDidActivateApplicationNotification),
+                                                process_id
+                                            )
+                                        );
+                                    }
+                                    app if !app.is_empty() => {
+                                        if let Some(event) = WindowManagerEvent::from_system_notification(
+                                            SystemNotification::AppKitWorkspace(AppKitWorkspaceNotification::NSWorkspaceDidActivateApplicationNotification),
+                                            process_id,
+                                            window_id,
+                                        ) {
+                                            window_manager_event_listener::send_notification(event);
+                                        }
+                                    }
+                                    _ => {},
+                                }
                             }
                         }
                         Ok(AppKitWorkspaceNotification::NSWorkspaceDidDeactivateApplicationNotification) => {
-                            if application.is_some_and(|app| app.name().unwrap_or_default() == "loginwindow") {
-                                window_manager_event_listener::send_notification(
-                                    WindowManagerEvent::ScreenUnlock(
-                                        SystemNotification::AppKitWorkspace(AppKitWorkspaceNotification::NSWorkspaceDidDeactivateApplicationNotification),
-                                        process_id
-                                    )
-                                );
+                            if let Some(app) = &application {
+                                match app.name().unwrap_or_default().as_str() {
+                                    "loginwindow" => {
+                                        window_manager_event_listener::send_notification(
+                                            WindowManagerEvent::ScreenUnlock(
+                                                SystemNotification::AppKitWorkspace(AppKitWorkspaceNotification::NSWorkspaceDidDeactivateApplicationNotification),
+                                                process_id
+                                            )
+                                        );
+                                    }
+                                    app if !app.is_empty() => {
+                                        if let Some(event) = WindowManagerEvent::from_system_notification(
+                                            SystemNotification::AppKitWorkspace(AppKitWorkspaceNotification::NSWorkspaceDidDeactivateApplicationNotification),
+                                            process_id,
+                                            window_id,
+                                        ) {
+                                            window_manager_event_listener::send_notification(event);
+                                        }
+                                    }
+                                    _ => {},
+                                }
                             }
                         }
                         Ok(notification) => {

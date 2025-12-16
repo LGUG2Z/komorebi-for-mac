@@ -569,7 +569,7 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
             )?;
         }
 
-        border_manager::send_notification(None, None);
+        border_manager::send_notification(None, None, false);
     }
 
     Ok(())

@@ -114,7 +114,7 @@ impl WindowManager {
             && let Some(current_space_id) = current_space_id()
         {
             if *space_id == current_space_id {
-                border_manager::send_notification(None, None);
+                border_manager::send_notification(None, None, false);
             } else {
                 border_manager::destroy_all_borders()?;
             }
@@ -976,7 +976,7 @@ impl WindowManager {
             initial_state.has_been_modified(self.as_ref()),
         )?;
 
-        border_manager::send_notification(window_element, window_id);
+        border_manager::send_notification(window_element, window_id, false);
 
         Ok(())
     }

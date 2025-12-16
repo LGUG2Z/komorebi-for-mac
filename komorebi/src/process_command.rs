@@ -1757,7 +1757,7 @@ impl WindowManager {
             initial_state.has_been_modified(self.as_ref()),
         )?;
 
-        border_manager::send_notification(None, None);
+        border_manager::send_notification(None, None, false);
 
         if matches!(message, SocketMessage::Theme(_)) {
             tracing::trace!("processed command: {message}");

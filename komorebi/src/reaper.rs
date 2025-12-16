@@ -107,10 +107,11 @@ fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result<()>
                     }
                 }
 
+                // If an invalid window was cleaned up, we update the workspace
                 if should_update {
                     // If an invalid window was cleaned up, we update the workspace
                     wm.update_focused_workspace(false, false)?;
-                    border_manager::send_notification(None, Some(window_id));
+                    border_manager::send_notification(None, Some(window_id), true);
                 }
             }
             ReaperNotification::MouseUpKeyUp => {

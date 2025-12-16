@@ -54,7 +54,9 @@ lazy_static! {
 }
 
 pub enum Notification {
-    Update(Option<AccessibilityUiElement>, Option<u32>),
+    // NOTE: bool should only ever be set to true by the reaper
+    // TODO: eventually the bool should be a source enum so we can match on emitters
+    Update(Option<AccessibilityUiElement>, Option<u32>, bool),
     ForceUpdate,
 }
 
@@ -86,9 +88,13 @@ pub fn window_border(window_id: u32) -> Option<BorderInfo> {
     })
 }
 
-pub fn send_notification(element: Option<AccessibilityUiElement>, window_id: Option<u32>) {
+pub fn send_notification(
+    element: Option<AccessibilityUiElement>,
+    window_id: Option<u32>,
+    reaper: bool,
+) {
     if event_tx()
-        .try_send(Notification::Update(element, window_id))
+        .try_send(Notification::Update(element, window_id, reaper))
         .is_err()
     {
         tracing::warn!("channel is full; dropping notification")
@@ -200,7 +206,7 @@ fn handle_notifications(
     tracing::info!("listening");
 
     let receiver = event_rx();
-    event_tx().send(Notification::Update(None, None))?;
+    event_tx().send(Notification::Update(None, None, false))?;
 
     let mut previous_snapshot = Ring::default();
     let mut previous_pending_move_op = None;
@@ -232,7 +238,7 @@ fn handle_notifications(
         drop(state);
 
         let should_process_notification = match notification {
-            Notification::Update(_, notification_window_id) => {
+            Notification::Update(_, notification_window_id, reaper) => {
                 let mut should_process_notification = true;
 
                 if monitors == previous_snapshot
@@ -285,11 +291,15 @@ fn handle_notifications(
                 }
 
                 if !should_process_notification
-                    && let Some(Notification::Update(_, ref previous_window_id)) =
+                    && let Some(Notification::Update(_, ref previous_window_id, false)) =
                         previous_notification
                     && previous_window_id.unwrap_or_default()
                         != notification_window_id.unwrap_or_default()
                 {
+                    should_process_notification = true;
+                }
+
+                if reaper {
                     should_process_notification = true;
                 }
 
@@ -299,7 +309,7 @@ fn handle_notifications(
         };
 
         if !should_process_notification {
-            // tracing::debug!("monitor state matches latest snapshot, skipping notification");
+            tracing::debug!("monitor state matches latest snapshot, skipping notification");
             continue 'receiver;
         }
 
@@ -444,10 +454,18 @@ fn handle_notifications(
                             }
                         };
 
-                        let new_focus_state = if idx != ws.focused_container_idx()
-                            || monitor_idx != focused_monitor_idx
-                            || window.id != foreground_window
-                        {
+                        // this happens if we cmd+w a window, but the app is still active with no windows
+                        let ignore_foreground_window = foreground_window == 0;
+
+                        let focus_state_condition = if ignore_foreground_window {
+                            idx != ws.focused_container_idx() || monitor_idx != focused_monitor_idx
+                        } else {
+                            idx != ws.focused_container_idx()
+                                || monitor_idx != focused_monitor_idx
+                                || window.id != foreground_window
+                        };
+
+                        let new_focus_state = if focus_state_condition {
                             if c.locked {
                                 WindowKind::UnfocusedLocked
                             } else {
@@ -458,6 +476,14 @@ fn handle_notifications(
                         } else {
                             WindowKind::Single
                         };
+
+                        // if we are in the cmd+w situation, we wanna make sure the window we're gonna
+                        // set a focused border on actually has keyboard focus
+                        if ignore_foreground_window
+                            && matches!(new_focus_state, WindowKind::Single | WindowKind::Stack)
+                        {
+                            window.focus(false)?;
+                        }
 
                         border.window_kind = new_focus_state;
 
