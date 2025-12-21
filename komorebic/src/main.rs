@@ -2200,15 +2200,7 @@ fn main() -> eyre::Result<()> {
         SubCommand::StaticConfigSchema => {
             #[cfg(feature = "schemars")]
             {
-                let settings = schemars::r#gen::SchemaSettings::default().with(|s| {
-                    s.option_nullable = false;
-                    s.option_add_null_type = false;
-                    s.inline_subschemas = true;
-                });
-
-                let generator = settings.into_generator();
-                let socket_message =
-                    generator.into_root_schema_for::<komorebi_client::StaticConfig>();
+                let socket_message = schemars::schema_for!(komorebi_client::StaticConfig);
                 let schema = serde_json::to_string_pretty(&socket_message)?;
                 println!("{schema}");
             }

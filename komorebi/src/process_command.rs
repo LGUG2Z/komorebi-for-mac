@@ -1557,16 +1557,8 @@ impl WindowManager {
             SocketMessage::StaticConfigSchema => {
                 #[cfg(feature = "schemars")]
                 {
-                    let settings = schemars::r#gen::SchemaSettings::default().with(|s| {
-                        s.option_nullable = false;
-                        s.option_add_null_type = false;
-                        s.inline_subschemas = true;
-                    });
-
-                    let generator = settings.into_generator();
-                    let socket_message =
-                        generator.into_root_schema_for::<crate::static_config::StaticConfig>();
-                    let schema = serde_json::to_string_pretty(&socket_message)?;
+                    let static_config = schemars::schema_for!(StaticConfig);
+                    let schema = serde_json::to_string_pretty(&static_config)?;
 
                     reply.write_all(schema.as_bytes())?;
                 }

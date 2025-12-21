@@ -307,11 +307,11 @@ struct SerializedWindow {
 
 #[cfg(feature = "schemars")]
 impl schemars::JsonSchema for Window {
-    fn schema_name() -> String {
-        "Window".to_string()
+    fn schema_name() -> std::borrow::Cow<'static, str> {
+        std::borrow::Cow::Borrowed("Window")
     }
 
-    fn json_schema(generator: &mut schemars::SchemaGenerator) -> schemars::schema::Schema {
+    fn json_schema(generator: &mut schemars::SchemaGenerator) -> schemars::Schema {
         <SerializedWindow as schemars::JsonSchema>::json_schema(generator)
     }
 }

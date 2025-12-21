@@ -13,7 +13,7 @@ members = [
 version = "0.1.0"
 
 [workspace.dependencies]
-komorebi-themes = { git = "https://github.com/LGUG2Z/komorebi", rev = "c8c4c3507c3cb9cdd94e1a40d366320531455d75" }
+komorebi-themes = { git = "https://github.com/LGUG2Z/komorebi", rev = "7bf27717bc67a5c6e672acb4896b96a59ff78fc5" }
 
 chrono = "0.4"
 chrono-tz = "0.10"
@@ -29,7 +29,7 @@ hotwatch = "0.5"
 lazy_static = "1"
 parking_lot = "0.12"
 pastey = "0.2"
-schemars = "0.8"
+schemars = "1.1"
 serde = { version = "1", features = ["derive"] }
 serde_json = { package = "serde_json_lenient", version = "0.2" }
 shadow-rs = "1"
