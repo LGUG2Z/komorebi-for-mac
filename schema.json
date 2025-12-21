@@ -25,7 +25,7 @@
       "type": "boolean"
     },
     "border_colours": {
-      "description": "Active window border colours for different container types",
+      "description": "Window border colours for different container types (has no effect if a theme is defined)",
       "type": "object",
       "properties": {
         "floating": {
@@ -265,7 +265,7 @@
       }
     },
     "border_offset": {
-      "description": "Offset of the window border (default: 5)",
+      "description": "Offset of window borders (default: 5)",
       "type": "integer",
       "format": "int32"
     },
@@ -353,12 +353,12 @@
       }
     },
     "border_radius": {
-      "description": "Radius of the window border (default: 10)",
+      "description": "Radius of window borders (default: 10)",
       "type": "integer",
       "format": "int32"
     },
     "border_width": {
-      "description": "Width of the window border (default: 6)",
+      "description": "Width of window borders (default: 6)",
       "type": "integer",
       "format": "int32"
     },

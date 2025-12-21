@@ -417,22 +417,22 @@ pub struct StaticConfig {
     /// Path to applications.json from komorebi-application-specific-configurations (default: None)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub app_specific_configuration_path: Option<AppSpecificConfigurationPath>,
-    /// Width of the window border (default: 6)
+    /// Width of window borders (default: 6)
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(alias = "active_window_border_width")]
     pub border_width: Option<i32>,
-    /// Offset of the window border (default: 5)
+    /// Offset of window borders (default: 5)
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(alias = "active_window_border_offset")]
     pub border_offset: Option<i32>,
-    /// Radius of the window border (default: 10)
+    /// Radius of window borders (default: 10)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub border_radius: Option<i32>,
     /// Display window borders (default: true)
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(alias = "active_window_border")]
     pub border: Option<bool>,
-    /// Active window border colours for different container types
+    /// Window border colours for different container types (has no effect if a theme is defined)
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(alias = "active_window_border_colours")]
     pub border_colours: Option<BorderColours>,
