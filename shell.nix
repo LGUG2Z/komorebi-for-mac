@@ -14,6 +14,7 @@ mkShell {
     jq
     just
     prettier
+    wrangler
 
     python311Packages.mkdocs-material
     python311Packages.mkdocs-macros

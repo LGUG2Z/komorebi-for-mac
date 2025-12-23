@@ -15,7 +15,9 @@ use std::path::PathBuf;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-/// The `komorebi.bar.json` configuration file reference for `v0.1.39`
+/// The `komorebi.bar.json` static configuration file reference for komorebi for Mac `v0.1.0`
+///
+/// `"$schema": "https://komorebi-for-mac.lgug2z.com/komorebi.bar.0.1.0.schema.json"`
 pub struct KomobarConfig {
     /// Bar height (default: 50)
     pub height: Option<f32>,

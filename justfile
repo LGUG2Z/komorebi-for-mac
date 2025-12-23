@@ -51,6 +51,19 @@ docgen:
 jsonschema:
     cargo run --package komorebic -- static-config-schema > schema.json
     cargo run --package komorebic -- application-specific-configuration-schema > schema.asc.json
+    cargo run --package komorebi-bar -- --schema > schema.bar.json
+
+version := `cargo metadata --format-version 1 --no-deps | jq -r '.packages[] | select(.name == "komorebi") | .version'`
+
+schemagen:
+    mkdir -p komorebi-schema
+    schemars-docgen schema.json -o komorebi-schema/komorebi.html
+    schemars-docgen schema.bar.json -o komorebi-schema/bar.html
+    cp schema.json komorebi-schema/komorebi.{{ version }}.schema.json
+    cp schema.bar.json komorebi-schema/komorebi.bar.{{ version }}.schema.json
+
+schemapub:
+    wrangler pages deploy --project-name komorebi-for-mac --branch main ./komorebi-schema
 
 depgen:
     cargo deny check

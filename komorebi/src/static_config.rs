@@ -365,7 +365,9 @@ pub enum AppSpecificConfigurationPath {
 #[serde_with::serde_as]
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-/// The `komorebi.json` static configuration file reference for `v0.1.39`
+/// The `komorebi.json` static configuration file reference for komorebi for Mac `v0.1.0`
+///
+/// `"$schema": "https://komorebi-for-mac.lgug2z.com/komorebi.0.1.0.schema.json"`
 pub struct StaticConfig {
     // /// DISCOURAGED: Minimum width for a window to be eligible for tiling
     // #[serde(skip_serializing_if = "Option::is_none")]
