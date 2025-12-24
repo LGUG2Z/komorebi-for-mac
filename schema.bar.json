@@ -173,7 +173,7 @@
           "description": "Display format for this application button (optional). Overrides global format if set.",
           "anyOf": [
             {
-              "$ref": "#/$defs/DisplayFormat"
+              "$ref": "#/$defs/ApplicationsDisplayFormat"
             },
             {
               "type": "null"
@@ -218,7 +218,7 @@
           "description": "Default display format for all applications (optional).\nCould be overridden per application. Defaults to `Icon`.",
           "anyOf": [
             {
-              "$ref": "#/$defs/DisplayFormat"
+              "$ref": "#/$defs/ApplicationsDisplayFormat"
             },
             {
               "type": "null"
@@ -255,6 +255,25 @@
       "required": [
         "enable",
         "items"
+      ]
+    },
+    "ApplicationsDisplayFormat": {
+      "oneOf": [
+        {
+          "description": "Show only the application icon.",
+          "type": "string",
+          "const": "Icon"
+        },
+        {
+          "description": "Show only the application name as text.",
+          "type": "string",
+          "const": "Text"
+        },
+        {
+          "description": "Show both the application icon and name.",
+          "type": "string",
+          "const": "IconAndText"
+        }
       ]
     },
     "Base16": {
@@ -890,25 +909,6 @@
     "DisplayFormat": {
       "oneOf": [
         {
-          "description": "Show only the application icon.",
-          "type": "string",
-          "const": "Icon"
-        },
-        {
-          "description": "Show only the application name as text.",
-          "type": "string",
-          "const": "Text"
-        },
-        {
-          "description": "Show both the application icon and name.",
-          "type": "string",
-          "const": "IconAndText"
-        }
-      ]
-    },
-    "DisplayFormat2": {
-      "oneOf": [
-        {
           "description": "Show only icon",
           "type": "string",
           "const": "Icon"
@@ -1408,7 +1408,7 @@
           "description": "Display format of the currently focused container",
           "anyOf": [
             {
-              "$ref": "#/$defs/DisplayFormat2"
+              "$ref": "#/$defs/DisplayFormat"
             },
             {
               "type": "null"
@@ -1457,7 +1457,7 @@
           "description": "Display format of the current layout",
           "anyOf": [
             {
-              "$ref": "#/$defs/DisplayFormat2"
+              "$ref": "#/$defs/DisplayFormat"
             },
             {
               "type": "null"
@@ -1490,7 +1490,7 @@
           "description": "Display format of the current locked state",
           "anyOf": [
             {
-              "$ref": "#/$defs/DisplayFormat2"
+              "$ref": "#/$defs/DisplayFormat"
             },
             {
               "type": "null"
@@ -1520,7 +1520,7 @@
           "description": "Display format of the current layer",
           "anyOf": [
             {
-              "$ref": "#/$defs/DisplayFormat2"
+              "$ref": "#/$defs/DisplayFormat"
             },
             {
               "type": "null"
@@ -2249,7 +2249,7 @@
           "const": "AllIconsAndTextOnSelected"
         },
         {
-          "$ref": "#/$defs/DisplayFormat2"
+          "$ref": "#/$defs/DisplayFormat"
         }
       ]
     }

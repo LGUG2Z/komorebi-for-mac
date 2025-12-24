@@ -1497,7 +1497,7 @@ impl Workspace {
             0 | 1 => self.enforce_no_resize(),
             _ => {
                 // Zero is actually on the left
-                if let Some(mut left) = resize_dimensions[0] {
+                if let Some(left) = resize_dimensions[0].as_mut() {
                     left.top = 0;
                     left.bottom = 0;
                     left.left = 0;
@@ -1530,7 +1530,7 @@ impl Workspace {
             0 | 1 => self.enforce_no_resize(),
             _ => {
                 // Zero is actually on the right
-                if let Some(mut left) = resize_dimensions[1] {
+                if let Some(left) = resize_dimensions[1].as_mut() {
                     left.top = 0;
                     left.bottom = 0;
                     left.right = 0;
@@ -1561,7 +1561,7 @@ impl Workspace {
         match resize_dimensions.len() {
             0 | 1 => self.enforce_no_resize(),
             _ => {
-                if let Some(mut left) = resize_dimensions[0] {
+                if let Some(left) = resize_dimensions[0].as_mut() {
                     left.top = 0;
                     left.left = 0;
                     left.right = 0;
@@ -1592,14 +1592,14 @@ impl Workspace {
             // Two windows can only be resized in the middle
             2 => {
                 // Zero is actually on the right
-                if let Some(mut right) = resize_dimensions[0] {
+                if let Some(right) = resize_dimensions[0].as_mut() {
                     right.top = 0;
                     right.bottom = 0;
                     right.right = 0;
                 }
 
                 // One is on the left
-                if let Some(mut left) = resize_dimensions[1] {
+                if let Some(left) = resize_dimensions[1].as_mut() {
                     left.top = 0;
                     left.bottom = 0;
                     left.left = 0;
@@ -1609,13 +1609,13 @@ impl Workspace {
             // stack on the right
             _ => {
                 // Central can be resized left or right
-                if let Some(mut right) = resize_dimensions[0] {
+                if let Some(right) = resize_dimensions[0].as_mut() {
                     right.top = 0;
                     right.bottom = 0;
                 }
 
                 // Left one can only be resized to the right
-                if let Some(mut left) = resize_dimensions[1] {
+                if let Some(left) = resize_dimensions[1].as_mut() {
                     left.top = 0;
                     left.bottom = 0;
                     left.left = 0;
