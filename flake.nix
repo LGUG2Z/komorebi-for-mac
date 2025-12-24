@@ -1,12 +1,16 @@
 {
-  description = "Build komorebi workspace";
+  description = "komorebi for Mac";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     flake-parts.url = "github:hercules-ci/flake-parts";
     crane.url = "github:ipetkov/crane";
     rust-overlay.url = "github:oxalica/rust-overlay";
+    rust-overlay.inputs.nixpkgs.follows = "nixpkgs";
     treefmt-nix.url = "github:numtide/treefmt-nix";
+    treefmt-nix.inputs.nixpkgs.follows = "nixpkgs";
+    git-hooks-nix.url = "github:cachix/git-hooks.nix";
+    git-hooks-nix.inputs.nixpkgs.follows = "nixpkgs";
   };
 
   outputs =
@@ -107,13 +111,28 @@
 
       imports = [
         inputs.treefmt-nix.flakeModule
+        inputs.git-hooks-nix.flakeModule
       ];
 
       perSystem =
-        { system, ... }:
+        { config, system, ... }:
         let
           pkgs = mkPkgs system;
           build = mkKomorebiPackages { inherit pkgs; };
+          rustToolchain = pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
+          nightlyRustfmt = pkgs.rust-bin.nightly.latest.rustfmt;
+          rustToolchainWithNightlyRustfmt = pkgs.symlinkJoin {
+            name = "rust-toolchain-with-nightly-rustfmt";
+            paths = [
+              nightlyRustfmt
+              rustToolchain
+            ];
+          };
+          nightlyToolchain = pkgs.rust-bin.nightly.latest.default;
+          cargo-udeps = pkgs.writeShellScriptBin "cargo-udeps" ''
+            export PATH="${nightlyToolchain}/bin:$PATH"
+            exec ${pkgs.cargo-udeps}/bin/cargo-udeps "$@"
+          '';
         in
         {
           treefmt = {
@@ -173,8 +192,38 @@
             };
           };
 
-          devShells.default = import ./shell.nix {
-            inherit pkgs;
+          devShells.default = pkgs.mkShell {
+            name = "komorebi";
+
+            RUST_BACKTRACE = "full";
+
+            inputsFrom = [ build.fullBuild ];
+
+            packages = [
+              rustToolchainWithNightlyRustfmt
+              cargo-udeps
+
+              pkgs.cargo-deny
+              pkgs.cargo-nextest
+              pkgs.cargo-outdated
+              pkgs.jq
+              pkgs.just
+              pkgs.prettier
+              pkgs.wrangler
+
+              pkgs.python311Packages.mkdocs-material
+              pkgs.python311Packages.mkdocs-macros
+              pkgs.python311Packages.setuptools
+            ];
+          };
+
+          pre-commit = {
+            check.enable = true;
+            settings.hooks.treefmt = {
+              enable = true;
+              package = config.treefmt.build.wrapper;
+              pass_filenames = false;
+            };
           };
         };
 

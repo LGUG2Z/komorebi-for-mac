@@ -4,7 +4,7 @@ fmt:
     test -z "$(rg 'eyre!' --type rust)" || (echo "eyre! macro not allowed"; false)
     test -z "$(rg 'dbg!' --type rust)" || (echo "dbg! macro not allowed"; false)
     test -z "$(rg 'println!' --type rust ./komorebi/src)" || (echo "println! macro not allowed"; false)
-    cargo +stable clippy
+    cargo clippy
     prettier --write README.md
     nix fmt
 
@@ -15,16 +15,16 @@ clean:
     cargo clean
 
 install-with-jsonschema target:
-    cargo +stable install --path {{ target }} --locked --target-dir ~/.cargo/bin
+    cargo install --path {{ target }} --locked --target-dir ~/.cargo/bin
 
 install target:
-    cargo +stable install --path {{ target }} --locked --target-dir ~/.cargo/bin --no-default-features
+    cargo install --path {{ target }} --locked --target-dir ~/.cargo/bin --no-default-features
 
 build target:
-    cargo +stable build --package {{ target }} --locked --release
+    cargo build --package {{ target }} --locked --release
 
 run target:
-    cargo +stable run --bin {{ target }} --locked
+    cargo run --bin {{ target }} --locked
 
 error target $RUST_LOG="komorebi=error":
     just run {{ target }}
@@ -42,7 +42,7 @@ trace target $RUST_LOG="komorebi=trace":
     just run {{ target }}
 
 deadlock $RUST_LOG="trace":
-    cargo +stable run --bin komorebi --locked --no-default-features --features deadlock_detection
+    cargo run --bin komorebi --locked --no-default-features --features deadlock_detection
 
 docgen:
     cargo run --package komorebic -- docgen
@@ -64,6 +64,14 @@ schemagen:
 
 schemapub:
     wrangler pages deploy --project-name komorebi-for-mac --branch main ./komorebi-schema
+
+depcheck:
+    cargo outdated --depth 2
+    cargo udeps --quiet
+
+deps:
+    cargo update
+    just depgen
 
 depgen:
     cargo deny check
