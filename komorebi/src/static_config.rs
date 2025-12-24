@@ -118,15 +118,15 @@ pub struct ThemeOptions {
     /// Border colour when the container is unfocused and locked (default: Base08)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub unfocused_locked_border: Option<komorebi_themes::Base16Value>,
-    /// Stackbar focused tab text colour (default: Base0B)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub stackbar_focused_text: Option<komorebi_themes::Base16Value>,
-    /// Stackbar unfocused tab text colour (default: Base05)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub stackbar_unfocused_text: Option<komorebi_themes::Base16Value>,
-    /// Stackbar tab background colour (default: Base01)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub stackbar_background: Option<komorebi_themes::Base16Value>,
+    // /// Stackbar focused tab text colour (default: Base0B)
+    // #[serde(skip_serializing_if = "Option::is_none")]
+    // pub stackbar_focused_text: Option<komorebi_themes::Base16Value>,
+    // /// Stackbar unfocused tab text colour (default: Base05)
+    // #[serde(skip_serializing_if = "Option::is_none")]
+    // pub stackbar_unfocused_text: Option<komorebi_themes::Base16Value>,
+    // /// Stackbar tab background colour (default: Base01)
+    // #[serde(skip_serializing_if = "Option::is_none")]
+    // pub stackbar_background: Option<komorebi_themes::Base16Value>,
     /// Komorebi status bar accent (default: Base0D)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub bar_accent: Option<komorebi_themes::Base16Value>,
@@ -160,10 +160,10 @@ pub struct WorkspaceConfig {
     /// Layout-specific options (default: None)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub layout_options: Option<LayoutOptions>,
-    /// END OF LIFE FEATURE: Custom Layout (default: None)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde_as(as = "Option<ResolvedPathBuf>")]
-    pub custom_layout: Option<PathBuf>,
+    // /// END OF LIFE FEATURE: Custom Layout (default: None)
+    // #[serde(skip_serializing_if = "Option::is_none")]
+    // #[serde_as(as = "Option<ResolvedPathBuf>")]
+    // pub custom_layout: Option<PathBuf>,
     /// Layout rules in the format of threshold => layout (default: None)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub layout_rules: Option<HashMap<usize, DefaultLayout>>,
@@ -258,10 +258,10 @@ impl From<&Workspace> for WorkspaceConfig {
                 })
                 .flatten(),
             layout_options: value.layout_options,
-            custom_layout: value
-                .workspace_config
-                .as_ref()
-                .and_then(|c| c.custom_layout.clone()),
+            // custom_layout: value
+            //     .workspace_config
+            //     .as_ref()
+            //     .and_then(|c| c.custom_layout.clone()),
             layout_rules,
             container_padding,
             workspace_padding,
@@ -583,15 +583,15 @@ pub enum KomorebiTheme {
         /// Border colour when the container is unfocused and locked (default: Red)
         #[serde(skip_serializing_if = "Option::is_none")]
         unfocused_locked_border: Option<komorebi_themes::CatppuccinValue>,
-        /// Stackbar focused tab text colour (default: Green)
-        #[serde(skip_serializing_if = "Option::is_none")]
-        stackbar_focused_text: Option<komorebi_themes::CatppuccinValue>,
-        /// Stackbar unfocused tab text colour (default: Text)
-        #[serde(skip_serializing_if = "Option::is_none")]
-        stackbar_unfocused_text: Option<komorebi_themes::CatppuccinValue>,
-        /// Stackbar tab background colour (default: Base)
-        #[serde(skip_serializing_if = "Option::is_none")]
-        stackbar_background: Option<komorebi_themes::CatppuccinValue>,
+        // /// Stackbar focused tab text colour (default: Green)
+        // #[serde(skip_serializing_if = "Option::is_none")]
+        // stackbar_focused_text: Option<komorebi_themes::CatppuccinValue>,
+        // /// Stackbar unfocused tab text colour (default: Text)
+        // #[serde(skip_serializing_if = "Option::is_none")]
+        // stackbar_unfocused_text: Option<komorebi_themes::CatppuccinValue>,
+        // /// Stackbar tab background colour (default: Base)
+        // #[serde(skip_serializing_if = "Option::is_none")]
+        // stackbar_background: Option<komorebi_themes::CatppuccinValue>,
         /// Komorebi status bar accent (default: Blue)
         #[serde(skip_serializing_if = "Option::is_none")]
         bar_accent: Option<komorebi_themes::CatppuccinValue>,
@@ -618,15 +618,15 @@ pub enum KomorebiTheme {
         /// Border colour when the container is unfocused and locked (default: Base08)
         #[serde(skip_serializing_if = "Option::is_none")]
         unfocused_locked_border: Option<komorebi_themes::Base16Value>,
-        /// Stackbar focused tab text colour (default: Base0B)
-        #[serde(skip_serializing_if = "Option::is_none")]
-        stackbar_focused_text: Option<komorebi_themes::Base16Value>,
-        /// Stackbar unfocused tab text colour (default: Base05)
-        #[serde(skip_serializing_if = "Option::is_none")]
-        stackbar_unfocused_text: Option<komorebi_themes::Base16Value>,
-        /// Stackbar tab background colour (default: Base01)
-        #[serde(skip_serializing_if = "Option::is_none")]
-        stackbar_background: Option<komorebi_themes::Base16Value>,
+        // /// Stackbar focused tab text colour (default: Base0B)
+        // #[serde(skip_serializing_if = "Option::is_none")]
+        // stackbar_focused_text: Option<komorebi_themes::Base16Value>,
+        // /// Stackbar unfocused tab text colour (default: Base05)
+        // #[serde(skip_serializing_if = "Option::is_none")]
+        // stackbar_unfocused_text: Option<komorebi_themes::Base16Value>,
+        // /// Stackbar tab background colour (default: Base01)
+        // #[serde(skip_serializing_if = "Option::is_none")]
+        // stackbar_background: Option<komorebi_themes::Base16Value>,
         /// Komorebi status bar accent (default: Base0D)
         #[serde(skip_serializing_if = "Option::is_none")]
         bar_accent: Option<komorebi_themes::Base16Value>,
@@ -653,15 +653,15 @@ pub enum KomorebiTheme {
         /// Border colour when the container is unfocused and locked (default: Base08)
         #[serde(skip_serializing_if = "Option::is_none")]
         unfocused_locked_border: Option<komorebi_themes::Base16Value>,
-        /// Stackbar focused tab text colour (default: Base0B)
-        #[serde(skip_serializing_if = "Option::is_none")]
-        stackbar_focused_text: Option<komorebi_themes::Base16Value>,
-        /// Stackbar unfocused tab text colour (default: Base05)
-        #[serde(skip_serializing_if = "Option::is_none")]
-        stackbar_unfocused_text: Option<komorebi_themes::Base16Value>,
-        /// Stackbar tab background colour (default: Base01)
-        #[serde(skip_serializing_if = "Option::is_none")]
-        stackbar_background: Option<komorebi_themes::Base16Value>,
+        // /// Stackbar focused tab text colour (default: Base0B)
+        // #[serde(skip_serializing_if = "Option::is_none")]
+        // stackbar_focused_text: Option<komorebi_themes::Base16Value>,
+        // /// Stackbar unfocused tab text colour (default: Base05)
+        // #[serde(skip_serializing_if = "Option::is_none")]
+        // stackbar_unfocused_text: Option<komorebi_themes::Base16Value>,
+        // /// Stackbar tab background colour (default: Base01)
+        // #[serde(skip_serializing_if = "Option::is_none")]
+        // stackbar_background: Option<komorebi_themes::Base16Value>,
         /// Komorebi status bar accent (default: Base0D)
         #[serde(skip_serializing_if = "Option::is_none")]
         bar_accent: Option<komorebi_themes::Base16Value>,

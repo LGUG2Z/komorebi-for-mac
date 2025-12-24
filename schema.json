@@ -4,6 +4,17 @@
   "description": "The `komorebi.json` static configuration file reference for komorebi for Mac `v0.1.0`\n\n`\"$schema\": \"https://komorebi-for-mac.lgug2z.com/komorebi.0.1.0.schema.json\"`",
   "type": "object",
   "properties": {
+    "animation": {
+      "description": "Animations configuration options",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AnimationsConfig"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
     "app_specific_configuration_path": {
       "description": "Path to applications.json from komorebi-application-specific-configurations (default: None)",
       "anyOf": [
@@ -332,6 +343,121 @@
     }
   },
   "$defs": {
+    "AnimationStyle": {
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "Linear",
+            "EaseInSine",
+            "EaseOutSine",
+            "EaseInOutSine",
+            "EaseInQuad",
+            "EaseOutQuad",
+            "EaseInOutQuad",
+            "EaseInCubic",
+            "EaseOutCubic",
+            "EaseInOutCubic",
+            "EaseInQuart",
+            "EaseOutQuart",
+            "EaseInOutQuart",
+            "EaseInQuint",
+            "EaseOutQuint",
+            "EaseInOutQuint",
+            "EaseInExpo",
+            "EaseOutExpo",
+            "EaseInOutExpo",
+            "EaseInCirc",
+            "EaseOutCirc",
+            "EaseInOutCirc",
+            "EaseInBack",
+            "EaseOutBack",
+            "EaseInOutBack",
+            "EaseInElastic",
+            "EaseOutElastic",
+            "EaseInOutElastic",
+            "EaseInBounce",
+            "EaseOutBounce",
+            "EaseInOutBounce"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "CubicBezier": {
+              "type": "array",
+              "maxItems": 4,
+              "minItems": 4,
+              "prefixItems": [
+                {
+                  "type": "number",
+                  "format": "double"
+                },
+                {
+                  "type": "number",
+                  "format": "double"
+                },
+                {
+                  "type": "number",
+                  "format": "double"
+                },
+                {
+                  "type": "number",
+                  "format": "double"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "CubicBezier"
+          ]
+        }
+      ]
+    },
+    "AnimationsConfig": {
+      "type": "object",
+      "properties": {
+        "duration": {
+          "description": "Set the animation duration in ms (default: 250)",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PerAnimationPrefixConfig2"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "enabled": {
+          "description": "Enable or disable animations (default: false)",
+          "$ref": "#/$defs/PerAnimationPrefixConfig"
+        },
+        "fps": {
+          "description": "Set the animation FPS (default: 60)",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "style": {
+          "description": "Set the animation style (default: Linear)",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PerAnimationPrefixConfig3"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "enabled"
+      ]
+    },
     "AppSpecificConfigurationPath": {
       "anyOf": [
         {
@@ -1031,39 +1157,6 @@
                 }
               ]
             },
-            "stackbar_background": {
-              "description": "Stackbar tab background colour (default: Base)",
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/CatppuccinValue"
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            },
-            "stackbar_focused_text": {
-              "description": "Stackbar focused tab text colour (default: Green)",
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/CatppuccinValue"
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            },
-            "stackbar_unfocused_text": {
-              "description": "Stackbar unfocused tab text colour (default: Text)",
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/CatppuccinValue"
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            },
             "unfocused_border": {
               "description": "Border colour when the container is unfocused (default: Base)",
               "anyOf": [
@@ -1159,39 +1252,6 @@
                 }
               ]
             },
-            "stackbar_background": {
-              "description": "Stackbar tab background colour (default: Base01)",
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/Base16Value"
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            },
-            "stackbar_focused_text": {
-              "description": "Stackbar focused tab text colour (default: Base0B)",
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/Base16Value"
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            },
-            "stackbar_unfocused_text": {
-              "description": "Stackbar unfocused tab text colour (default: Base05)",
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/Base16Value"
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            },
             "unfocused_border": {
               "description": "Border colour when the container is unfocused (default: Base01)",
               "anyOf": [
@@ -1278,39 +1338,6 @@
             },
             "stack_border": {
               "description": "Border colour when the container contains multiple windows (default: Base0B)",
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/Base16Value"
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            },
-            "stackbar_background": {
-              "description": "Stackbar tab background colour (default: Base01)",
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/Base16Value"
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            },
-            "stackbar_focused_text": {
-              "description": "Stackbar focused tab text colour (default: Base0B)",
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/Base16Value"
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            },
-            "stackbar_unfocused_text": {
-              "description": "Stackbar unfocused tab text colour (default: Base05)",
               "anyOf": [
                 {
                   "$ref": "#/$defs/Base16Value"
@@ -1535,6 +1562,49 @@
     "PathBuf": {
       "type": "string"
     },
+    "PerAnimationPrefixConfig": {
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": {
+            "type": "boolean"
+          }
+        },
+        {
+          "type": "boolean"
+        }
+      ]
+    },
+    "PerAnimationPrefixConfig2": {
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0
+          }
+        },
+        {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        }
+      ]
+    },
+    "PerAnimationPrefixConfig3": {
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/AnimationStyle"
+          }
+        },
+        {
+          "$ref": "#/$defs/AnimationStyle"
+        }
+      ]
+    },
     "Placement": {
       "oneOf": [
         {
@@ -1707,39 +1777,6 @@
             }
           ]
         },
-        "stackbar_background": {
-          "description": "Stackbar tab background colour (default: Base01)",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Base16Value"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "stackbar_focused_text": {
-          "description": "Stackbar focused tab text colour (default: Base0B)",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Base16Value"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "stackbar_unfocused_text": {
-          "description": "Stackbar unfocused tab text colour (default: Base05)",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Base16Value"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
         "theme_variant": {
           "description": "Specify Light or Dark variant for theme generation (default: Dark)",
           "anyOf": [
@@ -1857,17 +1894,6 @@
             "null"
           ],
           "format": "int32"
-        },
-        "custom_layout": {
-          "description": "END OF LIFE FEATURE: Custom Layout (default: None)",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/PathBuf"
-            },
-            {
-              "type": "null"
-            }
-          ]
         },
         "float_override": {
           "description": "Enable or disable float override, which makes it so every new window opens in floating mode (default: false)",

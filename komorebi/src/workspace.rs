@@ -164,9 +164,8 @@ impl Workspace {
             self.layout = Layout::Default(*layout);
         }
 
-        self.tile =
-            !(config.custom_layout.is_none() && config.layout.is_none() && config.tile.is_none()
-                || config.tile.is_some_and(|tile| !tile));
+        self.tile = !(/* config.custom_layout.is_none() && */config.layout.is_none() && config.tile.is_none()
+            || config.tile.is_some_and(|tile| !tile));
 
         let mut all_layout_rules = vec![];
         if let Some(layout_rules) = &config.layout_rules {
@@ -1375,18 +1374,18 @@ impl Workspace {
                             .theme_options
                             .as_ref()
                             .and_then(|o| o.unfocused_locked_border),
-                        stackbar_focused_text: wallpaper
-                            .theme_options
-                            .as_ref()
-                            .and_then(|o| o.stackbar_focused_text),
-                        stackbar_unfocused_text: wallpaper
-                            .theme_options
-                            .as_ref()
-                            .and_then(|o| o.stackbar_unfocused_text),
-                        stackbar_background: wallpaper
-                            .theme_options
-                            .as_ref()
-                            .and_then(|o| o.stackbar_background),
+                        // stackbar_focused_text: wallpaper
+                        //     .theme_options
+                        //     .as_ref()
+                        //     .and_then(|o| o.stackbar_focused_text),
+                        // stackbar_unfocused_text: wallpaper
+                        //     .theme_options
+                        //     .as_ref()
+                        //     .and_then(|o| o.stackbar_unfocused_text),
+                        // stackbar_background: wallpaper
+                        //     .theme_options
+                        //     .as_ref()
+                        //     .and_then(|o| o.stackbar_background),
                         bar_accent: wallpaper.theme_options.as_ref().and_then(|o| o.bar_accent),
                     };
 

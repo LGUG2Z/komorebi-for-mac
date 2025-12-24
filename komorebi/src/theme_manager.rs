@@ -76,9 +76,9 @@ pub fn handle_notifications() -> color_eyre::Result<()> {
             floating_border,
             unfocused_border,
             unfocused_locked_border,
-            _stackbar_focused_text,
-            _stackbar_unfocused_text,
-            _stackbar_background,
+            // _stackbar_focused_text,
+            // _stackbar_unfocused_text,
+            // _stackbar_background,
         ) = match theme {
             KomorebiTheme::Catppuccin {
                 name,
@@ -88,9 +88,9 @@ pub fn handle_notifications() -> color_eyre::Result<()> {
                 floating_border,
                 unfocused_border,
                 unfocused_locked_border,
-                stackbar_focused_text,
-                stackbar_unfocused_text,
-                stackbar_background,
+                // stackbar_focused_text,
+                // stackbar_unfocused_text,
+                // stackbar_background,
                 ..
             } => {
                 let single_border = single_border
@@ -117,17 +117,17 @@ pub fn handle_notifications() -> color_eyre::Result<()> {
                     .unwrap_or(komorebi_themes::CatppuccinValue::Red)
                     .color32(name.as_theme());
 
-                let stackbar_focused_text = stackbar_focused_text
-                    .unwrap_or(komorebi_themes::CatppuccinValue::Green)
-                    .color32(name.as_theme());
+                // let stackbar_focused_text = stackbar_focused_text
+                //     .unwrap_or(komorebi_themes::CatppuccinValue::Green)
+                //     .color32(name.as_theme());
 
-                let stackbar_unfocused_text = stackbar_unfocused_text
-                    .unwrap_or(komorebi_themes::CatppuccinValue::Text)
-                    .color32(name.as_theme());
+                // let stackbar_unfocused_text = stackbar_unfocused_text
+                //     .unwrap_or(komorebi_themes::CatppuccinValue::Text)
+                //     .color32(name.as_theme());
 
-                let stackbar_background = stackbar_background
-                    .unwrap_or(komorebi_themes::CatppuccinValue::Base)
-                    .color32(name.as_theme());
+                // let stackbar_background = stackbar_background
+                //     .unwrap_or(komorebi_themes::CatppuccinValue::Base)
+                //     .color32(name.as_theme());
 
                 (
                     single_border,
@@ -136,9 +136,9 @@ pub fn handle_notifications() -> color_eyre::Result<()> {
                     floating_border,
                     unfocused_border,
                     unfocused_locked_border,
-                    stackbar_focused_text,
-                    stackbar_unfocused_text,
-                    stackbar_background,
+                    // stackbar_focused_text,
+                    // stackbar_unfocused_text,
+                    // stackbar_background,
                 )
             }
             KomorebiTheme::Base16 {
@@ -149,9 +149,9 @@ pub fn handle_notifications() -> color_eyre::Result<()> {
                 floating_border,
                 unfocused_border,
                 unfocused_locked_border,
-                stackbar_focused_text,
-                stackbar_unfocused_text,
-                stackbar_background,
+                // stackbar_focused_text,
+                // stackbar_unfocused_text,
+                // stackbar_background,
                 ..
             } => {
                 let single_border = single_border
@@ -178,17 +178,17 @@ pub fn handle_notifications() -> color_eyre::Result<()> {
                     .unwrap_or(komorebi_themes::Base16Value::Base09)
                     .color32(Base16Wrapper::Base16(*name));
 
-                let stackbar_focused_text = stackbar_focused_text
-                    .unwrap_or(komorebi_themes::Base16Value::Base0B)
-                    .color32(Base16Wrapper::Base16(*name));
+                // let stackbar_focused_text = stackbar_focused_text
+                //     .unwrap_or(komorebi_themes::Base16Value::Base0B)
+                //     .color32(Base16Wrapper::Base16(*name));
 
-                let stackbar_unfocused_text = stackbar_unfocused_text
-                    .unwrap_or(komorebi_themes::Base16Value::Base05)
-                    .color32(Base16Wrapper::Base16(*name));
+                // let stackbar_unfocused_text = stackbar_unfocused_text
+                //     .unwrap_or(komorebi_themes::Base16Value::Base05)
+                //     .color32(Base16Wrapper::Base16(*name));
 
-                let stackbar_background = stackbar_background
-                    .unwrap_or(komorebi_themes::Base16Value::Base01)
-                    .color32(Base16Wrapper::Base16(*name));
+                // let stackbar_background = stackbar_background
+                //     .unwrap_or(komorebi_themes::Base16Value::Base01)
+                //     .color32(Base16Wrapper::Base16(*name));
 
                 (
                     single_border,
@@ -197,9 +197,9 @@ pub fn handle_notifications() -> color_eyre::Result<()> {
                     floating_border,
                     unfocused_border,
                     unfocused_locked_border,
-                    stackbar_focused_text,
-                    stackbar_unfocused_text,
-                    stackbar_background,
+                    // stackbar_focused_text,
+                    // stackbar_unfocused_text,
+                    // stackbar_background,
                 )
             }
             KomorebiTheme::Custom {
@@ -210,9 +210,9 @@ pub fn handle_notifications() -> color_eyre::Result<()> {
                 floating_border,
                 unfocused_border,
                 unfocused_locked_border,
-                stackbar_focused_text,
-                stackbar_unfocused_text,
-                stackbar_background,
+                // stackbar_focused_text,
+                // stackbar_unfocused_text,
+                // stackbar_background,
                 ..
             } => {
                 let single_border = single_border
@@ -239,17 +239,17 @@ pub fn handle_notifications() -> color_eyre::Result<()> {
                     .unwrap_or(komorebi_themes::Base16Value::Base09)
                     .color32(Base16Wrapper::Custom(colours.clone()));
 
-                let stackbar_focused_text = stackbar_focused_text
-                    .unwrap_or(komorebi_themes::Base16Value::Base0B)
-                    .color32(Base16Wrapper::Custom(colours.clone()));
+                // let stackbar_focused_text = stackbar_focused_text
+                //     .unwrap_or(komorebi_themes::Base16Value::Base0B)
+                //     .color32(Base16Wrapper::Custom(colours.clone()));
 
-                let stackbar_unfocused_text = stackbar_unfocused_text
-                    .unwrap_or(komorebi_themes::Base16Value::Base05)
-                    .color32(Base16Wrapper::Custom(colours.clone()));
+                // let stackbar_unfocused_text = stackbar_unfocused_text
+                //     .unwrap_or(komorebi_themes::Base16Value::Base05)
+                //     .color32(Base16Wrapper::Custom(colours.clone()));
 
-                let stackbar_background = stackbar_background
-                    .unwrap_or(komorebi_themes::Base16Value::Base01)
-                    .color32(Base16Wrapper::Custom(colours.clone()));
+                // let stackbar_background = stackbar_background
+                //     .unwrap_or(komorebi_themes::Base16Value::Base01)
+                //     .color32(Base16Wrapper::Custom(colours.clone()));
 
                 (
                     single_border,
@@ -258,9 +258,9 @@ pub fn handle_notifications() -> color_eyre::Result<()> {
                     floating_border,
                     unfocused_border,
                     unfocused_locked_border,
-                    stackbar_focused_text,
-                    stackbar_unfocused_text,
-                    stackbar_background,
+                    // stackbar_focused_text,
+                    // stackbar_unfocused_text,
+                    // stackbar_background,
                 )
             }
         };
