@@ -115,6 +115,7 @@ const NOTIFICATIONS: &[&str] = &[
 pub struct MovementRenderDispatcher {
     window_id: u32,
     element: AccessibilityUiElement,
+    observer: AccessibilityObserver,
     start_rect: Rect,
     target_rect: Rect,
     style: AnimationStyle,
@@ -126,6 +127,7 @@ impl MovementRenderDispatcher {
     pub fn new(
         window_id: u32,
         element: AccessibilityUiElement,
+        observer: AccessibilityObserver,
         start_rect: Rect,
         target_rect: Rect,
         style: AnimationStyle,
@@ -133,6 +135,7 @@ impl MovementRenderDispatcher {
         Self {
             window_id,
             element,
+            observer,
             start_rect,
             target_rect,
             style,
@@ -145,13 +148,25 @@ impl RenderDispatcher for MovementRenderDispatcher {
         new_animation_key(MovementRenderDispatcher::PREFIX, self.window_id.to_string())
     }
 
-    fn pre_render(&self) -> color_eyre::eyre::Result<()> {
-        // Nothing specific to do before rendering on macOS
-        // The observer notifications are suppressed at a higher level
+    fn pre_render(&self) -> eyre::Result<()> {
+        // Remove move/resize notifications during animation to prevent
+        // flooding the event channel with notifications we generated ourselves
+        if let Some(observer) = &self.observer.0 {
+            let _ = AccessibilityApi::remove_notification_from_observer(
+                observer,
+                &self.element,
+                kAXWindowMovedNotification,
+            );
+            let _ = AccessibilityApi::remove_notification_from_observer(
+                observer,
+                &self.element,
+                kAXWindowResizedNotification,
+            );
+        }
         Ok(())
     }
 
-    fn render(&self, progress: f64) -> color_eyre::eyre::Result<()> {
+    fn render(&self, progress: f64) -> eyre::Result<()> {
         let new_rect = self.start_rect.lerp(self.target_rect, progress, self.style);
 
         // Use with_enhanced_ui_disabled for better performance during animation
@@ -176,7 +191,7 @@ impl RenderDispatcher for MovementRenderDispatcher {
         Ok(())
     }
 
-    fn post_render(&self) -> color_eyre::eyre::Result<()> {
+    fn post_render(&self) -> eyre::Result<()> {
         // Ensure final position is exact
         with_enhanced_ui_disabled(&self.element, || {
             let _ = AccessibilityApi::set_attribute_ax_value(
@@ -199,6 +214,22 @@ impl RenderDispatcher for MovementRenderDispatcher {
                 ),
             );
         });
+
+        // Restore move/resize notifications after animation completes
+        if let Some(observer) = &self.observer.0 {
+            let _ = AccessibilityApi::add_notification_to_observer(
+                observer,
+                &self.element,
+                kAXWindowMovedNotification,
+                None,
+            );
+            let _ = AccessibilityApi::add_notification_to_observer(
+                observer,
+                &self.element,
+                kAXWindowResizedNotification,
+                None,
+            );
+        }
 
         Ok(())
     }
@@ -684,6 +715,7 @@ impl Window {
         let dispatcher = MovementRenderDispatcher::new(
             self.id,
             self.element.clone(),
+            self.observer.clone(),
             current_rect,
             *target_rect,
             style,
