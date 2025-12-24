@@ -27,8 +27,11 @@ netdev = "0.40"
 num = "0.4"
 num-derive = "0.4"
 num-traits = "0.2"
-objc2 = "0.6"
-objc2-app-kit = "0.3"
+objc2 = { version = "0.6", default-features = false, features = ["std"] }
+objc2-app-kit = { version = "0.3", default-features = false, features = [
+  "std",
+  "NSApplication",
+] }
 parking_lot = { workspace = true }
 random_word = { version = "0.5", features = ["en"] }
 reqwest = { version = "0.12", features = ["blocking"] }
