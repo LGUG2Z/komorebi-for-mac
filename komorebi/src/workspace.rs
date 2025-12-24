@@ -1199,7 +1199,6 @@ impl Workspace {
 
                     let is_scrolling =
                         matches!(self.layout, Layout::Default(DefaultLayout::Scrolling));
-                    let window_hiding_position = self.globals.window_hiding_position;
                     let resize_dimensions_is_empty = self.resize_dimensions.is_empty();
 
                     let containers = self.containers_mut();
@@ -1224,7 +1223,18 @@ impl Workspace {
 
                                 if is_scrolling && proposed_percentage < 0.1 && !percentage_override
                                 {
-                                    if let Err(error) = window.hide(window_hiding_position) {
+                                    // for the scrolling layout we pick the hiding position based
+                                    // on the closest edge to make the animations back in to the
+                                    // scrolling viewport nicer (i.e. not all the way across the
+                                    // screen in the worst case scenario)
+                                    let scrolling_hiding_position = if layout.left < work_area.left
+                                    {
+                                        WindowHidingPosition::BottomLeft
+                                    } else {
+                                        WindowHidingPosition::BottomRight
+                                    };
+
+                                    if let Err(error) = window.hide(scrolling_hiding_position) {
                                         tracing::warn!(
                                             "failed to set hide window for scrolling layout: {error}"
                                         )
