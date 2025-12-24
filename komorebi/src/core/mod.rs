@@ -1,3 +1,5 @@
+use crate::animation::AnimationPrefix;
+use crate::core::animation::AnimationStyle;
 use crate::core::arrangement::Axis;
 use crate::core::cycle_direction::CycleDirection;
 use crate::core::default_layout::DefaultLayout;
@@ -15,6 +17,7 @@ use std::str::FromStr;
 use strum::Display;
 use strum::EnumString;
 
+pub mod animation;
 pub mod arrangement;
 pub mod asc;
 pub mod config_generation;
@@ -378,10 +381,10 @@ pub enum SocketMessage {
     // CompleteConfiguration,
     // AltFocusHack(bool),
     Theme(Box<KomorebiTheme>),
-    // Animation(bool, Option<AnimationPrefix>),
-    // AnimationDuration(u64, Option<AnimationPrefix>),
-    // AnimationFps(u64),
-    // AnimationStyle(AnimationStyle, Option<AnimationPrefix>),
+    Animation(bool, Option<AnimationPrefix>),
+    AnimationDuration(u64, Option<AnimationPrefix>),
+    AnimationFps(u64),
+    AnimationStyle(AnimationStyle, Option<AnimationPrefix>),
     #[serde(alias = "ActiveWindowBorder")]
     Border(bool),
     #[serde(alias = "ActiveWindowBorderColour")]

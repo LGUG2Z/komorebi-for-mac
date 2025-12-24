@@ -10,6 +10,13 @@ use crate::SUBSCRIPTION_SOCKET_OPTIONS;
 use crate::SUBSCRIPTION_SOCKETS;
 use crate::WORKSPACE_MATCHING_RULES;
 use crate::accessibility::AccessibilityApi;
+use crate::animation::ANIMATION_DURATION_GLOBAL;
+use crate::animation::ANIMATION_DURATION_PER_ANIMATION;
+use crate::animation::ANIMATION_ENABLED_GLOBAL;
+use crate::animation::ANIMATION_ENABLED_PER_ANIMATION;
+use crate::animation::ANIMATION_FPS;
+use crate::animation::ANIMATION_STYLE_GLOBAL;
+use crate::animation::ANIMATION_STYLE_PER_ANIMATION;
 use crate::application::Application;
 use crate::border_manager;
 use crate::cf_array_as;
@@ -1737,6 +1744,41 @@ impl WindowManager {
             SocketMessage::Theme(ref theme) => {
                 theme_manager::send_notification(*theme.clone());
             }
+            SocketMessage::Animation(enable, prefix) => match prefix {
+                Some(prefix) => {
+                    ANIMATION_ENABLED_PER_ANIMATION
+                        .lock()
+                        .insert(prefix, enable);
+                }
+                None => {
+                    ANIMATION_ENABLED_GLOBAL.store(enable, Ordering::SeqCst);
+                    ANIMATION_ENABLED_PER_ANIMATION.lock().clear();
+                }
+            },
+            SocketMessage::AnimationDuration(duration, prefix) => match prefix {
+                Some(prefix) => {
+                    ANIMATION_DURATION_PER_ANIMATION
+                        .lock()
+                        .insert(prefix, duration);
+                }
+                None => {
+                    ANIMATION_DURATION_GLOBAL.store(duration, Ordering::SeqCst);
+                    ANIMATION_DURATION_PER_ANIMATION.lock().clear();
+                }
+            },
+            SocketMessage::AnimationFps(fps) => {
+                ANIMATION_FPS.store(fps, Ordering::SeqCst);
+            }
+            SocketMessage::AnimationStyle(style, prefix) => match prefix {
+                Some(prefix) => {
+                    ANIMATION_STYLE_PER_ANIMATION.lock().insert(prefix, style);
+                }
+                None => {
+                    let mut animation_style = ANIMATION_STYLE_GLOBAL.lock();
+                    *animation_style = style;
+                    ANIMATION_STYLE_PER_ANIMATION.lock().clear();
+                }
+            },
         }
 
         self.update_known_window_ids();

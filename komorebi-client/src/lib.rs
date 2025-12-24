@@ -1,6 +1,7 @@
 pub use komorebi::DATA_DIR;
 pub use komorebi::Notification;
 pub use komorebi::NotificationEvent;
+pub use komorebi::animation::AnimationPrefix;
 pub use komorebi::container::Container;
 pub use komorebi::core::ApplicationIdentifier;
 pub use komorebi::core::MoveBehaviour;
@@ -10,6 +11,7 @@ pub use komorebi::core::SocketMessage;
 pub use komorebi::core::StateQuery;
 pub use komorebi::core::SubscribeOptions;
 pub use komorebi::core::WindowKind;
+pub use komorebi::core::animation::AnimationStyle;
 pub use komorebi::core::arrangement::Axis;
 pub use komorebi::core::asc::ApplicationSpecificConfiguration;
 pub use komorebi::core::cycle_direction::CycleDirection;

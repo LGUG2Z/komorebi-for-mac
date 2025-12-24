@@ -649,6 +649,40 @@ struct BorderOffset {
 }
 
 #[derive(Parser)]
+struct Animation {
+    #[clap(value_enum)]
+    boolean_state: BooleanState,
+    /// Animation type to apply the state to. If not specified, sets global state
+    #[clap(value_enum, short, long)]
+    animation_type: Option<komorebi_client::AnimationPrefix>,
+}
+
+#[derive(Parser)]
+struct AnimationDuration {
+    /// Desired animation durations in ms
+    duration: u64,
+    /// Animation type to apply the duration to. If not specified, sets global duration
+    #[clap(value_enum, short, long)]
+    animation_type: Option<komorebi_client::AnimationPrefix>,
+}
+
+#[derive(Parser)]
+struct AnimationFps {
+    /// Desired animation frames per second
+    fps: u64,
+}
+
+#[derive(Parser)]
+struct AnimationStyle {
+    /// Desired ease function for animation
+    #[clap(value_enum, short, long, default_value = "linear")]
+    style: komorebi_client::AnimationStyle,
+    /// Animation type to apply the style to. If not specified, sets global style
+    #[clap(value_enum, short, long)]
+    animation_type: Option<komorebi_client::AnimationPrefix>,
+}
+
+#[derive(Parser)]
 struct Completions {
     #[clap(value_enum)]
     shell: clap_complete::Shell,
@@ -1150,18 +1184,18 @@ enum SubCommand {
     // TransparencyAlpha(TransparencyAlpha),
     // /// Toggle transparency for unfocused windows
     // ToggleTransparency,
-    // /// Enable or disable movement animations
-    // #[clap(arg_required_else_help = true)]
-    // Animation(Animation),
-    // /// Set the duration for movement animations in ms
-    // #[clap(arg_required_else_help = true)]
-    // AnimationDuration(AnimationDuration),
-    // /// Set the frames per second for movement animations
-    // #[clap(arg_required_else_help = true)]
-    // AnimationFps(AnimationFps),
-    // /// Set the ease function for movement animations
-    // #[clap(arg_required_else_help = true)]
-    // AnimationStyle(AnimationStyle),
+    /// Enable or disable movement animations
+    #[clap(arg_required_else_help = true)]
+    Animation(Animation),
+    /// Set the duration for movement animations in ms
+    #[clap(arg_required_else_help = true)]
+    AnimationDuration(AnimationDuration),
+    /// Set the frames per second for movement animations
+    #[clap(arg_required_else_help = true)]
+    AnimationFps(AnimationFps),
+    /// Set the ease function for movement animations
+    #[clap(arg_required_else_help = true)]
+    AnimationStyle(AnimationStyle),
     // /// Enable or disable focus follows mouse for the operating system
     // #[clap(hide = true)]
     // #[clap(arg_required_else_help = true)]
@@ -2251,6 +2285,27 @@ fn main() -> eyre::Result<()> {
         }
         SubCommand::BorderOffset(args) => {
             send_message(&SocketMessage::BorderOffset(args.offset))?;
+        }
+        SubCommand::Animation(args) => {
+            send_message(&SocketMessage::Animation(
+                args.boolean_state.into(),
+                args.animation_type,
+            ))?;
+        }
+        SubCommand::AnimationDuration(args) => {
+            send_message(&SocketMessage::AnimationDuration(
+                args.duration,
+                args.animation_type,
+            ))?;
+        }
+        SubCommand::AnimationFps(args) => {
+            send_message(&SocketMessage::AnimationFps(args.fps))?;
+        }
+        SubCommand::AnimationStyle(args) => {
+            send_message(&SocketMessage::AnimationStyle(
+                args.style,
+                args.animation_type,
+            ))?;
         }
     }
 

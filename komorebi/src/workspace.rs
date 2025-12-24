@@ -14,6 +14,9 @@ use crate::core::rect::Rect;
 use crate::lockable_sequence::LockableSequence;
 use crate::macos_api::MacosApi;
 use crate::ring::Ring;
+use crate::skylight::CGSMainConnectionID;
+use crate::skylight::SLSDisableUpdate;
+use crate::skylight::SLSReenableUpdate;
 use crate::static_config::KomorebiTheme;
 use crate::static_config::Wallpaper;
 use crate::static_config::WorkspaceConfig;
@@ -1169,68 +1172,83 @@ impl Workspace {
         }
 
         if self.tile {
-            if let Some(container) = self.monocle_container.as_mut() {
-                if let Some(window) = container.focused_window_mut() {
-                    adjusted_work_area.add_padding(container_padding);
-                    adjusted_work_area.add_padding(border_offset);
-                    adjusted_work_area.add_padding(border_width);
-                    window.set_position(&adjusted_work_area)?;
-                };
-            } else if !self.containers().is_empty() {
-                let mut layouts = self.layout.as_boxed_arrangement().calculate(
-                    &adjusted_work_area,
-                    NonZeroUsize::new(self.containers().len()).ok_or_eyre(
-                        "there must be at least one container to calculate a workspace layout",
-                    )?,
-                    Some(container_padding),
-                    self.layout_flip,
-                    &self.resize_dimensions,
-                    self.focused_container_idx(),
-                    self.layout_options,
-                    &self.latest_layout,
-                );
+            // Batch screen updates for flicker-free window positioning
+            let connection_id = unsafe { CGSMainConnectionID() };
+            unsafe { SLSDisableUpdate(connection_id) };
 
-                let is_scrolling = matches!(self.layout, Layout::Default(DefaultLayout::Scrolling));
-                let window_hiding_position = self.globals.window_hiding_position;
-                let resize_dimensions_is_empty = self.resize_dimensions.is_empty();
+            let result = (|| -> eyre::Result<()> {
+                if let Some(container) = self.monocle_container.as_mut() {
+                    if let Some(window) = container.focused_window_mut() {
+                        adjusted_work_area.add_padding(container_padding);
+                        adjusted_work_area.add_padding(border_offset);
+                        adjusted_work_area.add_padding(border_width);
+                        window.set_position(&adjusted_work_area)?;
+                    };
+                } else if !self.containers().is_empty() {
+                    let mut layouts = self.layout.as_boxed_arrangement().calculate(
+                        &adjusted_work_area,
+                        NonZeroUsize::new(self.containers().len()).ok_or_eyre(
+                            "there must be at least one container to calculate a workspace layout",
+                        )?,
+                        Some(container_padding),
+                        self.layout_flip,
+                        &self.resize_dimensions,
+                        self.focused_container_idx(),
+                        self.layout_options,
+                        &self.latest_layout,
+                    );
 
-                let containers = self.containers_mut();
+                    let is_scrolling =
+                        matches!(self.layout, Layout::Default(DefaultLayout::Scrolling));
+                    let window_hiding_position = self.globals.window_hiding_position;
+                    let resize_dimensions_is_empty = self.resize_dimensions.is_empty();
 
-                for (i, container) in containers.iter_mut().enumerate() {
-                    if let Some(layout) = layouts.get_mut(i) {
-                        layout.add_padding(border_offset);
-                        layout.add_padding(border_width);
+                    let containers = self.containers_mut();
 
-                        for window in container.windows_mut() {
-                            let current_rect =
-                                MacosApi::window_rect(&window.element).unwrap_or_default();
-                            let current_percentage = work_area
-                                .percentage_within_horizontal_bounds(&Rect::from(current_rect));
-                            let proposed_percentage =
-                                work_area.percentage_within_horizontal_bounds(layout);
+                    for (i, container) in containers.iter_mut().enumerate() {
+                        if let Some(layout) = layouts.get_mut(i) {
+                            layout.add_padding(border_offset);
+                            layout.add_padding(border_width);
 
-                            let percentage_override = proposed_percentage == 0.0
-                                && current_percentage > 0.1
-                                && current_percentage < 100.0
-                                && resize_dimensions_is_empty;
+                            for window in container.windows_mut() {
+                                let current_rect =
+                                    MacosApi::window_rect(&window.element).unwrap_or_default();
+                                let current_percentage = work_area
+                                    .percentage_within_horizontal_bounds(&Rect::from(current_rect));
+                                let proposed_percentage =
+                                    work_area.percentage_within_horizontal_bounds(layout);
 
-                            if is_scrolling && proposed_percentage < 0.1 && !percentage_override {
-                                if let Err(error) = window.hide(window_hiding_position) {
-                                    tracing::warn!(
-                                        "failed to set hide window for scrolling layout: {error}"
-                                    )
+                                let percentage_override = proposed_percentage == 0.0
+                                    && current_percentage > 0.1
+                                    && current_percentage < 100.0
+                                    && resize_dimensions_is_empty;
+
+                                if is_scrolling && proposed_percentage < 0.1 && !percentage_override
+                                {
+                                    if let Err(error) = window.hide(window_hiding_position) {
+                                        tracing::warn!(
+                                            "failed to set hide window for scrolling layout: {error}"
+                                        )
+                                    }
+                                } else if percentage_override {
+                                    window.center(&work_area, false)?;
+                                } else if let Err(error) = window.set_position(layout) {
+                                    tracing::warn!("failed to set window position: {error}")
                                 }
-                            } else if percentage_override {
-                                window.center(&work_area, false)?;
-                            } else if let Err(error) = window.set_position(layout) {
-                                tracing::warn!("failed to set window position: {error}")
                             }
                         }
                     }
-                }
 
-                self.latest_layout = layouts;
-            }
+                    self.latest_layout = layouts;
+                }
+                Ok(())
+            })();
+
+            // Always re-enable updates, even if there was an error
+            unsafe { SLSReenableUpdate(connection_id) };
+
+            // Propagate any error that occurred
+            result?;
         }
 
         // Always make sure that the length of the resize dimensions vec is the same as the

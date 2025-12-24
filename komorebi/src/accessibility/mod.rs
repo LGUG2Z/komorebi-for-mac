@@ -198,4 +198,52 @@ impl AccessibilityApi {
             CFRunLoopSource::invalidate(&observer.run_loop_source());
         }
     }
+
+    /// Add a single notification to an observer for a specific element.
+    /// Used to restore notifications after animation completes.
+    pub fn add_notification_to_observer(
+        observer: &AXObserver,
+        element: &AXUIElement,
+        notification: &'static str,
+        refcon: Option<*mut c_void>,
+    ) -> Result<(), AccessibilityError> {
+        unsafe {
+            match AccessibilityError::from(AXObserver::add_notification(
+                observer,
+                element,
+                &CFString::from_str(notification),
+                refcon.unwrap_or_default(),
+            )) {
+                AccessibilityError::Api(AccessibilityApiError::Success) => Ok(()),
+                AccessibilityError::Api(AccessibilityApiError::NotificationAlreadyRegistered) => {
+                    // Already registered is not an error for our purposes
+                    Ok(())
+                }
+                error => Err(error),
+            }
+        }
+    }
+
+    /// Remove a single notification from an observer for a specific element.
+    /// Used to suppress notifications during animation to prevent feedback loops.
+    pub fn remove_notification_from_observer(
+        observer: &AXObserver,
+        element: &AXUIElement,
+        notification: &'static str,
+    ) -> Result<(), AccessibilityError> {
+        unsafe {
+            match AccessibilityError::from(AXObserver::remove_notification(
+                observer,
+                element,
+                &CFString::from_str(notification),
+            )) {
+                AccessibilityError::Api(AccessibilityApiError::Success) => Ok(()),
+                AccessibilityError::Api(AccessibilityApiError::NotificationNotRegistered) => {
+                    // Not registered is not an error for our purposes
+                    Ok(())
+                }
+                error => Err(error),
+            }
+        }
+    }
 }

@@ -198,6 +198,10 @@ nav:
       - cli/border-colour.md
       - cli/border-width.md
       - cli/border-offset.md
+      - cli/animation.md
+      - cli/animation-duration.md
+      - cli/animation-fps.md
+      - cli/animation-style.md
       - cli/mouse-follows-focus.md
       - cli/toggle-mouse-follows-focus.md
       - cli/fetch-app-specific-configuration.md
@@ -207,4 +211,4 @@ nav:
       - cli/static-config-schema.md
       - cli/generate-static-config.md
       - cli/enable-autostart.md
-      - cli/disable-autostart.md
+      - cli/disable-autostart.md:

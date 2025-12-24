@@ -9,6 +9,15 @@ use crate::IGNORE_IDENTIFIERS;
 use crate::MANAGE_IDENTIFIERS;
 use crate::REGEX_IDENTIFIERS;
 use crate::WORKSPACE_MATCHING_RULES;
+use crate::animation::ANIMATION_DURATION_GLOBAL;
+use crate::animation::ANIMATION_DURATION_PER_ANIMATION;
+use crate::animation::ANIMATION_ENABLED_GLOBAL;
+use crate::animation::ANIMATION_ENABLED_PER_ANIMATION;
+use crate::animation::ANIMATION_FPS;
+use crate::animation::ANIMATION_STYLE_GLOBAL;
+use crate::animation::ANIMATION_STYLE_PER_ANIMATION;
+use crate::animation::DEFAULT_ANIMATION_FPS;
+use crate::animation::PerAnimationPrefixConfig;
 use crate::border_manager;
 use crate::core::CrossBoundaryBehaviour;
 use crate::core::FloatingLayerBehaviour;
@@ -19,6 +28,7 @@ use crate::core::SocketMessage;
 use crate::core::WindowContainerBehaviour;
 use crate::core::WindowHidingPosition;
 use crate::core::WindowManagementBehaviour;
+use crate::core::animation::AnimationStyle;
 use crate::core::arrangement::Axis;
 use crate::core::asc::ApplicationSpecificConfiguration;
 use crate::core::asc::AscApplicationRulesOrSchema;
@@ -503,9 +513,9 @@ pub struct StaticConfig {
     // /// Stackbar configuration options
     // #[serde(skip_serializing_if = "Option::is_none")]
     // pub stackbar: Option<StackbarConfig>,
-    // /// Animations configuration options
-    // #[serde(skip_serializing_if = "Option::is_none")]
-    // pub animation: Option<AnimationsConfig>,
+    /// Animations configuration options
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub animation: Option<AnimationsConfig>,
     /// Theme configuration options
     #[serde(skip_serializing_if = "Option::is_none")]
     pub theme: Option<KomorebiTheme>,
@@ -531,21 +541,21 @@ pub struct StaticConfig {
     // pub window_handling_behaviour: Option<WindowHandlingBehaviour>,
 }
 
-// #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-// #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-// pub struct AnimationsConfig {
-//     /// Enable or disable animations (default: false)
-//     pub enabled: PerAnimationPrefixConfig<bool>,
-//     /// Set the animation duration in ms (default: 250)
-//     #[serde(skip_serializing_if = "Option::is_none")]
-//     pub duration: Option<PerAnimationPrefixConfig<u64>>,
-//     /// Set the animation style (default: Linear)
-//     #[serde(skip_serializing_if = "Option::is_none")]
-//     pub style: Option<PerAnimationPrefixConfig<AnimationStyle>>,
-//     /// Set the animation FPS (default: 60)
-//     #[serde(skip_serializing_if = "Option::is_none")]
-//     pub fps: Option<u64>,
-// }
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+pub struct AnimationsConfig {
+    /// Enable or disable animations (default: false)
+    pub enabled: PerAnimationPrefixConfig<bool>,
+    /// Set the animation duration in ms (default: 250)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub duration: Option<PerAnimationPrefixConfig<u64>>,
+    /// Set the animation style (default: Linear)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub style: Option<PerAnimationPrefixConfig<AnimationStyle>>,
+    /// Set the animation FPS (default: 60)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fps: Option<u64>,
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
@@ -792,7 +802,7 @@ impl From<&WindowManager> for StaticConfig {
             // monitor_index_preferences: Option::from(MONITOR_INDEX_PREFERENCES.lock().clone()),
             display_index_preferences: Option::from(DISPLAY_INDEX_PREFERENCES.read().clone()),
             // stackbar: None,
-            // animation: None,
+            animation: None,
             theme: None,
             // slow_application_compensation_time: Option::from(
             //     SLOW_APPLICATION_COMPENSATION_TIME.load(Ordering::SeqCst),
@@ -837,45 +847,45 @@ impl StaticConfig {
         //     window::MINIMUM_WIDTH.store(width, Ordering::SeqCst);
         // }
 
-        // if let Some(animations) = &self.animation {
-        //     match &animations.enabled {
-        //         PerAnimationPrefixConfig::Prefix(enabled) => {
-        //             ANIMATION_ENABLED_PER_ANIMATION.lock().clone_from(enabled);
-        //         }
-        //         PerAnimationPrefixConfig::Global(enabled) => {
-        //             ANIMATION_ENABLED_GLOBAL.store(*enabled, Ordering::SeqCst);
-        //             ANIMATION_ENABLED_PER_ANIMATION.lock().clear();
-        //         }
-        //     }
-        //
-        //     match &animations.style {
-        //         Some(PerAnimationPrefixConfig::Prefix(style)) => {
-        //             ANIMATION_STYLE_PER_ANIMATION.lock().clone_from(style);
-        //         }
-        //         Some(PerAnimationPrefixConfig::Global(style)) => {
-        //             let mut animation_style = ANIMATION_STYLE_GLOBAL.lock();
-        //             *animation_style = *style;
-        //             ANIMATION_STYLE_PER_ANIMATION.lock().clear();
-        //         }
-        //         None => {}
-        //     }
-        //
-        //     match &animations.duration {
-        //         Some(PerAnimationPrefixConfig::Prefix(duration)) => {
-        //             ANIMATION_DURATION_PER_ANIMATION.lock().clone_from(duration);
-        //         }
-        //         Some(PerAnimationPrefixConfig::Global(duration)) => {
-        //             ANIMATION_DURATION_GLOBAL.store(*duration, Ordering::SeqCst);
-        //             ANIMATION_DURATION_PER_ANIMATION.lock().clear();
-        //         }
-        //         None => {}
-        //     }
-        //
-        //     ANIMATION_FPS.store(
-        //         animations.fps.unwrap_or(DEFAULT_ANIMATION_FPS),
-        //         Ordering::SeqCst,
-        //     );
-        // }
+        if let Some(animations) = &self.animation {
+            match &animations.enabled {
+                PerAnimationPrefixConfig::Prefix(enabled) => {
+                    ANIMATION_ENABLED_PER_ANIMATION.lock().clone_from(enabled);
+                }
+                PerAnimationPrefixConfig::Global(enabled) => {
+                    ANIMATION_ENABLED_GLOBAL.store(*enabled, Ordering::SeqCst);
+                    ANIMATION_ENABLED_PER_ANIMATION.lock().clear();
+                }
+            }
+
+            match &animations.style {
+                Some(PerAnimationPrefixConfig::Prefix(style)) => {
+                    ANIMATION_STYLE_PER_ANIMATION.lock().clone_from(style);
+                }
+                Some(PerAnimationPrefixConfig::Global(style)) => {
+                    let mut animation_style = ANIMATION_STYLE_GLOBAL.lock();
+                    *animation_style = *style;
+                    ANIMATION_STYLE_PER_ANIMATION.lock().clear();
+                }
+                None => {}
+            }
+
+            match &animations.duration {
+                Some(PerAnimationPrefixConfig::Prefix(duration)) => {
+                    ANIMATION_DURATION_PER_ANIMATION.lock().clone_from(duration);
+                }
+                Some(PerAnimationPrefixConfig::Global(duration)) => {
+                    ANIMATION_DURATION_GLOBAL.store(*duration, Ordering::SeqCst);
+                    ANIMATION_DURATION_PER_ANIMATION.lock().clear();
+                }
+                None => {}
+            }
+
+            ANIMATION_FPS.store(
+                animations.fps.unwrap_or(DEFAULT_ANIMATION_FPS),
+                Ordering::SeqCst,
+            );
+        }
 
         if let Some(container) = self.default_container_padding {
             DEFAULT_CONTAINER_PADDING.store(container, Ordering::SeqCst);

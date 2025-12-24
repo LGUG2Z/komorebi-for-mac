@@ -46,6 +46,7 @@ use std::sync::atomic::AtomicI32;
 pub mod ring;
 
 pub mod accessibility;
+pub mod animation;
 pub mod app_kit_notification_constants;
 pub mod application;
 pub mod border_manager;

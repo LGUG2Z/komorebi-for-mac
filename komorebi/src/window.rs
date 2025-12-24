@@ -28,10 +28,24 @@ use crate::accessibility::notification_constants::kAXWindowDeminiaturizedNotific
 use crate::accessibility::notification_constants::kAXWindowMiniaturizedNotification;
 use crate::accessibility::notification_constants::kAXWindowMovedNotification;
 use crate::accessibility::notification_constants::kAXWindowResizedNotification;
+use crate::animation::ANIMATION_DURATION_GLOBAL;
+use crate::animation::ANIMATION_DURATION_PER_ANIMATION;
+use crate::animation::ANIMATION_ENABLED_GLOBAL;
+use crate::animation::ANIMATION_ENABLED_PER_ANIMATION;
+
+use crate::accessibility::private::with_enhanced_ui_disabled;
+use crate::animation::ANIMATION_STYLE_GLOBAL;
+use crate::animation::ANIMATION_STYLE_PER_ANIMATION;
+use crate::animation::AnimationEngine;
+use crate::animation::RenderDispatcher;
+use crate::animation::lerp::Lerp;
+use crate::animation::prefix::AnimationPrefix;
+use crate::animation::prefix::new_animation_key;
 use crate::application::Application;
 use crate::cf_dictionary_value;
 use crate::core::ApplicationIdentifier;
 use crate::core::WindowHidingPosition;
+use crate::core::animation::AnimationStyle;
 use crate::core::config_generation::IdWithIdentifier;
 use crate::core::config_generation::MatchingRule;
 use crate::core::config_generation::MatchingStrategy;
@@ -83,6 +97,8 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::ptr::NonNull;
 use std::str::FromStr;
+use std::sync::atomic::Ordering;
+use std::time::Duration;
 use strum::Display;
 use strum::EnumString;
 use tracing::instrument;
@@ -94,6 +110,99 @@ const NOTIFICATIONS: &[&str] = &[
     kAXWindowResizedNotification,
     kAXTitleChangedNotification,
 ];
+
+/// Render dispatcher for window movement animations
+pub struct MovementRenderDispatcher {
+    window_id: u32,
+    element: AccessibilityUiElement,
+    start_rect: Rect,
+    target_rect: Rect,
+    style: AnimationStyle,
+}
+
+impl MovementRenderDispatcher {
+    pub const PREFIX: AnimationPrefix = AnimationPrefix::Movement;
+
+    pub fn new(
+        window_id: u32,
+        element: AccessibilityUiElement,
+        start_rect: Rect,
+        target_rect: Rect,
+        style: AnimationStyle,
+    ) -> Self {
+        Self {
+            window_id,
+            element,
+            start_rect,
+            target_rect,
+            style,
+        }
+    }
+}
+
+impl RenderDispatcher for MovementRenderDispatcher {
+    fn get_animation_key(&self) -> String {
+        new_animation_key(MovementRenderDispatcher::PREFIX, self.window_id.to_string())
+    }
+
+    fn pre_render(&self) -> color_eyre::eyre::Result<()> {
+        // Nothing specific to do before rendering on macOS
+        // The observer notifications are suppressed at a higher level
+        Ok(())
+    }
+
+    fn render(&self, progress: f64) -> color_eyre::eyre::Result<()> {
+        let new_rect = self.start_rect.lerp(self.target_rect, progress, self.style);
+
+        // Use with_enhanced_ui_disabled for better performance during animation
+        with_enhanced_ui_disabled(&self.element, || {
+            // Set position
+            let _ = AccessibilityApi::set_attribute_ax_value(
+                &self.element,
+                kAXPositionAttribute,
+                AXValueType::CGPoint,
+                CGPoint::new(new_rect.left as CGFloat, new_rect.top as CGFloat),
+            );
+
+            // Set size
+            let _ = AccessibilityApi::set_attribute_ax_value(
+                &self.element,
+                kAXSizeAttribute,
+                AXValueType::CGSize,
+                CGSize::new(new_rect.right as CGFloat, new_rect.bottom as CGFloat),
+            );
+        });
+
+        Ok(())
+    }
+
+    fn post_render(&self) -> color_eyre::eyre::Result<()> {
+        // Ensure final position is exact
+        with_enhanced_ui_disabled(&self.element, || {
+            let _ = AccessibilityApi::set_attribute_ax_value(
+                &self.element,
+                kAXPositionAttribute,
+                AXValueType::CGPoint,
+                CGPoint::new(
+                    self.target_rect.left as CGFloat,
+                    self.target_rect.top as CGFloat,
+                ),
+            );
+
+            let _ = AccessibilityApi::set_attribute_ax_value(
+                &self.element,
+                kAXSizeAttribute,
+                AXValueType::CGSize,
+                CGSize::new(
+                    self.target_rect.right as CGFloat,
+                    self.target_rect.bottom as CGFloat,
+                ),
+            );
+        });
+
+        Ok(())
+    }
+}
 
 #[instrument(skip_all)]
 unsafe extern "C-unwind" fn window_observer_callback(
@@ -517,6 +626,23 @@ impl Window {
     }
 
     pub fn set_position(&self, rect: &Rect) -> Result<(), AccessibilityError> {
+        // Check if animation is enabled (per-animation or global)
+        let animation_enabled = {
+            let per_animation = ANIMATION_ENABLED_PER_ANIMATION.lock();
+            per_animation
+                .get(&MovementRenderDispatcher::PREFIX)
+                .copied()
+                .unwrap_or_else(|| ANIMATION_ENABLED_GLOBAL.load(Ordering::SeqCst))
+        };
+
+        if animation_enabled {
+            self.set_position_animated(rect)
+        } else {
+            self.set_position_direct(rect)
+        }
+    }
+
+    fn set_position_direct(&self, rect: &Rect) -> Result<(), AccessibilityError> {
         self.set_point(
             CGPoint::new(rect.left as CGFloat, rect.top as CGFloat),
             true,
@@ -525,6 +651,53 @@ impl Window {
             CGSize::new(rect.right as CGFloat, rect.bottom as CGFloat),
             true,
         )
+    }
+
+    fn set_position_animated(&self, target_rect: &Rect) -> Result<(), AccessibilityError> {
+        // Get current window position
+        let current_rect = Rect::from(MacosApi::window_rect(&self.element)?);
+
+        // If already at target position, skip animation
+        if current_rect == *target_rect {
+            return Ok(());
+        }
+
+        // Get animation style (per-animation or global)
+        let style = {
+            let per_animation = ANIMATION_STYLE_PER_ANIMATION.lock();
+            per_animation
+                .get(&MovementRenderDispatcher::PREFIX)
+                .copied()
+                .unwrap_or_else(|| *ANIMATION_STYLE_GLOBAL.lock())
+        };
+
+        // Get animation duration (per-animation or global)
+        let duration = {
+            let per_animation = ANIMATION_DURATION_PER_ANIMATION.lock();
+            per_animation
+                .get(&MovementRenderDispatcher::PREFIX)
+                .copied()
+                .unwrap_or_else(|| ANIMATION_DURATION_GLOBAL.load(Ordering::SeqCst))
+        };
+
+        // Create render dispatcher
+        let dispatcher = MovementRenderDispatcher::new(
+            self.id,
+            self.element.clone(),
+            current_rect,
+            *target_rect,
+            style,
+        );
+
+        // Run animation (AnimationEngine handles cancellation and registration internally)
+        let duration = Duration::from_millis(duration);
+        if let Err(e) = AnimationEngine::animate(dispatcher, duration) {
+            tracing::warn!("Animation failed for window {}: {}", self.id, e);
+            // Fall back to direct positioning
+            return self.set_position_direct(target_rect);
+        }
+
+        Ok(())
     }
 
     pub fn focus(&self, mouse_follows_focus: bool) -> Result<(), LibraryError> {
