@@ -165,6 +165,8 @@
             };
 
             komorebi-workspace-nextest = build.craneLib.cargoNextest build.individualCrateArgs;
+
+            nix-options-validation = import ./nix/tests { inherit pkgs; };
           };
 
           packages = {

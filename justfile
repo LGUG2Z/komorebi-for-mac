@@ -62,6 +62,12 @@ schemagen:
     cp schema.json komorebi-schema/komorebi.{{ version }}.schema.json
     cp schema.bar.json komorebi-schema/komorebi.bar.{{ version }}.schema.json
 
+nixgen:
+    schemars-nixgen schema.json -o nix/komorebi-options.nix --name komorebi --description "komorebi for Mac configuration"
+    schemars-nixgen schema.bar.json -o nix/komorebi-bar-options.nix --name komorebi-bar --description "komorebi for Mac bar configuration"
+    nix fmt nix/
+    nix build -f nix/tests/default.nix
+
 schemapub:
     wrangler pages deploy --project-name komorebi-for-mac --branch main ./komorebi-schema
 
