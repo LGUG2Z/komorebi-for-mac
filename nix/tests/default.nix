@@ -1,14 +1,14 @@
 # E2E test harness for validating generated Nix options
-# Run with: nix build -f nix/tests/default.nix
-# Or via flake: nix flake check (runs as part of checks)
+# run with: nix build -f nix/tests/default.nix
+# or via flake: nix flake check (runs as part of checks)
 {
   pkgs ? import <nixpkgs> { },
 }:
 let
   lib = pkgs.lib;
 
-  # Recursively filter out null values and empty attrs from a config
-  # This is needed because the Nix module system uses null for unset optional fields,
+  # recursively filter out null values and empty attrs from a config
+  # this is needed because the Nix module system uses null for unset optional fields,
   # but the JSON schema expects those fields to be absent entirely
   filterNulls =
     value:
@@ -24,7 +24,6 @@ let
     else
       value;
 
-  # Helper to evaluate a config module and extract the config value
   evalConfig =
     optionsModule: configModule: configPath:
     let

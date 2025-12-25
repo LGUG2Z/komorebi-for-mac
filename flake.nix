@@ -167,6 +167,8 @@
             komorebi-workspace-nextest = build.craneLib.cargoNextest build.individualCrateArgs;
 
             nix-options-validation = import ./nix/tests { inherit pkgs; };
+
+            darwin-module-validation = import ./nix/tests/darwin-module.nix { inherit pkgs; };
           };
 
           packages = {
@@ -255,6 +257,9 @@
             inherit (build) komorebi komorebic komorebi-bar;
             komorebi-full = build.fullBuild;
           };
+
+        darwinModules.default = import ./nix/darwin-module.nix;
+        darwinModules.komorebi = import ./nix/darwin-module.nix;
       };
     };
 }
