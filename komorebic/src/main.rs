@@ -683,6 +683,13 @@ struct AnimationStyle {
 }
 
 #[derive(Parser)]
+struct Docgen {
+    /// Output directory for generated documentation files
+    #[clap(short, long)]
+    output: Option<PathBuf>,
+}
+
+#[derive(Parser)]
 struct Completions {
     #[clap(value_enum)]
     shell: clap_complete::Shell,
@@ -709,7 +716,7 @@ struct Opts {
 #[derive(Parser)]
 enum SubCommand {
     #[clap(hide = true)]
-    Docgen,
+    Docgen(Docgen),
     #[clap(hide = true)]
     Splash(Splash),
     /// Generate komorebic CLI completions for the target shell
@@ -1257,10 +1264,12 @@ fn main() -> eyre::Result<()> {
     let opts: Opts = Opts::parse();
 
     match opts.subcmd {
-        SubCommand::Docgen => {
+        SubCommand::Docgen(args) => {
             let mut cli = Opts::command();
             let subcommands = cli.get_subcommands_mut();
-            std::fs::create_dir_all("docs/cli")?;
+
+            let output_dir = args.output.unwrap_or_else(|| PathBuf::from("docs/cli"));
+            std::fs::create_dir_all(&output_dir)?;
 
             let ignore = [
                 "docgen",
@@ -1281,10 +1290,10 @@ fn main() -> eyre::Result<()> {
                 let name = cmd.get_name().to_string();
                 if !ignore.contains(&name.as_str()) {
                     let help_text = cmd.render_long_help().to_string();
-                    let outpath = format!("docs/cli/{name}.md");
-                    let markdown = format!("# {name}\n\n```\n{help_text}\n```");
-                    std::fs::write(outpath, markdown)?;
-                    println!("    - cli/{name}.md");
+                    let outpath = output_dir.join(format!("{name}.md"));
+                    let markdown = format!("```\n{help_text}\n```");
+                    std::fs::write(&outpath, markdown)?;
+                    println!("{}", outpath.display());
                 }
             }
         }
