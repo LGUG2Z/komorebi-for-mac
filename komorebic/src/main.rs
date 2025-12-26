@@ -327,11 +327,11 @@ macro_rules! gen_application_target_subcommand_args {
 gen_application_target_subcommand_args! {
     IgnoreRule,
     ManageRule,
-    IdentifyTrayApplication,
-    IdentifyLayeredApplication,
-    IdentifyObjectNameChangeApplication,
-    IdentifyBorderOverflowApplication,
-    RemoveTitleBar,
+    // IdentifyTrayApplication,
+    // IdentifyLayeredApplication,
+    // IdentifyObjectNameChangeApplication,
+    // IdentifyBorderOverflowApplication,
+    // RemoveTitleBar,
 }
 
 #[derive(Parser)]

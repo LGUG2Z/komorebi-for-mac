@@ -52,16 +52,6 @@
       ],
       "format": "int32"
     },
-    "border_overflow_applications": {
-      "description": "Identify border overflow applications",
-      "type": [
-        "array",
-        "null"
-      ],
-      "items": {
-        "$ref": "#/$defs/MatchingRule"
-      }
-    },
     "border_radius": {
       "description": "Radius of window borders (default: 10)",
       "type": [
@@ -222,16 +212,6 @@
         "$ref": "#/$defs/MatchingRule"
       }
     },
-    "layered_applications": {
-      "description": "Identify applications that have the WS_EX_LAYERED extended window style",
-      "type": [
-        "array",
-        "null"
-      ],
-      "items": {
-        "$ref": "#/$defs/MatchingRule"
-      }
-    },
     "manage_rules": {
       "description": "Individual window force-manage rules",
       "type": [
@@ -258,26 +238,6 @@
         "boolean",
         "null"
       ]
-    },
-    "object_name_change_applications": {
-      "description": "Identify applications that send EVENT_OBJECT_NAMECHANGE on launch (very rare)",
-      "type": [
-        "array",
-        "null"
-      ],
-      "items": {
-        "$ref": "#/$defs/MatchingRule"
-      }
-    },
-    "object_name_change_title_ignore_list": {
-      "description": "Do not process EVENT_OBJECT_NAMECHANGE events as Show events for identified applications matching these title regexes",
-      "type": [
-        "array",
-        "null"
-      ],
-      "items": {
-        "type": "string"
-      }
     },
     "resize_delta": {
       "description": "Delta to resize windows by (default 50)",
@@ -308,16 +268,6 @@
           "type": "null"
         }
       ]
-    },
-    "tray_and_multi_window_applications": {
-      "description": "Identify tray and multi-window applications",
-      "type": [
-        "array",
-        "null"
-      ],
-      "items": {
-        "$ref": "#/$defs/MatchingRule"
-      }
     },
     "unmanaged_window_operation_behaviour": {
       "description": "Determine what happens when commands are sent while an unmanaged window is in the foreground (default: Op)",

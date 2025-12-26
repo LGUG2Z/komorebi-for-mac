@@ -489,21 +489,21 @@ pub struct StaticConfig {
     /// Identify applications which should be managed as floating windows
     #[serde(skip_serializing_if = "Option::is_none")]
     pub floating_applications: Option<Vec<MatchingRule>>,
-    /// Identify border overflow applications
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub border_overflow_applications: Option<Vec<MatchingRule>>,
-    /// Identify tray and multi-window applications
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub tray_and_multi_window_applications: Option<Vec<MatchingRule>>,
-    /// Identify applications that have the WS_EX_LAYERED extended window style
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub layered_applications: Option<Vec<MatchingRule>>,
-    /// Identify applications that send EVENT_OBJECT_NAMECHANGE on launch (very rare)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub object_name_change_applications: Option<Vec<MatchingRule>>,
-    /// Do not process EVENT_OBJECT_NAMECHANGE events as Show events for identified applications matching these title regexes
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub object_name_change_title_ignore_list: Option<Vec<String>>,
+    // /// Identify border overflow applications
+    // #[serde(skip_serializing_if = "Option::is_none")]
+    // pub border_overflow_applications: Option<Vec<MatchingRule>>,
+    // /// Identify tray and multi-window applications
+    // #[serde(skip_serializing_if = "Option::is_none")]
+    // pub tray_and_multi_window_applications: Option<Vec<MatchingRule>>,
+    // /// Identify applications that have the WS_EX_LAYERED extended window style
+    // #[serde(skip_serializing_if = "Option::is_none")]
+    // pub layered_applications: Option<Vec<MatchingRule>>,
+    // /// Identify applications that send EVENT_OBJECT_NAMECHANGE on launch (very rare)
+    // #[serde(skip_serializing_if = "Option::is_none")]
+    // pub object_name_change_applications: Option<Vec<MatchingRule>>,
+    // /// Do not process EVENT_OBJECT_NAMECHANGE events as Show events for identified applications matching these title regexes
+    // #[serde(skip_serializing_if = "Option::is_none")]
+    // pub object_name_change_title_ignore_list: Option<Vec<String>>,
     // /// Set monitor index preferences
     // #[serde(skip_serializing_if = "Option::is_none")]
     // pub monitor_index_preferences: Option<HashMap<usize, Rect>>,
@@ -794,11 +794,11 @@ impl From<&WindowManager> for StaticConfig {
             ignore_rules: None,
             floating_applications: None,
             manage_rules: None,
-            border_overflow_applications: None,
-            tray_and_multi_window_applications: None,
-            layered_applications: None,
-            object_name_change_applications: None,
-            object_name_change_title_ignore_list: None,
+            // border_overflow_applications: None,
+            // tray_and_multi_window_applications: None,
+            // layered_applications: None,
+            // object_name_change_applications: None,
+            // object_name_change_title_ignore_list: None,
             // monitor_index_preferences: Option::from(MONITOR_INDEX_PREFERENCES.lock().clone()),
             display_index_preferences: Option::from(DISPLAY_INDEX_PREFERENCES.read().clone()),
             // stackbar: None,

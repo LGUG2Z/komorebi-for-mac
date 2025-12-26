@@ -404,11 +404,6 @@ in
           default = null;
           description = "Offset of window borders (default: 5)";
         };
-        border_overflow_applications = lib.mkOption {
-          type = (lib.types.nullOr (lib.types.listOf matchingRule));
-          default = null;
-          description = "Identify border overflow applications";
-        };
         border_radius = lib.mkOption {
           type = (lib.types.nullOr lib.types.int);
           default = null;
@@ -514,11 +509,6 @@ in
           type = (lib.types.nullOr (lib.types.listOf matchingRule));
           default = null;
           description = "Individual window floating rules";
-        };
-        layered_applications = lib.mkOption {
-          type = (lib.types.nullOr (lib.types.listOf matchingRule));
-          default = null;
-          description = "Identify applications that have the WS_EX_LAYERED extended window style";
         };
         manage_rules = lib.mkOption {
           type = (lib.types.nullOr (lib.types.listOf matchingRule));
@@ -738,16 +728,6 @@ in
           default = null;
           description = "Enable or disable mouse follows focus (default: true)";
         };
-        object_name_change_applications = lib.mkOption {
-          type = (lib.types.nullOr (lib.types.listOf matchingRule));
-          default = null;
-          description = "Identify applications that send EVENT_OBJECT_NAMECHANGE on launch (very rare)";
-        };
-        object_name_change_title_ignore_list = lib.mkOption {
-          type = (lib.types.nullOr (lib.types.listOf lib.types.str));
-          default = null;
-          description = "Do not process EVENT_OBJECT_NAMECHANGE events as Show events for identified applications matching these title regexes";
-        };
         resize_delta = lib.mkOption {
           type = (lib.types.nullOr lib.types.int);
           default = null;
@@ -766,17 +746,6 @@ in
                         "Custom"
                       ]
                     );
-                  };
-                  unfocused_locked_border = lib.mkOption {
-                    type = (
-                      lib.types.nullOr (
-                        lib.types.oneOf [
-                          (lib.types.nullOr catppuccinValue)
-                          (lib.types.nullOr base16Value)
-                        ]
-                      )
-                    );
-                    default = null;
                   };
                   colours = lib.mkOption {
                     type = (
@@ -848,17 +817,6 @@ in
                     );
                     default = null;
                   };
-                  unfocused_border = lib.mkOption {
-                    type = (
-                      lib.types.nullOr (
-                        lib.types.oneOf [
-                          (lib.types.nullOr catppuccinValue)
-                          (lib.types.nullOr base16Value)
-                        ]
-                      )
-                    );
-                    default = null;
-                  };
                   stack_border = lib.mkOption {
                     type = (
                       lib.types.nullOr (
@@ -870,7 +828,29 @@ in
                     );
                     default = null;
                   };
-                  single_border = lib.mkOption {
+                  monocle_border = lib.mkOption {
+                    type = (
+                      lib.types.nullOr (
+                        lib.types.oneOf [
+                          (lib.types.nullOr catppuccinValue)
+                          (lib.types.nullOr base16Value)
+                        ]
+                      )
+                    );
+                    default = null;
+                  };
+                  unfocused_border = lib.mkOption {
+                    type = (
+                      lib.types.nullOr (
+                        lib.types.oneOf [
+                          (lib.types.nullOr catppuccinValue)
+                          (lib.types.nullOr base16Value)
+                        ]
+                      )
+                    );
+                    default = null;
+                  };
+                  unfocused_locked_border = lib.mkOption {
                     type = (
                       lib.types.nullOr (
                         lib.types.oneOf [
@@ -882,6 +862,17 @@ in
                     default = null;
                   };
                   bar_accent = lib.mkOption {
+                    type = (
+                      lib.types.nullOr (
+                        lib.types.oneOf [
+                          (lib.types.nullOr catppuccinValue)
+                          (lib.types.nullOr base16Value)
+                        ]
+                      )
+                    );
+                    default = null;
+                  };
+                  single_border = lib.mkOption {
                     type = (
                       lib.types.nullOr (
                         lib.types.oneOf [
@@ -1178,17 +1169,6 @@ in
                     );
                     default = null;
                   };
-                  monocle_border = lib.mkOption {
-                    type = (
-                      lib.types.nullOr (
-                        lib.types.oneOf [
-                          (lib.types.nullOr catppuccinValue)
-                          (lib.types.nullOr base16Value)
-                        ]
-                      )
-                    );
-                    default = null;
-                  };
                 };
               }
             )
@@ -1200,11 +1180,6 @@ in
           type = (lib.types.nullOr placement);
           default = null;
           description = "Determines the placement of a new window when toggling to float (default: CenterAndResize)";
-        };
-        tray_and_multi_window_applications = lib.mkOption {
-          type = (lib.types.nullOr (lib.types.listOf matchingRule));
-          default = null;
-          description = "Identify tray and multi-window applications";
         };
         unmanaged_window_operation_behaviour = lib.mkOption {
           type = (
