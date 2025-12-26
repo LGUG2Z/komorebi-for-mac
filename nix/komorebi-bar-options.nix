@@ -232,8 +232,8 @@ let
                   };
                   data_refresh_interval = lib.mkOption {
                     type = (lib.types.nullOr lib.types.int);
-                    default = null;
-                    description = "Data refresh interval (default: 10 seconds)";
+                    default = 10;
+                    description = "Data refresh interval in seconds";
                   };
                   enable = lib.mkOption {
                     type = lib.types.bool;
@@ -267,8 +267,8 @@ let
                   };
                   data_refresh_interval = lib.mkOption {
                     type = (lib.types.nullOr lib.types.int);
-                    default = null;
-                    description = "Data refresh interval (default: 10 seconds)";
+                    default = 10;
+                    description = "Data refresh interval in seconds";
                   };
                   enable = lib.mkOption {
                     type = lib.types.bool;
@@ -549,8 +549,8 @@ let
                   };
                   data_refresh_interval = lib.mkOption {
                     type = (lib.types.nullOr lib.types.int);
-                    default = null;
-                    description = "Data refresh interval (default: 10 seconds)";
+                    default = 10;
+                    description = "Data refresh interval in seconds";
                   };
                   enable = lib.mkOption {
                     type = lib.types.bool;
@@ -611,8 +611,8 @@ let
                   };
                   data_refresh_interval = lib.mkOption {
                     type = (lib.types.nullOr lib.types.int);
-                    default = null;
-                    description = "Data refresh interval (default: 10 seconds)";
+                    default = 10;
+                    description = "Data refresh interval in seconds";
                   };
                   enable = lib.mkOption {
                     type = lib.types.bool;
@@ -659,8 +659,8 @@ let
                   };
                   data_refresh_interval = lib.mkOption {
                     type = (lib.types.nullOr lib.types.int);
-                    default = null;
-                    description = "Data refresh interval (default: 10 seconds)";
+                    default = 10;
+                    description = "Data refresh interval in seconds";
                   };
                   enable = lib.mkOption {
                     type = lib.types.bool;
@@ -673,13 +673,13 @@ let
                   };
                   show_read_only_disks = lib.mkOption {
                     type = (lib.types.nullOr lib.types.bool);
-                    default = null;
-                    description = "Show disks that are read only. (default: false)";
+                    default = false;
+                    description = "Show disks that are read only";
                   };
                   show_removable_disks = lib.mkOption {
                     type = (lib.types.nullOr lib.types.bool);
-                    default = null;
-                    description = "Show removable disks. (default: true)";
+                    default = true;
+                    description = "Show removable disks";
                   };
                 };
               }
@@ -694,8 +694,8 @@ let
                 options = {
                   changing_icon = lib.mkOption {
                     type = (lib.types.nullOr lib.types.bool);
-                    default = null;
-                    description = "Change the icon depending on the time. The default icon is used between 8:30 and 12:00. (default: false)";
+                    default = false;
+                    description = "Change the icon depending on the time. The default icon is used between 8:30 and 12:00";
                   };
                   enable = lib.mkOption {
                     type = lib.types.bool;
@@ -747,8 +747,8 @@ let
                 options = {
                   data_refresh_interval = lib.mkOption {
                     type = (lib.types.nullOr lib.types.int);
-                    default = null;
-                    description = "Data refresh interval (default: 12 hours)";
+                    default = 12;
+                    description = "Data refresh interval in hours";
                   };
                   enable = lib.mkOption {
                     type = lib.types.bool;
@@ -785,8 +785,8 @@ in
         };
         font_size = lib.mkOption {
           type = (lib.types.nullOr lib.types.number);
-          default = null;
-          description = "Font size (default: 12.5)";
+          default = 12.5;
+          description = "Font size";
         };
         frame = lib.mkOption {
           type = (
@@ -828,13 +828,13 @@ in
         };
         height = lib.mkOption {
           type = (lib.types.nullOr lib.types.number);
-          default = null;
-          description = "Bar height (default: 50)";
+          default = 50;
+          description = "Bar height";
         };
         icon_scale = lib.mkOption {
           type = (lib.types.nullOr lib.types.number);
-          default = null;
-          description = "Scale of the icons relative to the font_size [[1.0-2.0]]. (default: 1.4)";
+          default = 1.4;
+          description = "Scale of the icons relative to the font_size [[1.0-2.0]]";
         };
         left_widgets = lib.mkOption {
           type = (lib.types.listOf widgetConfig);
@@ -843,12 +843,12 @@ in
         margin = lib.mkOption {
           type = (lib.types.nullOr spacingKind);
           default = null;
-          description = "Bar margin. Use one value for all sides or use a grouped margin for horizontal and/or\nvertical definition which can each take a single value for a symmetric margin or two\nvalues for each side, i.e.:\n```json\n\"margin\": {\n    \"horizontal\": 10\n}\n```\nor:\n```json\n\"margin\": {\n    \"vertical\": [top, bottom]\n}\n```\nYou can also set individual margin on each side like this:\n```json\n\"margin\": {\n    \"top\": 10,\n    \"bottom\": 10,\n    \"left\": 10,\n    \"right\": 10,\n}\n```\nBy default, margin is set to 0 on all sides.";
+          description = "Bar margin. Use one value for all sides or use a grouped margin for horizontal and/or\nvertical definition which can each take a single value for a symmetric margin or two\nvalues for each side, i.e.:\n```json\n\"margin\": {\n    \"horizontal\": 10.0\n}\n```\nor:\n```json\n\"margin\": {\n    \"vertical\": [top, bottom]\n}\n```\nYou can also set individual margin on each side like this:\n```json\n\"margin\": {\n    \"top\": 10.0,\n    \"bottom\": 10.0,\n    \"left\": 10.0,\n    \"right\": 10.0\n}\n```";
         };
         max_label_width = lib.mkOption {
           type = (lib.types.nullOr lib.types.number);
-          default = null;
-          description = "Max label width before text truncation (default: 400.0)";
+          default = 400;
+          description = "Max label width before text truncation";
         };
         monitor = lib.mkOption {
           type = (
@@ -893,7 +893,7 @@ in
         padding = lib.mkOption {
           type = (lib.types.nullOr spacingKind);
           default = null;
-          description = "Bar padding. Use one value for all sides or use a grouped padding for horizontal and/or\nvertical definition which can each take a single value for a symmetric padding or two\nvalues for each side, i.e.:\n```json\n\"padding\": {\n    \"horizontal\": 10\n}\n```\nor:\n```json\n\"padding\": {\n    \"horizontal\": [left, right]\n}\n```\nYou can also set individual padding on each side like this:\n```json\n\"padding\": {\n    \"top\": 10,\n    \"bottom\": 10,\n    \"left\": 10,\n    \"right\": 10,\n}\n```\nBy default, padding is set to 10 on all sides.";
+          description = "Bar padding. Use one value for all sides or use a grouped padding for horizontal and/or\nvertical definition which can each take a single value for a symmetric padding or two\nvalues for each side, i.e.:\n```json\n\"padding\": {\n    \"horizontal\": 10.0\n}\n```\nor:\n```json\n\"padding\": {\n    \"horizontal\": [left, right]\n}\n```\nYou can also set individual padding on each side like this:\n```json\n\"padding\": {\n    \"top\": 10.0,\n    \"bottom\": 10.0,\n    \"left\": 10.0,\n    \"right\": 10.0\n}\n```";
         };
         position = lib.mkOption {
           type = (
@@ -934,17 +934,6 @@ in
                         "Custom"
                       ]
                     );
-                  };
-                  auto_select_fill = lib.mkOption {
-                    type = (
-                      lib.types.nullOr (
-                        lib.types.oneOf [
-                          (lib.types.nullOr catppuccinValue)
-                          (lib.types.nullOr base16Value)
-                        ]
-                      )
-                    );
-                    default = null;
                   };
                   name = lib.mkOption {
                     type = (
@@ -1232,17 +1221,6 @@ in
                     );
                     default = null;
                   };
-                  accent = lib.mkOption {
-                    type = (
-                      lib.types.nullOr (
-                        lib.types.oneOf [
-                          (lib.types.nullOr catppuccinValue)
-                          (lib.types.nullOr base16Value)
-                        ]
-                      )
-                    );
-                    default = null;
-                  };
                   colours = lib.mkOption {
                     type = (
                       lib.types.nullOr (
@@ -1313,6 +1291,28 @@ in
                     );
                     default = null;
                   };
+                  accent = lib.mkOption {
+                    type = (
+                      lib.types.nullOr (
+                        lib.types.oneOf [
+                          (lib.types.nullOr catppuccinValue)
+                          (lib.types.nullOr base16Value)
+                        ]
+                      )
+                    );
+                    default = null;
+                  };
+                  auto_select_fill = lib.mkOption {
+                    type = (
+                      lib.types.nullOr (
+                        lib.types.oneOf [
+                          (lib.types.nullOr catppuccinValue)
+                          (lib.types.nullOr base16Value)
+                        ]
+                      )
+                    );
+                    default = null;
+                  };
                 };
               }
             )
@@ -1322,13 +1322,13 @@ in
         };
         transparency_alpha = lib.mkOption {
           type = (lib.types.nullOr lib.types.int);
-          default = null;
-          description = "Alpha value for the color transparency [[0-255]] (default: 200)";
+          default = 200;
+          description = "Alpha value for the color transparency [[0-255]]";
         };
         widget_spacing = lib.mkOption {
           type = (lib.types.nullOr lib.types.number);
-          default = null;
-          description = "Spacing between widgets (default: 10.0)";
+          default = 10;
+          description = "Spacing between widgets";
         };
       };
     };

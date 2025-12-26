@@ -14,12 +14,17 @@ use std::process::Command;
 use std::time::Duration;
 use std::time::Instant;
 
+mod defaults {
+    pub const DATA_REFRESH_INTERVAL: u64 = 12;
+}
+
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct UpdateConfig {
     /// Enable the Update widget
     pub enable: bool,
-    /// Data refresh interval (default: 12 hours)
+    /// Data refresh interval in hours
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = defaults::DATA_REFRESH_INTERVAL)))]
     pub data_refresh_interval: Option<u64>,
     /// Display label prefix
     pub label_prefix: Option<LabelPrefix>,
@@ -33,7 +38,7 @@ impl From<UpdateConfig> for Update {
 
         let client = reqwest::blocking::Client::new();
         if let Ok(response) = client
-            .get("https://api.github.com/repos/LGUG2Z/komorebi/releases/latest")
+            .get("https://api.github.com/repos/LGUG2Z/komorebi-for-mac/releases/latest")
             .header("User-Agent", "komorebi-bar-version-checker")
             .send()
         {

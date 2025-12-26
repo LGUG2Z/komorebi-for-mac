@@ -16,12 +16,17 @@ use std::time::Instant;
 use sysinfo::RefreshKind;
 use sysinfo::System;
 
+mod defaults {
+    pub const DATA_REFRESH_INTERVAL: u64 = 10;
+}
+
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct CpuConfig {
     /// Enable the Cpu widget
     pub enable: bool,
-    /// Data refresh interval (default: 10 seconds)
+    /// Data refresh interval in seconds
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = defaults::DATA_REFRESH_INTERVAL)))]
     pub data_refresh_interval: Option<u64>,
     /// Display label prefix
     pub label_prefix: Option<LabelPrefix>,

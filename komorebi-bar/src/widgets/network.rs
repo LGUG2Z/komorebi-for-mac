@@ -24,6 +24,10 @@ use std::time::Duration;
 use std::time::Instant;
 use sysinfo::Networks;
 
+mod defaults {
+    pub const DATA_REFRESH_INTERVAL: u64 = 10;
+}
+
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 pub struct NetworkConfig {
@@ -40,7 +44,8 @@ pub struct NetworkConfig {
     /// Characters to reserve for received and transmitted activity
     #[serde(alias = "network_activity_fill_characters")]
     pub activity_left_padding: Option<usize>,
-    /// Data refresh interval (default: 10 seconds)
+    /// Data refresh interval in seconds
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = defaults::DATA_REFRESH_INTERVAL)))]
     pub data_refresh_interval: Option<u64>,
     /// Display label prefix
     pub label_prefix: Option<LabelPrefix>,

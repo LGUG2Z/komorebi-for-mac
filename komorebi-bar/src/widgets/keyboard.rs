@@ -27,7 +27,7 @@ const ERROR_TEXT: &str = "Error";
 pub struct KeyboardConfig {
     /// Enable the Input widget
     pub enable: bool,
-    /// Data refresh interval (default: 1 second)
+    /// Data refresh interval in seconds
     pub data_refresh_interval: Option<u64>,
     /// Display label prefix
     pub label_prefix: Option<LabelPrefix>,

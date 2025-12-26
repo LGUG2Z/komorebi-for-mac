@@ -210,8 +210,8 @@ let
       options = {
         generate_theme = lib.mkOption {
           type = (lib.types.nullOr lib.types.bool);
-          default = null;
-          description = "Generate and apply Base16 theme for this wallpaper (default: true)";
+          default = true;
+          description = "Generate and apply Base16 theme for this wallpaper";
         };
         path = lib.mkOption {
           type = pathBuf;
@@ -224,28 +224,28 @@ let
                 options = {
                   bar_accent = lib.mkOption {
                     type = (lib.types.nullOr base16Value);
-                    default = null;
-                    description = "Komorebi status bar accent (default: Base0D)";
+                    default = "Base0D";
+                    description = "Komorebi status bar accent";
                   };
                   floating_border = lib.mkOption {
                     type = (lib.types.nullOr base16Value);
-                    default = null;
-                    description = "Border colour when the window is floating (default: Base09)";
+                    default = "Base09";
+                    description = "Border colour when the window is floating";
                   };
                   monocle_border = lib.mkOption {
                     type = (lib.types.nullOr base16Value);
-                    default = null;
-                    description = "Border colour when the container is in monocle mode (default: Base0F)";
+                    default = "Base0F";
+                    description = "Border colour when the container is in monocle mode";
                   };
                   single_border = lib.mkOption {
                     type = (lib.types.nullOr base16Value);
-                    default = null;
-                    description = "Border colour when the container contains a single window (default: Base0D)";
+                    default = "Base0D";
+                    description = "Border colour when the container contains a single window";
                   };
                   stack_border = lib.mkOption {
                     type = (lib.types.nullOr base16Value);
-                    default = null;
-                    description = "Border colour when the container contains multiple windows (default: Base0B)";
+                    default = "Base0B";
+                    description = "Border colour when the container contains multiple windows";
                   };
                   theme_variant = lib.mkOption {
                     type = (
@@ -256,25 +256,25 @@ let
                         ]
                       )
                     );
-                    default = null;
-                    description = "Specify Light or Dark variant for theme generation (default: Dark)";
+                    default = "Dark";
+                    description = "Specify Light or Dark variant for theme generation";
                   };
                   unfocused_border = lib.mkOption {
                     type = (lib.types.nullOr base16Value);
-                    default = null;
-                    description = "Border colour when the container is unfocused (default: Base01)";
+                    default = "Base01";
+                    description = "Border colour when the container is unfocused";
                   };
                   unfocused_locked_border = lib.mkOption {
                     type = (lib.types.nullOr base16Value);
-                    default = null;
-                    description = "Border colour when the container is unfocused and locked (default: Base08)";
+                    default = "Base08";
+                    description = "Border colour when the container is unfocused and locked";
                   };
                 };
               }
             )
           );
           default = null;
-          description = "Specify Light or Dark variant for theme generation (default: Dark)";
+          description = "Specify theme options";
         };
       };
     }
@@ -304,8 +304,8 @@ in
                         ]
                       )
                     );
-                    default = null;
-                    description = "Set the animation duration in ms (default: 250)";
+                    default = 250;
+                    description = "Set the animation duration in ms";
                   };
                   enabled = lib.mkOption {
                     type = (
@@ -314,12 +314,13 @@ in
                         lib.types.bool
                       ]
                     );
-                    description = "Enable or disable animations (default: false)";
+                    default = false;
+                    description = "Enable or disable animations";
                   };
                   fps = lib.mkOption {
                     type = (lib.types.nullOr lib.types.int);
-                    default = null;
-                    description = "Set the animation FPS (default: 60)";
+                    default = 60;
+                    description = "Set the animation FPS";
                   };
                   style = lib.mkOption {
                     type = (
@@ -330,8 +331,8 @@ in
                         ]
                       )
                     );
-                    default = null;
-                    description = "Set the animation style (default: Linear)";
+                    default = "Linear";
+                    description = "Set the animation style";
                   };
                 };
               }
@@ -350,12 +351,12 @@ in
             )
           );
           default = null;
-          description = "Path to applications.json from komorebi-application-specific-configurations (default: None)";
+          description = "Path to applications.json from komorebi-application-specific-configurations";
         };
         border = lib.mkOption {
           type = (lib.types.nullOr lib.types.bool);
-          default = null;
-          description = "Display window borders (default: true)";
+          default = true;
+          description = "Display window borders";
         };
         border_colours = lib.mkOption {
           type = (
@@ -401,18 +402,18 @@ in
         };
         border_offset = lib.mkOption {
           type = (lib.types.nullOr lib.types.int);
-          default = null;
-          description = "Offset of window borders (default: 5)";
+          default = 5;
+          description = "Offset of window borders";
         };
         border_radius = lib.mkOption {
           type = (lib.types.nullOr lib.types.int);
-          default = null;
-          description = "Radius of window borders (default: 10)";
+          default = 10;
+          description = "Radius of window borders";
         };
         border_width = lib.mkOption {
           type = (lib.types.nullOr lib.types.int);
-          default = null;
-          description = "Width of window borders (default: 6)";
+          default = 6;
+          description = "Width of window borders";
         };
         cross_boundary_behaviour = lib.mkOption {
           type = (
@@ -423,8 +424,8 @@ in
               ]
             )
           );
-          default = null;
-          description = "Determine what happens when an action is called on a window at a monitor boundary (default: Monitor)";
+          default = "Monitor";
+          description = "Determine what happens when an action is called on a window at a monitor boundary";
         };
         cross_monitor_move_behaviour = lib.mkOption {
           type = (
@@ -436,18 +437,18 @@ in
               ]
             )
           );
-          default = null;
-          description = "Determine what happens when a window is moved across a monitor boundary (default: Swap)";
+          default = "Swap";
+          description = "Determine what happens when a window is moved across a monitor boundary";
         };
         default_container_padding = lib.mkOption {
           type = (lib.types.nullOr lib.types.int);
-          default = null;
-          description = "Global default container padding (default: 10)";
+          default = 10;
+          description = "Global default container padding";
         };
         default_workspace_padding = lib.mkOption {
           type = (lib.types.nullOr lib.types.int);
-          default = null;
-          description = "Add transparency to unfocused windows (default: false)\nGlobal default workspace padding (default: 10)";
+          default = 10;
+          description = "Global default workspace padding";
         };
         display_index_preferences = lib.mkOption {
           type = (lib.types.nullOr (lib.types.attrsOf lib.types.str));
@@ -456,18 +457,18 @@ in
         };
         float_override = lib.mkOption {
           type = (lib.types.nullOr lib.types.bool);
-          default = null;
-          description = "Enable or disable float override, which makes it so every new window opens in floating mode\n(default: false)";
+          default = false;
+          description = "Enable or disable float override, which makes it so every new window opens in floating mode";
         };
         float_override_placement = lib.mkOption {
           type = (lib.types.nullOr placement);
           default = null;
-          description = "Determines the `Placement` to be used when spawning a window with float override active\n(default: None)";
+          description = "Determines the `Placement` to be used when spawning a window with float override active";
         };
         float_rule_placement = lib.mkOption {
           type = (lib.types.nullOr placement);
           default = null;
-          description = "Determines the `Placement` to be used when spawning a window that matches a\n'floating_applications' rule (default: None)";
+          description = "Determines the `Placement` to be used when spawning a window that matches a\n'floating_applications' rule";
         };
         floating_applications = lib.mkOption {
           type = (lib.types.nullOr (lib.types.listOf matchingRule));
@@ -476,13 +477,13 @@ in
         };
         floating_layer_behaviour = lib.mkOption {
           type = (lib.types.nullOr floatingLayerBehaviour);
-          default = null;
-          description = "Determines what happens on a new window when on the `FloatingLayer`\n(default: Tile)";
+          default = "Tile";
+          description = "Determines what happens on a new window when on the `FloatingLayer`";
         };
         floating_layer_placement = lib.mkOption {
           type = (lib.types.nullOr placement);
-          default = null;
-          description = "Determines the `Placement` to be used when spawning a window on the floating layer with the\n`FloatingLayerBehaviour` set to `FloatingLayerBehaviour::Float` (default: Center)";
+          default = "Center";
+          description = "Determines the `Placement` to be used when spawning a window on the floating layer with the\n`FloatingLayerBehaviour` set to `FloatingLayerBehaviour::Float`";
         };
         floating_window_aspect_ratio = lib.mkOption {
           type = (
@@ -503,7 +504,7 @@ in
         global_work_area_offset = lib.mkOption {
           type = (lib.types.nullOr rect);
           default = null;
-          description = "Global work area (space used for tiling) offset (default: None)";
+          description = "Global work area (space used for tiling) offset";
         };
         ignore_rules = lib.mkOption {
           type = (lib.types.nullOr (lib.types.listOf matchingRule));
@@ -524,12 +525,12 @@ in
                     container_padding = lib.mkOption {
                       type = (lib.types.nullOr lib.types.int);
                       default = null;
-                      description = "Container padding (default: global)";
+                      description = "Container padding";
                     };
                     floating_layer_behaviour = lib.mkOption {
                       type = (lib.types.nullOr floatingLayerBehaviour);
-                      default = null;
-                      description = "Determine what happens to a new window when the Floating workspace layer is active (default: Tile)";
+                      default = "Tile";
+                      description = "Determine what happens to a new window when the Floating workspace layer is active";
                     };
                     wallpaper = lib.mkOption {
                       type = (lib.types.nullOr wallpaper);
@@ -539,12 +540,12 @@ in
                     window_based_work_area_offset = lib.mkOption {
                       type = (lib.types.nullOr rect);
                       default = null;
-                      description = "Window based work area offset (default: None)";
+                      description = "Window based work area offset";
                     };
                     window_based_work_area_offset_limit = lib.mkOption {
                       type = (lib.types.nullOr lib.types.int);
-                      default = null;
-                      description = "Open window limit after which the window based work area offset will no longer be applied (default: 1)";
+                      default = 1;
+                      description = "Open window limit after which the window based work area offset will no longer be applied";
                     };
                     window_hiding_position = lib.mkOption {
                       type = (
@@ -561,7 +562,7 @@ in
                     work_area_offset = lib.mkOption {
                       type = (lib.types.nullOr rect);
                       default = null;
-                      description = "Monitor-specific work area offset (default: None)";
+                      description = "Monitor-specific work area offset";
                     };
                     workspace_padding = lib.mkOption {
                       type = (lib.types.nullOr lib.types.int);
@@ -575,8 +576,8 @@ in
                             options = {
                               apply_window_based_work_area_offset = lib.mkOption {
                                 type = (lib.types.nullOr lib.types.bool);
-                                default = null;
-                                description = "Apply this monitor's window-based work area offset (default: true)";
+                                default = true;
+                                description = "Apply this monitor's window-based work area offset";
                               };
                               container_padding = lib.mkOption {
                                 type = (lib.types.nullOr lib.types.int);
@@ -585,13 +586,13 @@ in
                               };
                               float_override = lib.mkOption {
                                 type = (lib.types.nullOr lib.types.bool);
-                                default = null;
-                                description = "Enable or disable float override, which makes it so every new window opens in floating mode (default: false)";
+                                default = false;
+                                description = "Enable or disable float override, which makes it so every new window opens in floating mode";
                               };
                               floating_layer_behaviour = lib.mkOption {
                                 type = (lib.types.nullOr floatingLayerBehaviour);
-                                default = null;
-                                description = "Determine what happens to a new window when the Floating workspace layer is active (default: Tile)";
+                                default = "Tile";
+                                description = "Determine what happens to a new window when the Floating workspace layer is active";
                               };
                               initial_workspace_rules = lib.mkOption {
                                 type = (lib.types.nullOr (lib.types.listOf matchingRule));
@@ -600,8 +601,8 @@ in
                               };
                               layout = lib.mkOption {
                                 type = (lib.types.nullOr defaultLayout);
-                                default = null;
-                                description = "Layout (default: BSP)";
+                                default = "BSP";
+                                description = "Layout";
                               };
                               layout_flip = lib.mkOption {
                                 type = (
@@ -614,7 +615,7 @@ in
                                   )
                                 );
                                 default = null;
-                                description = "Specify an axis on which to flip the selected layout (default: None)";
+                                description = "Specify an axis on which to flip the selected layout";
                               };
                               layout_options = lib.mkOption {
                                 type = (
@@ -663,12 +664,12 @@ in
                                   )
                                 );
                                 default = null;
-                                description = "Layout-specific options (default: None)";
+                                description = "Layout-specific options";
                               };
                               layout_rules = lib.mkOption {
                                 type = (lib.types.nullOr (lib.types.attrsOf defaultLayout));
                                 default = null;
-                                description = "Layout rules in the format of threshold => layout (default: None)";
+                                description = "Layout rules in the format of threshold => layout";
                               };
                               name = lib.mkOption {
                                 type = lib.types.str;
@@ -676,8 +677,8 @@ in
                               };
                               tile = lib.mkOption {
                                 type = (lib.types.nullOr lib.types.bool);
-                                default = null;
-                                description = "Enable or disable tiling for the workspace (default: true)";
+                                default = true;
+                                description = "Enable or disable tiling for the workspace";
                               };
                               wallpaper = lib.mkOption {
                                 type = (lib.types.nullOr wallpaper);
@@ -686,18 +687,18 @@ in
                               };
                               window_container_behaviour = lib.mkOption {
                                 type = (lib.types.nullOr windowContainerBehaviour);
-                                default = null;
-                                description = "Determine what happens when a new window is opened (default: Create)";
+                                default = "Create";
+                                description = "Determine what happens when a new window is opened";
                               };
                               window_container_behaviour_rules = lib.mkOption {
                                 type = (lib.types.nullOr (lib.types.attrsOf windowContainerBehaviour));
                                 default = null;
-                                description = "Window container behaviour rules in the format of threshold => behaviour (default: None)";
+                                description = "Window container behaviour rules in the format of threshold => behaviour";
                               };
                               work_area_offset = lib.mkOption {
                                 type = (lib.types.nullOr rect);
                                 default = null;
-                                description = "Workspace specific work area offset (default: None)";
+                                description = "Workspace specific work area offset";
                               };
                               workspace_padding = lib.mkOption {
                                 type = (lib.types.nullOr lib.types.int);
@@ -725,13 +726,13 @@ in
         };
         mouse_follows_focus = lib.mkOption {
           type = (lib.types.nullOr lib.types.bool);
-          default = null;
-          description = "Enable or disable mouse follows focus (default: true)";
+          default = true;
+          description = "Enable or disable mouse follows focus";
         };
         resize_delta = lib.mkOption {
           type = (lib.types.nullOr lib.types.int);
-          default = null;
-          description = "Delta to resize windows by (default 50)";
+          default = 50;
+          description = "Delta to resize windows by";
         };
         theme = lib.mkOption {
           type = (
@@ -746,6 +747,28 @@ in
                         "Custom"
                       ]
                     );
+                  };
+                  single_border = lib.mkOption {
+                    type = (
+                      lib.types.nullOr (
+                        lib.types.oneOf [
+                          (lib.types.nullOr catppuccinValue)
+                          (lib.types.nullOr base16Value)
+                        ]
+                      )
+                    );
+                    default = null;
+                  };
+                  stack_border = lib.mkOption {
+                    type = (
+                      lib.types.nullOr (
+                        lib.types.oneOf [
+                          (lib.types.nullOr catppuccinValue)
+                          (lib.types.nullOr base16Value)
+                        ]
+                      )
+                    );
+                    default = null;
                   };
                   colours = lib.mkOption {
                     type = (
@@ -806,18 +829,7 @@ in
                     );
                     default = null;
                   };
-                  floating_border = lib.mkOption {
-                    type = (
-                      lib.types.nullOr (
-                        lib.types.oneOf [
-                          (lib.types.nullOr catppuccinValue)
-                          (lib.types.nullOr base16Value)
-                        ]
-                      )
-                    );
-                    default = null;
-                  };
-                  stack_border = lib.mkOption {
+                  unfocused_border = lib.mkOption {
                     type = (
                       lib.types.nullOr (
                         lib.types.oneOf [
@@ -839,40 +851,7 @@ in
                     );
                     default = null;
                   };
-                  unfocused_border = lib.mkOption {
-                    type = (
-                      lib.types.nullOr (
-                        lib.types.oneOf [
-                          (lib.types.nullOr catppuccinValue)
-                          (lib.types.nullOr base16Value)
-                        ]
-                      )
-                    );
-                    default = null;
-                  };
-                  unfocused_locked_border = lib.mkOption {
-                    type = (
-                      lib.types.nullOr (
-                        lib.types.oneOf [
-                          (lib.types.nullOr catppuccinValue)
-                          (lib.types.nullOr base16Value)
-                        ]
-                      )
-                    );
-                    default = null;
-                  };
-                  bar_accent = lib.mkOption {
-                    type = (
-                      lib.types.nullOr (
-                        lib.types.oneOf [
-                          (lib.types.nullOr catppuccinValue)
-                          (lib.types.nullOr base16Value)
-                        ]
-                      )
-                    );
-                    default = null;
-                  };
-                  single_border = lib.mkOption {
+                  floating_border = lib.mkOption {
                     type = (
                       lib.types.nullOr (
                         lib.types.oneOf [
@@ -1169,6 +1148,28 @@ in
                     );
                     default = null;
                   };
+                  unfocused_locked_border = lib.mkOption {
+                    type = (
+                      lib.types.nullOr (
+                        lib.types.oneOf [
+                          (lib.types.nullOr catppuccinValue)
+                          (lib.types.nullOr base16Value)
+                        ]
+                      )
+                    );
+                    default = null;
+                  };
+                  bar_accent = lib.mkOption {
+                    type = (
+                      lib.types.nullOr (
+                        lib.types.oneOf [
+                          (lib.types.nullOr catppuccinValue)
+                          (lib.types.nullOr base16Value)
+                        ]
+                      )
+                    );
+                    default = null;
+                  };
                 };
               }
             )
@@ -1178,8 +1179,8 @@ in
         };
         toggle_float_placement = lib.mkOption {
           type = (lib.types.nullOr placement);
-          default = null;
-          description = "Determines the placement of a new window when toggling to float (default: CenterAndResize)";
+          default = "CenterAndResize";
+          description = "Determines the placement of a new window when toggling to float";
         };
         unmanaged_window_operation_behaviour = lib.mkOption {
           type = (
@@ -1190,13 +1191,13 @@ in
               ]
             )
           );
-          default = null;
-          description = "Determine what happens when commands are sent while an unmanaged window is in the foreground (default: Op)";
+          default = "Op";
+          description = "Determine what happens when commands are sent while an unmanaged window is in the foreground";
         };
         window_container_behaviour = lib.mkOption {
           type = (lib.types.nullOr windowContainerBehaviour);
-          default = null;
-          description = "Determine what happens when a new window is opened (default: Create)";
+          default = "Create";
+          description = "Determine what happens when a new window is opened";
         };
       };
     };

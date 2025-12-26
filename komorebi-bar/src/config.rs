@@ -13,20 +13,30 @@ use serde::Serialize;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
+mod defaults {
+    pub const HEIGHT: f32 = 50.0;
+    pub const FONT_SIZE: f32 = 12.5;
+    pub const ICON_SCALE: f32 = 1.4;
+    pub const MAX_LABEL_WIDTH: f32 = 400.0;
+    pub const TRANSPARENCY_ALPHA: u8 = 200;
+    pub const WIDGET_SPACING: f32 = 10.0;
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 /// The `komorebi.bar.json` static configuration file reference for komorebi for Mac `v0.1.0`
 ///
 /// `"$schema": "https://komorebi-for-mac.lgug2z.com/komorebi.bar.0.1.0.schema.json"`
 pub struct KomobarConfig {
-    /// Bar height (default: 50)
+    /// Bar height
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = defaults::HEIGHT)))]
     pub height: Option<f32>,
     /// Bar padding. Use one value for all sides or use a grouped padding for horizontal and/or
     /// vertical definition which can each take a single value for a symmetric padding or two
     /// values for each side, i.e.:
     /// ```json
     /// "padding": {
-    ///     "horizontal": 10
+    ///     "horizontal": 10.0
     /// }
     /// ```
     /// or:
@@ -38,20 +48,19 @@ pub struct KomobarConfig {
     /// You can also set individual padding on each side like this:
     /// ```json
     /// "padding": {
-    ///     "top": 10,
-    ///     "bottom": 10,
-    ///     "left": 10,
-    ///     "right": 10,
+    ///     "top": 10.0,
+    ///     "bottom": 10.0,
+    ///     "left": 10.0,
+    ///     "right": 10.0
     /// }
     /// ```
-    /// By default, padding is set to 10 on all sides.
     pub padding: Option<Padding>,
     /// Bar margin. Use one value for all sides or use a grouped margin for horizontal and/or
     /// vertical definition which can each take a single value for a symmetric margin or two
     /// values for each side, i.e.:
     /// ```json
     /// "margin": {
-    ///     "horizontal": 10
+    ///     "horizontal": 10.0
     /// }
     /// ```
     /// or:
@@ -63,13 +72,12 @@ pub struct KomobarConfig {
     /// You can also set individual margin on each side like this:
     /// ```json
     /// "margin": {
-    ///     "top": 10,
-    ///     "bottom": 10,
-    ///     "left": 10,
-    ///     "right": 10,
+    ///     "top": 10.0,
+    ///     "bottom": 10.0,
+    ///     "left": 10.0,
+    ///     "right": 10.0
     /// }
     /// ```
-    /// By default, margin is set to 0 on all sides.
     pub margin: Option<Margin>,
     /// Bar positioning options
     #[serde(alias = "viewport")]
@@ -80,17 +88,22 @@ pub struct KomobarConfig {
     pub monitor: MonitorConfigOrIndex,
     /// Font family
     pub font_family: Option<String>,
-    /// Font size (default: 12.5)
+    /// Font size
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = defaults::FONT_SIZE)))]
     pub font_size: Option<f32>,
-    /// Scale of the icons relative to the font_size [[1.0-2.0]]. (default: 1.4)
+    /// Scale of the icons relative to the font_size [[1.0-2.0]]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = defaults::ICON_SCALE)))]
     pub icon_scale: Option<f32>,
-    /// Max label width before text truncation (default: 400.0)
+    /// Max label width before text truncation
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = defaults::MAX_LABEL_WIDTH)))]
     pub max_label_width: Option<f32>,
     /// Theme
     pub theme: Option<KomobarTheme>,
-    /// Alpha value for the color transparency [[0-255]] (default: 200)
+    /// Alpha value for the color transparency [[0-255]]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = defaults::TRANSPARENCY_ALPHA)))]
     pub transparency_alpha: Option<u8>,
-    /// Spacing between widgets (default: 10.0)
+    /// Spacing between widgets
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = defaults::WIDGET_SPACING)))]
     pub widget_spacing: Option<f32>,
     /// Visual grouping for widgets
     pub grouping: Option<Grouping>,

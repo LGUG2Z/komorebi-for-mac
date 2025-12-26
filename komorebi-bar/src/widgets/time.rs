@@ -23,6 +23,10 @@ use serde::Serialize;
 use std::time::Duration;
 use std::time::Instant;
 
+mod defaults {
+    pub const CHANGING_ICON: bool = false;
+}
+
 lazy_static! {
     static ref TIME_RANGES: Vec<(&'static str, NaiveTime)> = {
         vec![
@@ -92,7 +96,8 @@ pub struct TimeConfig {
     ///}
     /// ```
     pub timezone: Option<String>,
-    /// Change the icon depending on the time. The default icon is used between 8:30 and 12:00. (default: false)
+    /// Change the icon depending on the time. The default icon is used between 8:30 and 12:00
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = defaults::CHANGING_ICON)))]
     pub changing_icon: Option<bool>,
 }
 

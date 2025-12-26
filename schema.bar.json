@@ -22,12 +22,13 @@
       ]
     },
     "font_size": {
-      "description": "Font size (default: 12.5)",
+      "description": "Font size",
       "type": [
         "number",
         "null"
       ],
-      "format": "float"
+      "format": "float",
+      "default": 12.5
     },
     "frame": {
       "description": "Frame options (see: https://docs.rs/egui/latest/egui/containers/frame/struct.Frame.html)",
@@ -52,20 +53,22 @@
       ]
     },
     "height": {
-      "description": "Bar height (default: 50)",
+      "description": "Bar height",
       "type": [
         "number",
         "null"
       ],
-      "format": "float"
+      "format": "float",
+      "default": 50.0
     },
     "icon_scale": {
-      "description": "Scale of the icons relative to the font_size [[1.0-2.0]]. (default: 1.4)",
+      "description": "Scale of the icons relative to the font_size [[1.0-2.0]]",
       "type": [
         "number",
         "null"
       ],
-      "format": "float"
+      "format": "float",
+      "default": 1.399999976158142
     },
     "left_widgets": {
       "description": "Options for mouse interaction on the bar\nLeft side widgets (ordered left-to-right)",
@@ -75,7 +78,7 @@
       }
     },
     "margin": {
-      "description": "Bar margin. Use one value for all sides or use a grouped margin for horizontal and/or\nvertical definition which can each take a single value for a symmetric margin or two\nvalues for each side, i.e.:\n```json\n\"margin\": {\n    \"horizontal\": 10\n}\n```\nor:\n```json\n\"margin\": {\n    \"vertical\": [top, bottom]\n}\n```\nYou can also set individual margin on each side like this:\n```json\n\"margin\": {\n    \"top\": 10,\n    \"bottom\": 10,\n    \"left\": 10,\n    \"right\": 10,\n}\n```\nBy default, margin is set to 0 on all sides.",
+      "description": "Bar margin. Use one value for all sides or use a grouped margin for horizontal and/or\nvertical definition which can each take a single value for a symmetric margin or two\nvalues for each side, i.e.:\n```json\n\"margin\": {\n    \"horizontal\": 10.0\n}\n```\nor:\n```json\n\"margin\": {\n    \"vertical\": [top, bottom]\n}\n```\nYou can also set individual margin on each side like this:\n```json\n\"margin\": {\n    \"top\": 10.0,\n    \"bottom\": 10.0,\n    \"left\": 10.0,\n    \"right\": 10.0\n}\n```",
       "anyOf": [
         {
           "$ref": "#/$defs/SpacingKind"
@@ -86,19 +89,20 @@
       ]
     },
     "max_label_width": {
-      "description": "Max label width before text truncation (default: 400.0)",
+      "description": "Max label width before text truncation",
       "type": [
         "number",
         "null"
       ],
-      "format": "float"
+      "format": "float",
+      "default": 400.0
     },
     "monitor": {
       "description": "The monitor index or the full monitor options",
       "$ref": "#/$defs/MonitorConfigOrIndex"
     },
     "padding": {
-      "description": "Bar padding. Use one value for all sides or use a grouped padding for horizontal and/or\nvertical definition which can each take a single value for a symmetric padding or two\nvalues for each side, i.e.:\n```json\n\"padding\": {\n    \"horizontal\": 10\n}\n```\nor:\n```json\n\"padding\": {\n    \"horizontal\": [left, right]\n}\n```\nYou can also set individual padding on each side like this:\n```json\n\"padding\": {\n    \"top\": 10,\n    \"bottom\": 10,\n    \"left\": 10,\n    \"right\": 10,\n}\n```\nBy default, padding is set to 10 on all sides.",
+      "description": "Bar padding. Use one value for all sides or use a grouped padding for horizontal and/or\nvertical definition which can each take a single value for a symmetric padding or two\nvalues for each side, i.e.:\n```json\n\"padding\": {\n    \"horizontal\": 10.0\n}\n```\nor:\n```json\n\"padding\": {\n    \"horizontal\": [left, right]\n}\n```\nYou can also set individual padding on each side like this:\n```json\n\"padding\": {\n    \"top\": 10.0,\n    \"bottom\": 10.0,\n    \"left\": 10.0,\n    \"right\": 10.0\n}\n```",
       "anyOf": [
         {
           "$ref": "#/$defs/SpacingKind"
@@ -138,22 +142,24 @@
       ]
     },
     "transparency_alpha": {
-      "description": "Alpha value for the color transparency [[0-255]] (default: 200)",
+      "description": "Alpha value for the color transparency [[0-255]]",
       "type": [
         "integer",
         "null"
       ],
       "format": "uint8",
+      "default": 200,
       "maximum": 255,
       "minimum": 0
     },
     "widget_spacing": {
-      "description": "Spacing between widgets (default: 10.0)",
+      "description": "Spacing between widgets",
       "type": [
         "number",
         "null"
       ],
-      "format": "float"
+      "format": "float",
+      "default": 10.0
     }
   },
   "required": [
@@ -656,12 +662,13 @@
           "minimum": 0
         },
         "data_refresh_interval": {
-          "description": "Data refresh interval (default: 10 seconds)",
+          "description": "Data refresh interval in seconds",
           "type": [
             "integer",
             "null"
           ],
           "format": "uint64",
+          "default": 10,
           "minimum": 0
         },
         "enable": {
@@ -757,12 +764,13 @@
           "minimum": 0
         },
         "data_refresh_interval": {
-          "description": "Data refresh interval (default: 10 seconds)",
+          "description": "Data refresh interval in seconds",
           "type": [
             "integer",
             "null"
           ],
           "format": "uint64",
+          "default": 10,
           "minimum": 0
         },
         "enable": {
@@ -1080,12 +1088,13 @@
           ]
         },
         "transparency_alpha": {
-          "description": "Alpha value for the color transparency [[0-255]] (default: 200)",
+          "description": "Alpha value for the color transparency [[0-255]]",
           "type": [
             "integer",
             "null"
           ],
           "format": "uint8",
+          "default": 200,
           "maximum": 255,
           "minimum": 0
         }
@@ -1609,12 +1618,13 @@
           "minimum": 0
         },
         "data_refresh_interval": {
-          "description": "Data refresh interval (default: 10 seconds)",
+          "description": "Data refresh interval in seconds",
           "type": [
             "integer",
             "null"
           ],
           "format": "uint64",
+          "default": 10,
           "minimum": 0
         },
         "enable": {
@@ -1700,12 +1710,13 @@
           ]
         },
         "data_refresh_interval": {
-          "description": "Data refresh interval (default: 10 seconds)",
+          "description": "Data refresh interval in seconds",
           "type": [
             "integer",
             "null"
           ],
           "format": "uint64",
+          "default": 10,
           "minimum": 0
         },
         "enable": {
@@ -1944,12 +1955,13 @@
           "minimum": 0
         },
         "data_refresh_interval": {
-          "description": "Data refresh interval (default: 10 seconds)",
+          "description": "Data refresh interval in seconds",
           "type": [
             "integer",
             "null"
           ],
           "format": "uint64",
+          "default": 10,
           "minimum": 0
         },
         "enable": {
@@ -1968,18 +1980,20 @@
           ]
         },
         "show_read_only_disks": {
-          "description": "Show disks that are read only. (default: false)",
+          "description": "Show disks that are read only",
           "type": [
             "boolean",
             "null"
-          ]
+          ],
+          "default": false
         },
         "show_removable_disks": {
-          "description": "Show removable disks. (default: true)",
+          "description": "Show removable disks",
           "type": [
             "boolean",
             "null"
-          ]
+          ],
+          "default": true
         }
       },
       "required": [
@@ -1990,11 +2004,12 @@
       "type": "object",
       "properties": {
         "changing_icon": {
-          "description": "Change the icon depending on the time. The default icon is used between 8:30 and 12:00. (default: false)",
+          "description": "Change the icon depending on the time. The default icon is used between 8:30 and 12:00",
           "type": [
             "boolean",
             "null"
-          ]
+          ],
+          "default": false
         },
         "enable": {
           "description": "Enable the Time widget",
@@ -2079,12 +2094,13 @@
       "type": "object",
       "properties": {
         "data_refresh_interval": {
-          "description": "Data refresh interval (default: 12 hours)",
+          "description": "Data refresh interval in hours",
           "type": [
             "integer",
             "null"
           ],
           "format": "uint64",
+          "default": 12,
           "minimum": 0
         },
         "enable": {
