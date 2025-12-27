@@ -618,7 +618,7 @@ dependencies = [
 [[package]]
 name = "base16-egui-themes"
 version = "0.1.0"
-source = "git+https://github.com/LGUG2Z/base16-egui-themes?rev=adfed118ab1408f134fd7d8a549ccfe47b99d752#adfed118ab1408f134fd7d8a549ccfe47b99d752"
+source = "git+https://github.com/LGUG2Z/base16-egui-themes?rev=b9e26b31f7a0e7ed239b14e5317e95d1bdc544bd#b9e26b31f7a0e7ed239b14e5317e95d1bdc544bd"
 dependencies = [
  "egui",
  "schemars 1.1.0",
@@ -3091,7 +3091,7 @@ dependencies = [
 [[package]]
 name = "komorebi-themes"
 version = "0.1.40"
-source = "git+https://github.com/LGUG2Z/komorebi?rev=7bf27717bc67a5c6e672acb4896b96a59ff78fc5#7bf27717bc67a5c6e672acb4896b96a59ff78fc5"
+source = "git+https://github.com/LGUG2Z/komorebi?rev=3a81f7babbb95f594f4d02ba16ea406ab83b1133#3a81f7babbb95f594f4d02ba16ea406ab83b1133"
 dependencies = [
  "base16-egui-themes",
  "catppuccin-egui",
