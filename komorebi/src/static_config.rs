@@ -94,6 +94,9 @@ mod defaults {
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Border colours for different container states
+///
+/// These options will have no effect if a `theme` is set
 pub struct BorderColours {
     /// Border colour when the container contains a single window
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -117,6 +120,7 @@ pub struct BorderColours {
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Theme options
 pub struct ThemeOptions {
     /// Specify Light or Dark variant for theme generation
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -164,6 +168,7 @@ pub struct ThemeOptions {
 #[serde_with::serde_as]
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Wallpaper configuration
 pub struct Wallpaper {
     /// Path to the wallpaper image file
     #[serde_as(as = "ResolvedPathBuf")]
@@ -181,6 +186,7 @@ pub struct Wallpaper {
 #[serde_with::serde_as]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Workspace configuration
 pub struct WorkspaceConfig {
     /// Name
     pub name: String,
@@ -328,6 +334,7 @@ impl From<&Workspace> for WorkspaceConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Monitor configuration
 pub struct MonitorConfig {
     /// Workspace configurations
     pub workspaces: Vec<WorkspaceConfig>,
@@ -403,6 +410,7 @@ impl From<&Monitor> for MonitorConfig {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(untagged)]
+/// Path(s) to application-specific configuration file(s)
 pub enum AppSpecificConfigurationPath {
     /// A single applications.json file
     Single(#[serde_as(as = "ResolvedPathBuf")] PathBuf),
@@ -568,6 +576,8 @@ pub struct StaticConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub animation: Option<AnimationsConfig>,
     /// Theme configuration options
+    ///
+    /// If a theme is specified, `border_colours` will have no effect
     #[serde(skip_serializing_if = "Option::is_none")]
     pub theme: Option<KomorebiTheme>,
     /// Identify applications which are slow to send initial event notifications
@@ -594,6 +604,7 @@ pub struct StaticConfig {
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Animation configuration
 pub struct AnimationsConfig {
     /// Enable or disable animations
     #[cfg_attr(feature = "schemars", schemars(extend("default" = PerAnimationPrefixConfig::Global(false))))]
@@ -615,6 +626,7 @@ pub struct AnimationsConfig {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(tag = "palette")]
+/// Komorebi theme
 pub enum KomorebiTheme {
     /// A theme from catppuccin-egui
     Catppuccin {

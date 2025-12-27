@@ -901,17 +901,54 @@
       ]
     },
     "DefaultLayout": {
-      "type": "string",
-      "enum": [
-        "BSP",
-        "Columns",
-        "Rows",
-        "VerticalStack",
-        "HorizontalStack",
-        "UltrawideVerticalStack",
-        "Grid",
-        "RightMainVerticalStack",
-        "Scrolling"
+      "description": "A predefined komorebi layout",
+      "default": "BSP",
+      "oneOf": [
+        {
+          "description": "BSP Layout\n\n```\n+-------+-----+\n|       |     |\n|       +--+--+\n|       |  |--|\n+-------+--+--+\n```",
+          "type": "string",
+          "const": "BSP"
+        },
+        {
+          "description": "Columns Layout\n\n```\n+--+--+--+--+\n|  |  |  |  |\n|  |  |  |  |\n|  |  |  |  |\n+--+--+--+--+\n```",
+          "type": "string",
+          "const": "Columns"
+        },
+        {
+          "description": "Rows Layout\n\n```\n+-----------+\n|-----------|\n|-----------|\n|-----------|\n+-----------+\n```",
+          "type": "string",
+          "const": "Rows"
+        },
+        {
+          "description": "Vertical Stack Layout\n\n```\n+-------+-----+\n|       |     |\n|       +-----+\n|       |     |\n+-------+-----+\n```",
+          "type": "string",
+          "const": "VerticalStack"
+        },
+        {
+          "description": "Horizontal Stack Layout\n\n```\n+------+------+\n|             |\n|------+------+\n|      |      |\n+------+------+\n```",
+          "type": "string",
+          "const": "HorizontalStack"
+        },
+        {
+          "description": "Ultrawide Vertical Stack Layout\n\n```\n+-----+-----------+-----+\n|     |           |     |\n|     |           +-----+\n|     |           |     |\n|     |           +-----+\n|     |           |     |\n+-----+-----------+-----+\n```",
+          "type": "string",
+          "const": "UltrawideVerticalStack"
+        },
+        {
+          "description": "Grid Layout\n\n```\n+-----+-----+   +---+---+---+   +---+---+---+   +---+---+---+\n|     |     |   |   |   |   |   |   |   |   |   |   |   |   |\n|     |     |   |   |   |   |   |   |   |   |   |   |   +---+\n+-----+-----+   |   +---+---+   +---+---+---+   +---+---|   |\n|     |     |   |   |   |   |   |   |   |   |   |   |   +---+\n|     |     |   |   |   |   |   |   |   |   |   |   |   |   |\n+-----+-----+   +---+---+---+   +---+---+---+   +---+---+---+\n 4 windows       5 windows       6 windows       7 windows\n```",
+          "type": "string",
+          "const": "Grid"
+        },
+        {
+          "description": "Right Main Vertical Stack Layout\n\n```\n+-----+-------+\n|     |       |\n+-----+       |\n|     |       |\n+-----+-------+\n```",
+          "type": "string",
+          "const": "RightMainVerticalStack"
+        },
+        {
+          "description": "Scrolling Layout\n\n```\n+--+--+--+--+--+--+\n|     |     |     |\n|     |     |     |\n|     |     |     |\n+--+--+--+--+--+--+\n```",
+          "type": "string",
+          "const": "Scrolling"
+        }
       ]
     },
     "DisplayFormat": {
@@ -1844,21 +1881,26 @@
       }
     },
     "Rect": {
+      "description": "Rectangle dimensions",
       "type": "object",
       "properties": {
         "bottom": {
+          "description": "Height of the rectangle (from the top point)",
           "type": "integer",
           "format": "int32"
         },
         "left": {
+          "description": "Left point of the rectangle",
           "type": "integer",
           "format": "int32"
         },
         "right": {
+          "description": "Width of the recentangle (from the left point)",
           "type": "integer",
           "format": "int32"
         },
         "top": {
+          "description": "Top point of the rectangle",
           "type": "integer",
           "format": "int32"
         }

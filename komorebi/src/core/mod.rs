@@ -33,11 +33,12 @@ pub mod rect;
     Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize, Display, EnumString, ValueEnum,
 )]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Operation behaviour for temporarily unmanaged and floating windows
 pub enum OperationBehaviour {
-    /// Process komorebic commands on temporarily unmanaged/floated windows
+    /// Process commands on temporarily unmanaged/floated windows
     #[default]
     Op,
-    /// Ignore komorebic commands on temporarily unmanaged/floated windows
+    /// Ignore commands on temporarily unmanaged/floated windows
     NoOp,
 }
 
@@ -93,6 +94,7 @@ pub struct WindowManagementBehaviour {
     Clone, Copy, Debug, Default, Serialize, Deserialize, Display, EnumString, ValueEnum, PartialEq,
 )]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Window container behaviour when a new window is opened
 pub enum WindowContainerBehaviour {
     /// Create a new container for each new window
     #[default]
@@ -105,6 +107,7 @@ pub enum WindowContainerBehaviour {
     Clone, Copy, Debug, Default, Serialize, Deserialize, Display, EnumString, ValueEnum, PartialEq,
 )]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Floating layer behaviour when a new window is opened
 pub enum FloatingLayerBehaviour {
     /// Tile new windows (unless they match a float rule or float override is active)
     #[default]
@@ -129,6 +132,7 @@ pub enum WindowHidingPosition {
     Clone, Copy, Debug, Default, Serialize, Deserialize, Display, EnumString, ValueEnum, PartialEq,
 )]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Placement behaviour for floating windows
 pub enum Placement {
     /// Does not change the size or position of the window
     #[default]
@@ -168,6 +172,7 @@ impl Placement {
     Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize, Display, EnumString, ValueEnum,
 )]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Move behaviour when the operation works across a monitor boundary
 pub enum MoveBehaviour {
     /// Swap the window container with the window container at the edge of the adjacent monitor
     #[default]
@@ -182,6 +187,7 @@ pub enum MoveBehaviour {
     Clone, Copy, Debug, Default, Serialize, Deserialize, Display, EnumString, ValueEnum, PartialEq,
 )]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Behaviour when an action would cross a monitor boundary
 pub enum CrossBoundaryBehaviour {
     /// Attempt to perform actions across a workspace boundary
     Workspace,
@@ -194,13 +200,18 @@ pub enum CrossBoundaryBehaviour {
     Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Display, EnumString, ValueEnum,
 )]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Application identifier
 pub enum ApplicationIdentifier {
+    /// Executable name
     #[serde(alias = "exe")]
     Exe,
+    /// Role or subrole
     #[serde(alias = "class")]
     Class,
+    /// Window title
     #[serde(alias = "title")]
     Title,
+    /// Executable path
     #[serde(alias = "path")]
     Path,
 }

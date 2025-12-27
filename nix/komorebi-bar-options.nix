@@ -867,15 +867,19 @@ in
                           options = {
                             bottom = lib.mkOption {
                               type = lib.types.int;
+                              description = "Height of the rectangle (from the top point)";
                             };
                             left = lib.mkOption {
                               type = lib.types.int;
+                              description = "Left point of the rectangle";
                             };
                             right = lib.mkOption {
                               type = lib.types.int;
+                              description = "Width of the recentangle (from the left point)";
                             };
                             top = lib.mkOption {
                               type = lib.types.int;
+                              description = "Top point of the rectangle";
                             };
                           };
                         }
@@ -934,6 +938,39 @@ in
                         "Custom"
                       ]
                     );
+                  };
+                  auto_select_text = lib.mkOption {
+                    type = (
+                      lib.types.nullOr (
+                        lib.types.oneOf [
+                          (lib.types.nullOr catppuccinValue)
+                          (lib.types.nullOr base16Value)
+                        ]
+                      )
+                    );
+                    default = null;
+                  };
+                  auto_select_fill = lib.mkOption {
+                    type = (
+                      lib.types.nullOr (
+                        lib.types.oneOf [
+                          (lib.types.nullOr catppuccinValue)
+                          (lib.types.nullOr base16Value)
+                        ]
+                      )
+                    );
+                    default = null;
+                  };
+                  accent = lib.mkOption {
+                    type = (
+                      lib.types.nullOr (
+                        lib.types.oneOf [
+                          (lib.types.nullOr catppuccinValue)
+                          (lib.types.nullOr base16Value)
+                        ]
+                      )
+                    );
+                    default = null;
                   };
                   name = lib.mkOption {
                     type = (
@@ -1276,39 +1313,6 @@ in
                             };
                           };
                         }
-                      )
-                    );
-                    default = null;
-                  };
-                  auto_select_text = lib.mkOption {
-                    type = (
-                      lib.types.nullOr (
-                        lib.types.oneOf [
-                          (lib.types.nullOr catppuccinValue)
-                          (lib.types.nullOr base16Value)
-                        ]
-                      )
-                    );
-                    default = null;
-                  };
-                  accent = lib.mkOption {
-                    type = (
-                      lib.types.nullOr (
-                        lib.types.oneOf [
-                          (lib.types.nullOr catppuccinValue)
-                          (lib.types.nullOr base16Value)
-                        ]
-                      )
-                    );
-                    default = null;
-                  };
-                  auto_select_fill = lib.mkOption {
-                    type = (
-                      lib.types.nullOr (
-                        lib.types.oneOf [
-                          (lib.types.nullOr catppuccinValue)
-                          (lib.types.nullOr base16Value)
-                        ]
                       )
                     );
                     default = null;

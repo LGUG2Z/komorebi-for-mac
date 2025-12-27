@@ -6,7 +6,9 @@ use serde::Serialize;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// A komorebi layout
 pub enum Layout {
+    /// A predefined komorebi layout
     Default(DefaultLayout),
 }
 

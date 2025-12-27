@@ -140,6 +140,7 @@ let
       options = {
         id = lib.mkOption {
           type = lib.types.str;
+          description = "Target identifier";
         };
         kind = lib.mkOption {
           type = (
@@ -150,6 +151,7 @@ let
               "Path"
             ]
           );
+          description = "Kind of identifier to target";
         };
         matching_strategy = lib.mkOption {
           type = (
@@ -169,6 +171,7 @@ let
             )
           );
           default = null;
+          description = "Matching strategy to use";
         };
       };
     }
@@ -192,15 +195,19 @@ let
       options = {
         bottom = lib.mkOption {
           type = lib.types.int;
+          description = "Height of the rectangle (from the top point)";
         };
         left = lib.mkOption {
           type = lib.types.int;
+          description = "Left point of the rectangle";
         };
         right = lib.mkOption {
           type = lib.types.int;
+          description = "Width of the recentangle (from the left point)";
         };
         top = lib.mkOption {
           type = lib.types.int;
+          description = "Top point of the rectangle";
         };
       };
     }
@@ -759,7 +766,40 @@ in
                     );
                     default = null;
                   };
+                  unfocused_locked_border = lib.mkOption {
+                    type = (
+                      lib.types.nullOr (
+                        lib.types.oneOf [
+                          (lib.types.nullOr catppuccinValue)
+                          (lib.types.nullOr base16Value)
+                        ]
+                      )
+                    );
+                    default = null;
+                  };
                   stack_border = lib.mkOption {
+                    type = (
+                      lib.types.nullOr (
+                        lib.types.oneOf [
+                          (lib.types.nullOr catppuccinValue)
+                          (lib.types.nullOr base16Value)
+                        ]
+                      )
+                    );
+                    default = null;
+                  };
+                  floating_border = lib.mkOption {
+                    type = (
+                      lib.types.nullOr (
+                        lib.types.oneOf [
+                          (lib.types.nullOr catppuccinValue)
+                          (lib.types.nullOr base16Value)
+                        ]
+                      )
+                    );
+                    default = null;
+                  };
+                  unfocused_border = lib.mkOption {
                     type = (
                       lib.types.nullOr (
                         lib.types.oneOf [
@@ -829,17 +869,6 @@ in
                     );
                     default = null;
                   };
-                  unfocused_border = lib.mkOption {
-                    type = (
-                      lib.types.nullOr (
-                        lib.types.oneOf [
-                          (lib.types.nullOr catppuccinValue)
-                          (lib.types.nullOr base16Value)
-                        ]
-                      )
-                    );
-                    default = null;
-                  };
                   monocle_border = lib.mkOption {
                     type = (
                       lib.types.nullOr (
@@ -851,7 +880,7 @@ in
                     );
                     default = null;
                   };
-                  floating_border = lib.mkOption {
+                  bar_accent = lib.mkOption {
                     type = (
                       lib.types.nullOr (
                         lib.types.oneOf [
@@ -1148,34 +1177,12 @@ in
                     );
                     default = null;
                   };
-                  unfocused_locked_border = lib.mkOption {
-                    type = (
-                      lib.types.nullOr (
-                        lib.types.oneOf [
-                          (lib.types.nullOr catppuccinValue)
-                          (lib.types.nullOr base16Value)
-                        ]
-                      )
-                    );
-                    default = null;
-                  };
-                  bar_accent = lib.mkOption {
-                    type = (
-                      lib.types.nullOr (
-                        lib.types.oneOf [
-                          (lib.types.nullOr catppuccinValue)
-                          (lib.types.nullOr base16Value)
-                        ]
-                      )
-                    );
-                    default = null;
-                  };
                 };
               }
             )
           );
           default = null;
-          description = "Theme configuration options";
+          description = "Theme configuration options\n\nIf a theme is specified, `border_colours` will have no effect";
         };
         toggle_float_placement = lib.mkOption {
           type = (lib.types.nullOr placement);

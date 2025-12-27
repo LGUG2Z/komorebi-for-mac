@@ -261,7 +261,7 @@
       "default": 50
     },
     "theme": {
-      "description": "Theme configuration options",
+      "description": "Theme configuration options\n\nIf a theme is specified, `border_colours` will have no effect",
       "anyOf": [
         {
           "$ref": "#/$defs/KomorebiTheme"
@@ -310,44 +310,165 @@
   },
   "$defs": {
     "AnimationStyle": {
+      "description": "Mathematical function which describes the rate at which a value changes",
       "oneOf": [
         {
+          "description": "Linear",
           "type": "string",
-          "enum": [
-            "Linear",
-            "EaseInSine",
-            "EaseOutSine",
-            "EaseInOutSine",
-            "EaseInQuad",
-            "EaseOutQuad",
-            "EaseInOutQuad",
-            "EaseInCubic",
-            "EaseOutCubic",
-            "EaseInOutCubic",
-            "EaseInQuart",
-            "EaseOutQuart",
-            "EaseInOutQuart",
-            "EaseInQuint",
-            "EaseOutQuint",
-            "EaseInOutQuint",
-            "EaseInExpo",
-            "EaseOutExpo",
-            "EaseInOutExpo",
-            "EaseInCirc",
-            "EaseOutCirc",
-            "EaseInOutCirc",
-            "EaseInBack",
-            "EaseOutBack",
-            "EaseInOutBack",
-            "EaseInElastic",
-            "EaseOutElastic",
-            "EaseInOutElastic",
-            "EaseInBounce",
-            "EaseOutBounce",
-            "EaseInOutBounce"
-          ]
+          "const": "Linear"
         },
         {
+          "description": "Ease in sine",
+          "type": "string",
+          "const": "EaseInSine"
+        },
+        {
+          "description": "Ease out sine",
+          "type": "string",
+          "const": "EaseOutSine"
+        },
+        {
+          "description": "Ease in out sine",
+          "type": "string",
+          "const": "EaseInOutSine"
+        },
+        {
+          "description": "Ease in quad",
+          "type": "string",
+          "const": "EaseInQuad"
+        },
+        {
+          "description": "Ease out quad",
+          "type": "string",
+          "const": "EaseOutQuad"
+        },
+        {
+          "description": "Ease in out quad",
+          "type": "string",
+          "const": "EaseInOutQuad"
+        },
+        {
+          "description": "Ease in cubic",
+          "type": "string",
+          "const": "EaseInCubic"
+        },
+        {
+          "description": "Ease out cubic",
+          "type": "string",
+          "const": "EaseOutCubic"
+        },
+        {
+          "description": "Ease in out cubic",
+          "type": "string",
+          "const": "EaseInOutCubic"
+        },
+        {
+          "description": "Ease in quart",
+          "type": "string",
+          "const": "EaseInQuart"
+        },
+        {
+          "description": "Ease out quart",
+          "type": "string",
+          "const": "EaseOutQuart"
+        },
+        {
+          "description": "Ease in out quart",
+          "type": "string",
+          "const": "EaseInOutQuart"
+        },
+        {
+          "description": "Ease in quint",
+          "type": "string",
+          "const": "EaseInQuint"
+        },
+        {
+          "description": "Ease out quint",
+          "type": "string",
+          "const": "EaseOutQuint"
+        },
+        {
+          "description": "Ease in out quint",
+          "type": "string",
+          "const": "EaseInOutQuint"
+        },
+        {
+          "description": "Ease in expo",
+          "type": "string",
+          "const": "EaseInExpo"
+        },
+        {
+          "description": "Ease out expo",
+          "type": "string",
+          "const": "EaseOutExpo"
+        },
+        {
+          "description": "Ease in out expo",
+          "type": "string",
+          "const": "EaseInOutExpo"
+        },
+        {
+          "description": "Ease in circ",
+          "type": "string",
+          "const": "EaseInCirc"
+        },
+        {
+          "description": "Ease out circ",
+          "type": "string",
+          "const": "EaseOutCirc"
+        },
+        {
+          "description": "Ease in out circ",
+          "type": "string",
+          "const": "EaseInOutCirc"
+        },
+        {
+          "description": "Ease in back",
+          "type": "string",
+          "const": "EaseInBack"
+        },
+        {
+          "description": "Ease out back",
+          "type": "string",
+          "const": "EaseOutBack"
+        },
+        {
+          "description": "Ease in out back",
+          "type": "string",
+          "const": "EaseInOutBack"
+        },
+        {
+          "description": "Ease in elastic",
+          "type": "string",
+          "const": "EaseInElastic"
+        },
+        {
+          "description": "Ease out elastic",
+          "type": "string",
+          "const": "EaseOutElastic"
+        },
+        {
+          "description": "Ease in out elastic",
+          "type": "string",
+          "const": "EaseInOutElastic"
+        },
+        {
+          "description": "Ease in bounce",
+          "type": "string",
+          "const": "EaseInBounce"
+        },
+        {
+          "description": "Ease out bounce",
+          "type": "string",
+          "const": "EaseOutBounce"
+        },
+        {
+          "description": "Ease in out bounce",
+          "type": "string",
+          "const": "EaseInOutBounce"
+        },
+        {
+          "description": "Custom Cubic Bézier function",
           "type": "object",
           "properties": {
             "CubicBezier": {
@@ -382,6 +503,7 @@
       ]
     },
     "AnimationsConfig": {
+      "description": "Animation configuration",
       "type": "object",
       "properties": {
         "duration": {
@@ -429,6 +551,7 @@
       ]
     },
     "AppSpecificConfigurationPath": {
+      "description": "Path(s) to application-specific configuration file(s)",
       "anyOf": [
         {
           "description": "A single applications.json file",
@@ -444,15 +567,32 @@
       ]
     },
     "ApplicationIdentifier": {
-      "type": "string",
-      "enum": [
-        "Exe",
-        "Class",
-        "Title",
-        "Path"
+      "description": "Application identifier",
+      "oneOf": [
+        {
+          "description": "Executable name",
+          "type": "string",
+          "const": "Exe"
+        },
+        {
+          "description": "Role or subrole",
+          "type": "string",
+          "const": "Class"
+        },
+        {
+          "description": "Window title",
+          "type": "string",
+          "const": "Title"
+        },
+        {
+          "description": "Executable path",
+          "type": "string",
+          "const": "Path"
+        }
       ]
     },
     "AspectRatio": {
+      "description": "Aspect ratio for temporarily floating windows",
       "anyOf": [
         {
           "description": "A predefined aspect ratio",
@@ -477,11 +617,23 @@
       ]
     },
     "Axis": {
-      "type": "string",
-      "enum": [
-        "Horizontal",
-        "Vertical",
-        "HorizontalAndVertical"
+      "description": "An axis on which to perform an operation",
+      "oneOf": [
+        {
+          "description": "Horizontal axis",
+          "type": "string",
+          "const": "Horizontal"
+        },
+        {
+          "description": "Vertical axis",
+          "type": "string",
+          "const": "Vertical"
+        },
+        {
+          "description": "Both horizontal and vertical axes",
+          "type": "string",
+          "const": "HorizontalAndVertical"
+        }
       ]
     },
     "Base16": {
@@ -851,6 +1003,7 @@
       ]
     },
     "BorderColours": {
+      "description": "Border colours for different container states\n\nThese options will have no effect if a `theme` is set",
       "type": "object",
       "properties": {
         "floating": {
@@ -974,6 +1127,7 @@
       ]
     },
     "CrossBoundaryBehaviour": {
+      "description": "Behaviour when an action would cross a monitor boundary",
       "oneOf": [
         {
           "description": "Attempt to perform actions across a workspace boundary",
@@ -988,20 +1142,58 @@
       ]
     },
     "DefaultLayout": {
-      "type": "string",
-      "enum": [
-        "BSP",
-        "Columns",
-        "Rows",
-        "VerticalStack",
-        "HorizontalStack",
-        "UltrawideVerticalStack",
-        "Grid",
-        "RightMainVerticalStack",
-        "Scrolling"
+      "description": "A predefined komorebi layout",
+      "default": "BSP",
+      "oneOf": [
+        {
+          "description": "BSP Layout\n\n```\n+-------+-----+\n|       |     |\n|       +--+--+\n|       |  |--|\n+-------+--+--+\n```",
+          "type": "string",
+          "const": "BSP"
+        },
+        {
+          "description": "Columns Layout\n\n```\n+--+--+--+--+\n|  |  |  |  |\n|  |  |  |  |\n|  |  |  |  |\n+--+--+--+--+\n```",
+          "type": "string",
+          "const": "Columns"
+        },
+        {
+          "description": "Rows Layout\n\n```\n+-----------+\n|-----------|\n|-----------|\n|-----------|\n+-----------+\n```",
+          "type": "string",
+          "const": "Rows"
+        },
+        {
+          "description": "Vertical Stack Layout\n\n```\n+-------+-----+\n|       |     |\n|       +-----+\n|       |     |\n+-------+-----+\n```",
+          "type": "string",
+          "const": "VerticalStack"
+        },
+        {
+          "description": "Horizontal Stack Layout\n\n```\n+------+------+\n|             |\n|------+------+\n|      |      |\n+------+------+\n```",
+          "type": "string",
+          "const": "HorizontalStack"
+        },
+        {
+          "description": "Ultrawide Vertical Stack Layout\n\n```\n+-----+-----------+-----+\n|     |           |     |\n|     |           +-----+\n|     |           |     |\n|     |           +-----+\n|     |           |     |\n+-----+-----------+-----+\n```",
+          "type": "string",
+          "const": "UltrawideVerticalStack"
+        },
+        {
+          "description": "Grid Layout\n\n```\n+-----+-----+   +---+---+---+   +---+---+---+   +---+---+---+\n|     |     |   |   |   |   |   |   |   |   |   |   |   |   |\n|     |     |   |   |   |   |   |   |   |   |   |   |   +---+\n+-----+-----+   |   +---+---+   +---+---+---+   +---+---|   |\n|     |     |   |   |   |   |   |   |   |   |   |   |   +---+\n|     |     |   |   |   |   |   |   |   |   |   |   |   |   |\n+-----+-----+   +---+---+---+   +---+---+---+   +---+---+---+\n 4 windows       5 windows       6 windows       7 windows\n```",
+          "type": "string",
+          "const": "Grid"
+        },
+        {
+          "description": "Right Main Vertical Stack Layout\n\n```\n+-----+-------+\n|     |       |\n+-----+       |\n|     |       |\n+-----+-------+\n```",
+          "type": "string",
+          "const": "RightMainVerticalStack"
+        },
+        {
+          "description": "Scrolling Layout\n\n```\n+--+--+--+--+--+--+\n|     |     |     |\n|     |     |     |\n|     |     |     |\n+--+--+--+--+--+--+\n```",
+          "type": "string",
+          "const": "Scrolling"
+        }
       ]
     },
     "FloatingLayerBehaviour": {
+      "description": "Floating layer behaviour when a new window is opened",
       "oneOf": [
         {
           "description": "Tile new windows (unless they match a float rule or float override is active)",
@@ -1016,6 +1208,7 @@
       ]
     },
     "GridLayoutOptions": {
+      "description": "Options for the Grid layout",
       "type": "object",
       "properties": {
         "rows": {
@@ -1034,15 +1227,19 @@
       "format": "color-hex"
     },
     "IdWithIdentifier": {
+      "description": "Rule for matching applications",
       "type": "object",
       "properties": {
         "id": {
+          "description": "Target identifier",
           "type": "string"
         },
         "kind": {
+          "description": "Kind of identifier to target",
           "$ref": "#/$defs/ApplicationIdentifier"
         },
         "matching_strategy": {
+          "description": "Matching strategy to use",
           "anyOf": [
             {
               "$ref": "#/$defs/MatchingStrategy"
@@ -1059,6 +1256,7 @@
       ]
     },
     "KomorebiTheme": {
+      "description": "Komorebi theme",
       "oneOf": [
         {
           "description": "A theme from catppuccin-egui",
@@ -1369,6 +1567,7 @@
       ]
     },
     "LayoutOptions": {
+      "description": "Options for specific layouts",
       "type": "object",
       "properties": {
         "grid": {
@@ -1396,11 +1595,14 @@
       }
     },
     "MatchingRule": {
+      "description": "Rule for matching applications",
       "anyOf": [
         {
+          "description": "Simple matching rule which must evaluate to true",
           "$ref": "#/$defs/IdWithIdentifier"
         },
         {
+          "description": "Composite matching rule where all conditions must evaluate to true",
           "type": "array",
           "items": {
             "$ref": "#/$defs/IdWithIdentifier"
@@ -1409,21 +1611,62 @@
       ]
     },
     "MatchingStrategy": {
-      "type": "string",
-      "enum": [
-        "Legacy",
-        "Equals",
-        "StartsWith",
-        "EndsWith",
-        "Contains",
-        "Regex",
-        "DoesNotEndWith",
-        "DoesNotStartWith",
-        "DoesNotEqual",
-        "DoesNotContain"
+      "description": "Strategy for matching identifiers",
+      "oneOf": [
+        {
+          "description": "Should not be used, only kept for backward compatibility",
+          "type": "string",
+          "const": "Legacy"
+        },
+        {
+          "description": "Equals",
+          "type": "string",
+          "const": "Equals"
+        },
+        {
+          "description": "Starts With",
+          "type": "string",
+          "const": "StartsWith"
+        },
+        {
+          "description": "Ends With",
+          "type": "string",
+          "const": "EndsWith"
+        },
+        {
+          "description": "Contains",
+          "type": "string",
+          "const": "Contains"
+        },
+        {
+          "description": "Regex",
+          "type": "string",
+          "const": "Regex"
+        },
+        {
+          "description": "Does not end with",
+          "type": "string",
+          "const": "DoesNotEndWith"
+        },
+        {
+          "description": "Does not start with",
+          "type": "string",
+          "const": "DoesNotStartWith"
+        },
+        {
+          "description": "Does not equal",
+          "type": "string",
+          "const": "DoesNotEqual"
+        },
+        {
+          "description": "Does not contain",
+          "type": "string",
+          "const": "DoesNotContain"
+        }
       ]
     },
     "MonitorConfig": {
+      "description": "Monitor configuration",
       "type": "object",
       "properties": {
         "container_padding": {
@@ -1520,6 +1763,7 @@
       ]
     },
     "MoveBehaviour": {
+      "description": "Move behaviour when the operation works across a monitor boundary",
       "oneOf": [
         {
           "description": "Swap the window container with the window container at the edge of the adjacent monitor",
@@ -1539,14 +1783,15 @@
       ]
     },
     "OperationBehaviour": {
+      "description": "Operation behaviour for temporarily unmanaged and floating windows",
       "oneOf": [
         {
-          "description": "Process komorebic commands on temporarily unmanaged/floated windows",
+          "description": "Process commands on temporarily unmanaged/floated windows",
           "type": "string",
           "const": "Op"
         },
         {
-          "description": "Ignore komorebic commands on temporarily unmanaged/floated windows",
+          "description": "Ignore commands on temporarily unmanaged/floated windows",
           "type": "string",
           "const": "NoOp"
         }
@@ -1556,21 +1801,26 @@
       "type": "string"
     },
     "PerAnimationPrefixConfig": {
+      "description": "Animation configuration\n\nThis can be either global:\n```json\n{\n    \"enabled\": true,\n    \"style\": \"EaseInSine\",\n    \"fps\": 60,\n    \"duration\": 250\n}\n```\n\nOr scoped by an animation kind prefix:\n```json\n{\n    \"movement\": {\n        \"enabled\": true,\n        \"style\": \"EaseInSine\",\n        \"fps\": 60,\n        \"duration\": 250\n    }\n}\n```",
       "anyOf": [
         {
+          "description": "Animation configuration prefixed for a specific animation kind",
           "type": "object",
           "additionalProperties": {
             "type": "boolean"
           }
         },
         {
+          "description": "Animation configuration for all animation kinds",
           "type": "boolean"
         }
       ]
     },
     "PerAnimationPrefixConfig2": {
+      "description": "Animation configuration\n\nThis can be either global:\n```json\n{\n    \"enabled\": true,\n    \"style\": \"EaseInSine\",\n    \"fps\": 60,\n    \"duration\": 250\n}\n```\n\nOr scoped by an animation kind prefix:\n```json\n{\n    \"movement\": {\n        \"enabled\": true,\n        \"style\": \"EaseInSine\",\n        \"fps\": 60,\n        \"duration\": 250\n    }\n}\n```",
       "anyOf": [
         {
+          "description": "Animation configuration prefixed for a specific animation kind",
           "type": "object",
           "additionalProperties": {
             "type": "integer",
@@ -1579,6 +1829,7 @@
           }
         },
         {
+          "description": "Animation configuration for all animation kinds",
           "type": "integer",
           "format": "uint64",
           "minimum": 0
@@ -1586,19 +1837,23 @@
       ]
     },
     "PerAnimationPrefixConfig3": {
+      "description": "Animation configuration\n\nThis can be either global:\n```json\n{\n    \"enabled\": true,\n    \"style\": \"EaseInSine\",\n    \"fps\": 60,\n    \"duration\": 250\n}\n```\n\nOr scoped by an animation kind prefix:\n```json\n{\n    \"movement\": {\n        \"enabled\": true,\n        \"style\": \"EaseInSine\",\n        \"fps\": 60,\n        \"duration\": 250\n    }\n}\n```",
       "anyOf": [
         {
+          "description": "Animation configuration prefixed for a specific animation kind",
           "type": "object",
           "additionalProperties": {
             "$ref": "#/$defs/AnimationStyle"
           }
         },
         {
+          "description": "Animation configuration for all animation kinds",
           "$ref": "#/$defs/AnimationStyle"
         }
       ]
     },
     "Placement": {
+      "description": "Placement behaviour for floating windows",
       "oneOf": [
         {
           "description": "Does not change the size or position of the window",
@@ -1618,6 +1873,7 @@
       ]
     },
     "PredefinedAspectRatio": {
+      "description": "Predefined aspect ratio",
       "oneOf": [
         {
           "description": "21:9",
@@ -1637,21 +1893,26 @@
       ]
     },
     "Rect": {
+      "description": "Rectangle dimensions",
       "type": "object",
       "properties": {
         "bottom": {
+          "description": "Height of the rectangle (from the top point)",
           "type": "integer",
           "format": "int32"
         },
         "left": {
+          "description": "Left point of the rectangle",
           "type": "integer",
           "format": "int32"
         },
         "right": {
+          "description": "Width of the recentangle (from the left point)",
           "type": "integer",
           "format": "int32"
         },
         "top": {
+          "description": "Top point of the rectangle",
           "type": "integer",
           "format": "int32"
         }
@@ -1692,6 +1953,7 @@
       ]
     },
     "ScrollingLayoutOptions": {
+      "description": "Options for the Scrolling layout",
       "type": "object",
       "properties": {
         "center_focused_column": {
@@ -1713,6 +1975,7 @@
       ]
     },
     "ThemeOptions": {
+      "description": "Theme options",
       "type": "object",
       "properties": {
         "bar_accent": {
@@ -1821,6 +2084,7 @@
       ]
     },
     "Wallpaper": {
+      "description": "Wallpaper configuration",
       "type": "object",
       "properties": {
         "generate_theme": {
@@ -1852,6 +2116,7 @@
       ]
     },
     "WindowContainerBehaviour": {
+      "description": "Window container behaviour when a new window is opened",
       "oneOf": [
         {
           "description": "Create a new container for each new window",
@@ -1880,6 +2145,7 @@
       ]
     },
     "WorkspaceConfig": {
+      "description": "Workspace configuration",
       "type": "object",
       "properties": {
         "apply_window_based_work_area_offset": {

@@ -9,10 +9,15 @@ use serde::Serialize;
 
 #[derive(Debug, Default, Copy, Clone, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Rectangle dimensions
 pub struct Rect {
+    /// Left point of the rectangle
     pub left: i32,
+    /// Top point of the rectangle
     pub top: i32,
+    /// Width of the recentangle (from the left point)
     pub right: i32,
+    /// Height of the rectangle (from the top point)
     pub bottom: i32,
 }
 

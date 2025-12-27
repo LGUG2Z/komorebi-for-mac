@@ -601,9 +601,13 @@ impl Arrangement for DefaultLayout {
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, Display, EnumString, ValueEnum, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// An axis on which to perform an operation
 pub enum Axis {
+    /// Horizontal axis
     Horizontal,
+    /// Vertical axis
     Vertical,
+    /// Both horizontal and vertical axes
     HorizontalAndVertical,
 }
 
