@@ -159,6 +159,7 @@ impl KomobarConfig {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Position configuration
 pub struct PositionConfig {
     /// The desired starting position of the bar (0,0 = top left of the screen)
     #[serde(alias = "position")]
@@ -170,6 +171,7 @@ pub struct PositionConfig {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Frame configuration
 pub struct FrameConfig {
     /// Margin inside the painted frame
     pub inner_margin: Position,
@@ -178,6 +180,7 @@ pub struct FrameConfig {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(untagged)]
+/// Monitor configuration or monitor index
 pub enum MonitorConfigOrIndex {
     /// The monitor index where you want the bar to show
     Index(usize),
@@ -187,6 +190,7 @@ pub enum MonitorConfigOrIndex {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Monitor configuration
 pub struct MonitorConfig {
     /// Komorebi monitor index of the monitor on which to render the bar
     pub index: usize,
@@ -204,9 +208,13 @@ pub type Margin = SpacingKind;
 // `Grouped` needs to come last, otherwise serde might mistaken an `IndividualSpacingConfig` for a
 // `GroupedSpacingConfig` with both `vertical` and `horizontal` set to `None` ignoring the
 // individual values.
+/// Spacing kind
 pub enum SpacingKind {
+    /// Spacing applied to all sides
     All(f32),
+    /// Individual spacing applied to each side
     Individual(IndividualSpacingConfig),
+    /// Grouped vertical and horizontal spacing
     Grouped(GroupedSpacingConfig),
 }
 
@@ -251,25 +259,36 @@ impl SpacingKind {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Grouped vertical and horizontal spacing
 pub struct GroupedSpacingConfig {
+    /// Vertical grouped spacing
     pub vertical: Option<GroupedSpacingOptions>,
+    /// Horizontal grouped spacing
     pub horizontal: Option<GroupedSpacingOptions>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(untagged)]
+/// Grouped spacing options
 pub enum GroupedSpacingOptions {
+    /// Symmetrical grouped spacing
     Symmetrical(f32),
+    /// Split grouped spacing
     Split(f32, f32),
 }
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Individual spacing configuration
 pub struct IndividualSpacingConfig {
+    /// Spacing for the top
     pub top: f32,
+    /// Spacing for the bottom
     pub bottom: f32,
+    /// Spacing for the left
     pub left: f32,
+    /// Spacing for the right
     pub right: f32,
 }
 
@@ -509,6 +528,7 @@ impl KomobarConfig {
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Position
 pub struct Position {
     /// X coordinate
     pub x: f32,
@@ -537,8 +557,9 @@ impl From<Position> for Pos2 {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(tag = "palette")]
+/// Komorebi bar theme
 pub enum KomobarTheme {
-    /// A theme from catppuccin-egui
+    /// Theme from catppuccin-egui
     Catppuccin {
         /// Name of the Catppuccin theme (theme previews: https://github.com/catppuccin/catppuccin)
         name: komorebi_themes::Catppuccin,
@@ -546,7 +567,7 @@ pub enum KomobarTheme {
         auto_select_fill: Option<komorebi_themes::CatppuccinValue>,
         auto_select_text: Option<komorebi_themes::CatppuccinValue>,
     },
-    /// A theme from base16-egui-themes
+    /// Theme from base16-egui-themes
     Base16 {
         /// Name of the Base16 theme (theme previews: https://tinted-theming.github.io/tinted-gallery/)
         name: komorebi_themes::Base16,
@@ -554,7 +575,7 @@ pub enum KomobarTheme {
         auto_select_fill: Option<komorebi_themes::Base16Value>,
         auto_select_text: Option<komorebi_themes::Base16Value>,
     },
-    /// A custom Base16 theme
+    /// Custom Base16 theme
     Custom {
         /// Colours of the custom Base16 theme palette
         colours: Box<komorebi_themes::Base16ColourPalette>,
@@ -599,6 +620,7 @@ impl From<KomorebiTheme> for KomobarTheme {
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Label prefix
 pub enum LabelPrefix {
     /// Show no prefix
     None,
@@ -612,6 +634,7 @@ pub enum LabelPrefix {
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Display format
 pub enum DisplayFormat {
     /// Show only icon
     Icon,
@@ -626,9 +649,10 @@ pub enum DisplayFormat {
 }
 
 macro_rules! extend_enum {
-    ($existing_enum:ident, $new_enum:ident, { $($(#[$meta:meta])* $variant:ident),* $(,)? }) => {
+    ($(#[$type_meta:meta])* $existing_enum:ident, $new_enum:ident, { $($(#[$meta:meta])* $variant:ident),* $(,)? }) => {
         #[derive(Copy, Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq)]
         #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+        $(#[$type_meta])*
         pub enum $new_enum {
             // Add new variants
             $(
@@ -649,7 +673,9 @@ macro_rules! extend_enum {
     };
 }
 
-extend_enum!(DisplayFormat, WorkspacesDisplayFormat, {
+extend_enum!(
+    /// Workspaces display format
+    DisplayFormat, WorkspacesDisplayFormat, {
     /// Show all icons only
     AllIcons,
     /// Show both all icons and text

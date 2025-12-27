@@ -169,6 +169,7 @@
   ],
   "$defs": {
     "AppConfig": {
+      "description": "Application button configuration",
       "type": "object",
       "properties": {
         "command": {
@@ -218,6 +219,7 @@
       ]
     },
     "ApplicationsConfig": {
+      "description": "Applications widget configuration",
       "type": "object",
       "properties": {
         "display": {
@@ -264,6 +266,7 @@
       ]
     },
     "ApplicationsDisplayFormat": {
+      "description": "Applications widget display format",
       "oneOf": [
         {
           "description": "Show only the application icon.",
@@ -1806,6 +1809,7 @@
       ]
     },
     "BatteryConfig": {
+      "description": "Battery widget configuration",
       "type": "object",
       "properties": {
         "auto_select_under": {
@@ -2029,6 +2033,7 @@
       ]
     },
     "CpuConfig": {
+      "description": "CPU widget configuration",
       "type": "object",
       "properties": {
         "auto_select_over": {
@@ -2094,6 +2099,7 @@
       ]
     },
     "DateConfig": {
+      "description": "Date widget configuration",
       "type": "object",
       "properties": {
         "enable": {
@@ -2129,6 +2135,7 @@
       ]
     },
     "DateFormat": {
+      "description": "Date widget format",
       "oneOf": [
         {
           "description": "Month/Date/Year format (09/08/24)",
@@ -2230,6 +2237,7 @@
       ]
     },
     "DisplayFormat": {
+      "description": "Display format",
       "oneOf": [
         {
           "description": "Show only icon",
@@ -2259,6 +2267,7 @@
       ]
     },
     "FrameConfig": {
+      "description": "Frame configuration",
       "type": "object",
       "properties": {
         "inner_margin": {
@@ -2271,9 +2280,11 @@
       ]
     },
     "GroupedSpacingConfig": {
+      "description": "Grouped vertical and horizontal spacing",
       "type": "object",
       "properties": {
         "horizontal": {
+          "description": "Horizontal grouped spacing",
           "anyOf": [
             {
               "$ref": "#/$defs/GroupedSpacingOptions"
@@ -2284,6 +2295,7 @@
           ]
         },
         "vertical": {
+          "description": "Vertical grouped spacing",
           "anyOf": [
             {
               "$ref": "#/$defs/GroupedSpacingOptions"
@@ -2296,12 +2308,15 @@
       }
     },
     "GroupedSpacingOptions": {
+      "description": "Grouped spacing options",
       "anyOf": [
         {
+          "description": "Symmetrical grouped spacing",
           "type": "number",
           "format": "float"
         },
         {
+          "description": "Split grouped spacing",
           "type": "array",
           "maxItems": 2,
           "minItems": 2,
@@ -2319,6 +2334,7 @@
       ]
     },
     "Grouping": {
+      "description": "Grouping",
       "oneOf": [
         {
           "description": "No grouping is applied",
@@ -2378,6 +2394,7 @@
       ]
     },
     "GroupingConfig": {
+      "description": "Grouping configuration",
       "type": "object",
       "properties": {
         "rounding": {
@@ -2416,12 +2433,12 @@
       }
     },
     "GroupingStyle": {
+      "description": "Grouping Style",
       "oneOf": [
         {
+          "description": "Default",
           "type": "string",
-          "enum": [
-            "Default"
-          ]
+          "const": "Default"
         },
         {
           "description": "A shadow is added under the default group. (blur: 4, offset: x-1 y-1, spread: 3)",
@@ -2461,21 +2478,26 @@
       "format": "color-hex"
     },
     "IndividualSpacingConfig": {
+      "description": "Individual spacing configuration",
       "type": "object",
       "properties": {
         "bottom": {
+          "description": "Spacing for the bottom",
           "type": "number",
           "format": "float"
         },
         "left": {
+          "description": "Spacing for the left",
           "type": "number",
           "format": "float"
         },
         "right": {
+          "description": "Spacing for the right",
           "type": "number",
           "format": "float"
         },
         "top": {
+          "description": "Spacing for the top",
           "type": "number",
           "format": "float"
         }
@@ -2488,9 +2510,10 @@
       ]
     },
     "KomobarTheme": {
+      "description": "Komorebi bar theme",
       "oneOf": [
         {
-          "description": "A theme from catppuccin-egui",
+          "description": "Theme from catppuccin-egui",
           "type": "object",
           "properties": {
             "accent": {
@@ -2538,7 +2561,7 @@
           ]
         },
         {
-          "description": "A theme from base16-egui-themes",
+          "description": "Theme from base16-egui-themes",
           "type": "object",
           "properties": {
             "accent": {
@@ -2586,7 +2609,7 @@
           ]
         },
         {
-          "description": "A custom Base16 theme",
+          "description": "Custom Base16 theme",
           "type": "object",
           "properties": {
             "accent": {
@@ -2636,6 +2659,7 @@
       ]
     },
     "KomorebiConfig": {
+      "description": "Komorebi widget configuration",
       "type": "object",
       "properties": {
         "configuration_switcher": {
@@ -2707,6 +2731,7 @@
       }
     },
     "KomorebiConfigurationSwitcherConfig": {
+      "description": "Komorebi widget configuration switcher configuration",
       "type": "object",
       "properties": {
         "configurations": {
@@ -2727,6 +2752,7 @@
       ]
     },
     "KomorebiFocusedContainerConfig": {
+      "description": "Komorebi widget focused container configuration",
       "type": "object",
       "properties": {
         "display": {
@@ -2757,25 +2783,32 @@
       ]
     },
     "KomorebiLayout": {
+      "description": "Komorebi layout kind",
       "anyOf": [
         {
+          "description": "Predefined layout",
           "$ref": "#/$defs/DefaultLayout"
         },
         {
+          "description": "Monocle mode",
           "type": "null"
         },
         {
+          "description": "Floating layer",
           "type": "null"
         },
         {
+          "description": "Paused",
           "type": "null"
         },
         {
+          "description": "Custom layout",
           "type": "null"
         }
       ]
     },
     "KomorebiLayoutConfig": {
+      "description": "Komorebi widget layout configuration",
       "type": "object",
       "properties": {
         "display": {
@@ -2809,6 +2842,7 @@
       ]
     },
     "KomorebiLockedContainerConfig": {
+      "description": "Komorebi widget locked container configuration",
       "type": "object",
       "properties": {
         "display": {
@@ -2839,6 +2873,7 @@
       ]
     },
     "KomorebiWorkspaceLayerConfig": {
+      "description": "Komorebi widget workspace layer configuration",
       "type": "object",
       "properties": {
         "display": {
@@ -2869,6 +2904,7 @@
       ]
     },
     "KomorebiWorkspacesConfig": {
+      "description": "Komorebi widget workspaces configuration",
       "type": "object",
       "properties": {
         "display": {
@@ -2897,6 +2933,7 @@
       ]
     },
     "LabelPrefix": {
+      "description": "Label prefix",
       "oneOf": [
         {
           "description": "Show no prefix",
@@ -2921,6 +2958,7 @@
       ]
     },
     "MemoryConfig": {
+      "description": "Memory widget configuration",
       "type": "object",
       "properties": {
         "auto_select_over": {
@@ -2964,6 +3002,7 @@
       ]
     },
     "MonitorConfig": {
+      "description": "Monitor configuration",
       "type": "object",
       "properties": {
         "index": {
@@ -2989,6 +3028,7 @@
       ]
     },
     "MonitorConfigOrIndex": {
+      "description": "Monitor configuration or monitor index",
       "anyOf": [
         {
           "description": "The monitor index where you want the bar to show",
@@ -3003,6 +3043,7 @@
       ]
     },
     "NetworkConfig": {
+      "description": "Network widget configuration",
       "type": "object",
       "properties": {
         "activity_left_padding": {
@@ -3073,6 +3114,7 @@
       ]
     },
     "NetworkSelectConfig": {
+      "description": "Network select configuration",
       "type": "object",
       "properties": {
         "received_over": {
@@ -3114,6 +3156,7 @@
       }
     },
     "Position": {
+      "description": "Position",
       "type": "object",
       "properties": {
         "x": {
@@ -3133,6 +3176,7 @@
       ]
     },
     "PositionConfig": {
+      "description": "Position configuration",
       "type": "object",
       "properties": {
         "end": {
@@ -3221,6 +3265,7 @@
       ]
     },
     "RoundingConfig": {
+      "description": "Rounding configuration",
       "anyOf": [
         {
           "description": "All 4 corners are the same",
@@ -3240,20 +3285,25 @@
       ]
     },
     "SpacingKind": {
+      "description": "Spacing kind",
       "anyOf": [
         {
+          "description": "Spacing applied to all sides",
           "type": "number",
           "format": "float"
         },
         {
+          "description": "Individual spacing applied to each side",
           "$ref": "#/$defs/IndividualSpacingConfig"
         },
         {
+          "description": "Grouped vertical and horizontal spacing",
           "$ref": "#/$defs/GroupedSpacingConfig"
         }
       ]
     },
     "StorageConfig": {
+      "description": "Storage widget configuration",
       "type": "object",
       "properties": {
         "auto_hide_under": {
@@ -3323,6 +3373,7 @@
       ]
     },
     "TimeConfig": {
+      "description": "Time widget configuration",
       "type": "object",
       "properties": {
         "changing_icon": {
@@ -3366,6 +3417,7 @@
       ]
     },
     "TimeFormat": {
+      "description": "Time format",
       "oneOf": [
         {
           "description": "Twelve-hour format (with seconds)",
@@ -3413,6 +3465,7 @@
       ]
     },
     "UpdateConfig": {
+      "description": "Update widget configuration",
       "type": "object",
       "properties": {
         "data_refresh_interval": {
@@ -3446,8 +3499,10 @@
       ]
     },
     "WidgetConfig": {
+      "description": "Widget configuration",
       "oneOf": [
         {
+          "description": "Applications widget configuration",
           "type": "object",
           "properties": {
             "Applications": {
@@ -3460,6 +3515,7 @@
           ]
         },
         {
+          "description": "Battery widget configuration",
           "type": "object",
           "properties": {
             "Battery": {
@@ -3472,6 +3528,7 @@
           ]
         },
         {
+          "description": "CPU widget configuration",
           "type": "object",
           "properties": {
             "Cpu": {
@@ -3484,6 +3541,7 @@
           ]
         },
         {
+          "description": "Date widget configuration",
           "type": "object",
           "properties": {
             "Date": {
@@ -3496,6 +3554,7 @@
           ]
         },
         {
+          "description": "Komorebi widget configuration",
           "type": "object",
           "properties": {
             "Komorebi": {
@@ -3508,6 +3567,7 @@
           ]
         },
         {
+          "description": "Memory widget configuration",
           "type": "object",
           "properties": {
             "Memory": {
@@ -3520,6 +3580,7 @@
           ]
         },
         {
+          "description": "Network widget configuration",
           "type": "object",
           "properties": {
             "Network": {
@@ -3532,6 +3593,7 @@
           ]
         },
         {
+          "description": "Storage widget configuration",
           "type": "object",
           "properties": {
             "Storage": {
@@ -3544,6 +3606,7 @@
           ]
         },
         {
+          "description": "Time widget configuration",
           "type": "object",
           "properties": {
             "Time": {
@@ -3556,6 +3619,7 @@
           ]
         },
         {
+          "description": "Update widget configuration",
           "type": "object",
           "properties": {
             "Update": {
@@ -3570,6 +3634,7 @@
       ]
     },
     "WorkspacesDisplayFormat": {
+      "description": "Workspaces widget display format",
       "anyOf": [
         {
           "description": "Show all icons only",

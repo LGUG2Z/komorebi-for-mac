@@ -122,15 +122,19 @@ let
         options = {
           bottom = lib.mkOption {
             type = lib.types.number;
+            description = "Spacing for the bottom";
           };
           left = lib.mkOption {
             type = lib.types.number;
+            description = "Spacing for the left";
           };
           right = lib.mkOption {
             type = lib.types.number;
+            description = "Spacing for the right";
           };
           top = lib.mkOption {
             type = lib.types.number;
+            description = "Spacing for the top";
           };
         };
       })
@@ -139,10 +143,12 @@ let
           horizontal = lib.mkOption {
             type = (lib.types.nullOr groupedSpacingOptions);
             default = null;
+            description = "Horizontal grouped spacing";
           };
           vertical = lib.mkOption {
             type = (lib.types.nullOr groupedSpacingOptions);
             default = null;
+            description = "Vertical grouped spacing";
           };
         };
       })
@@ -939,39 +945,6 @@ in
                       ]
                     );
                   };
-                  auto_select_text = lib.mkOption {
-                    type = (
-                      lib.types.nullOr (
-                        lib.types.oneOf [
-                          (lib.types.nullOr catppuccinValue)
-                          (lib.types.nullOr base16Value)
-                        ]
-                      )
-                    );
-                    default = null;
-                  };
-                  auto_select_fill = lib.mkOption {
-                    type = (
-                      lib.types.nullOr (
-                        lib.types.oneOf [
-                          (lib.types.nullOr catppuccinValue)
-                          (lib.types.nullOr base16Value)
-                        ]
-                      )
-                    );
-                    default = null;
-                  };
-                  accent = lib.mkOption {
-                    type = (
-                      lib.types.nullOr (
-                        lib.types.oneOf [
-                          (lib.types.nullOr catppuccinValue)
-                          (lib.types.nullOr base16Value)
-                        ]
-                      )
-                    );
-                    default = null;
-                  };
                   colours = lib.mkOption {
                     type = (
                       lib.types.nullOr (
@@ -1043,6 +1016,39 @@ in
                             };
                           };
                         }
+                      )
+                    );
+                    default = null;
+                  };
+                  auto_select_text = lib.mkOption {
+                    type = (
+                      lib.types.nullOr (
+                        lib.types.oneOf [
+                          (lib.types.nullOr catppuccinValue)
+                          (lib.types.nullOr base16Value)
+                        ]
+                      )
+                    );
+                    default = null;
+                  };
+                  auto_select_fill = lib.mkOption {
+                    type = (
+                      lib.types.nullOr (
+                        lib.types.oneOf [
+                          (lib.types.nullOr catppuccinValue)
+                          (lib.types.nullOr base16Value)
+                        ]
+                      )
+                    );
+                    default = null;
+                  };
+                  accent = lib.mkOption {
+                    type = (
+                      lib.types.nullOr (
+                        lib.types.oneOf [
+                          (lib.types.nullOr catppuccinValue)
+                          (lib.types.nullOr base16Value)
+                        ]
                       )
                     );
                     default = null;

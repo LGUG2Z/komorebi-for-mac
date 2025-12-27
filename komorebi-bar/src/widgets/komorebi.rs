@@ -54,6 +54,7 @@ use std::sync::atomic::Ordering;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Komorebi widget configuration
 pub struct KomorebiConfig {
     /// Configure the Workspaces widget
     pub workspaces: Option<KomorebiWorkspacesConfig>,
@@ -72,6 +73,7 @@ pub struct KomorebiConfig {
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Komorebi widget workspaces configuration
 pub struct KomorebiWorkspacesConfig {
     /// Enable the Komorebi Workspaces widget
     pub enable: bool,
@@ -83,6 +85,7 @@ pub struct KomorebiWorkspacesConfig {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Komorebi widget layout configuration
 pub struct KomorebiLayoutConfig {
     /// Enable the Komorebi Layout widget
     pub enable: bool,
@@ -94,6 +97,7 @@ pub struct KomorebiLayoutConfig {
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Komorebi widget workspace layer configuration
 pub struct KomorebiWorkspaceLayerConfig {
     /// Enable the Komorebi Workspace Layer widget
     pub enable: bool,
@@ -105,6 +109,7 @@ pub struct KomorebiWorkspaceLayerConfig {
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Komorebi widget focused container configuration
 pub struct KomorebiFocusedContainerConfig {
     /// Enable the Komorebi Focused Container widget
     pub enable: bool,
@@ -116,6 +121,7 @@ pub struct KomorebiFocusedContainerConfig {
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Komorebi widget locked container configuration
 pub struct KomorebiLockedContainerConfig {
     /// Enable the Komorebi Locked Container widget
     pub enable: bool,
@@ -127,6 +133,7 @@ pub struct KomorebiLockedContainerConfig {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Komorebi widget configuration switcher configuration
 pub struct KomorebiConfigurationSwitcherConfig {
     /// Enable the Komorebi Configurations widget
     pub enable: bool,

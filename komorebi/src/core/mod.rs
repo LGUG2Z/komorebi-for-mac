@@ -120,6 +120,7 @@ pub enum FloatingLayerBehaviour {
     Clone, Copy, Debug, Default, Serialize, Deserialize, Display, EnumString, ValueEnum, PartialEq,
 )]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Window hiding position
 pub enum WindowHidingPosition {
     /// Hide windows in the bottom left corner of the screen
     #[default]

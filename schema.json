@@ -3077,6 +3077,7 @@
       ]
     },
     "PathBuf": {
+      "description": "A file system path. Environment variables like $VAR are automatically resolved.",
       "type": "string"
     },
     "PerAnimationPrefixConfig": {
@@ -3419,6 +3420,7 @@
       ]
     },
     "WindowHidingPosition": {
+      "description": "Window hiding position",
       "oneOf": [
         {
           "description": "Hide windows in the bottom left corner of the screen",

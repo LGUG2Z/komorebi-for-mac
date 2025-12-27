@@ -134,8 +134,11 @@ impl serde_with::schemars_1::JsonSchemaAs<PathBuf> for ResolvedPathBuf {
         std::borrow::Cow::Borrowed("PathBuf")
     }
 
-    fn json_schema(generator: &mut schemars::SchemaGenerator) -> schemars::Schema {
-        <PathBuf as schemars::JsonSchema>::json_schema(generator)
+    fn json_schema(_generator: &mut schemars::SchemaGenerator) -> schemars::Schema {
+        schemars::json_schema!({
+            "type": "string",
+            "description": "A file system path. Environment variables like $VAR are automatically resolved."
+        })
     }
 }
 

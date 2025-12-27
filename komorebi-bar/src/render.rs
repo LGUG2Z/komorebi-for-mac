@@ -31,6 +31,7 @@ mod defaults {
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(tag = "kind")]
+/// Grouping
 pub enum Grouping {
     /// No grouping is applied
     None,
@@ -360,6 +361,7 @@ impl RenderConfig {
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Grouping configuration
 pub struct GroupingConfig {
     /// Styles for the grouping
     pub style: Option<GroupingStyle>,
@@ -372,7 +374,9 @@ pub struct GroupingConfig {
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Grouping Style
 pub enum GroupingStyle {
+    /// Default
     #[serde(alias = "CtByte")]
     Default,
     /// A shadow is added under the default group. (blur: 4, offset: x-1 y-1, spread: 3)
@@ -394,6 +398,7 @@ pub enum GroupingStyle {
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(untagged)]
+/// Rounding configuration
 pub enum RoundingConfig {
     /// All 4 corners are the same
     Same(f32),
