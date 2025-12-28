@@ -17,7 +17,6 @@ use crate::ring::Ring;
 use crate::skylight::CGSMainConnectionID;
 use crate::skylight::SLSDisableUpdate;
 use crate::skylight::SLSReenableUpdate;
-use crate::static_config::KomorebiTheme;
 use crate::static_config::Wallpaper;
 use crate::static_config::WorkspaceConfig;
 use crate::window::Window;
@@ -25,6 +24,8 @@ use crate::window::WindowDetails;
 use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
 use komorebi_themes::Base16ColourPalette;
+use komorebi_themes::KomorebiTheme;
+use komorebi_themes::KomorebiThemeCustom;
 use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashMap;
@@ -1358,7 +1359,7 @@ impl Workspace {
                 }
 
                 if let Some(palette) = base16_palette {
-                    let komorebi_theme = KomorebiTheme::Custom {
+                    let komorebi_theme = KomorebiTheme::Custom(KomorebiThemeCustom {
                         colours: Box::new(palette),
                         single_border: wallpaper
                             .theme_options
@@ -1384,20 +1385,8 @@ impl Workspace {
                             .theme_options
                             .as_ref()
                             .and_then(|o| o.unfocused_locked_border),
-                        // stackbar_focused_text: wallpaper
-                        //     .theme_options
-                        //     .as_ref()
-                        //     .and_then(|o| o.stackbar_focused_text),
-                        // stackbar_unfocused_text: wallpaper
-                        //     .theme_options
-                        //     .as_ref()
-                        //     .and_then(|o| o.stackbar_unfocused_text),
-                        // stackbar_background: wallpaper
-                        //     .theme_options
-                        //     .as_ref()
-                        //     .and_then(|o| o.stackbar_background),
                         bar_accent: wallpaper.theme_options.as_ref().and_then(|o| o.bar_accent),
-                    };
+                    });
 
                     let bytes = SocketMessage::Theme(Box::new(komorebi_theme)).as_bytes()?;
 

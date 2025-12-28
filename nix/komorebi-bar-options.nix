@@ -425,19 +425,36 @@ let
                               type = (
                                 lib.types.nullOr (
                                   lib.types.listOf (
-                                    lib.types.nullOr (
-                                      lib.types.enum [
-                                        "BSP"
-                                        "Columns"
-                                        "Rows"
-                                        "VerticalStack"
-                                        "HorizontalStack"
-                                        "UltrawideVerticalStack"
-                                        "Grid"
-                                        "RightMainVerticalStack"
-                                        "Scrolling"
-                                      ]
-                                    )
+                                    lib.types.oneOf [
+                                      (lib.types.enum [
+                                        "Monocle"
+                                        "Floating"
+                                        "Paused"
+                                        "Custom"
+                                      ])
+                                      (lib.types.submodule {
+                                        options = {
+                                          Default = lib.mkOption {
+                                            type = (
+                                              lib.types.nullOr (
+                                                lib.types.enum [
+                                                  "BSP"
+                                                  "Columns"
+                                                  "Rows"
+                                                  "VerticalStack"
+                                                  "HorizontalStack"
+                                                  "UltrawideVerticalStack"
+                                                  "Grid"
+                                                  "RightMainVerticalStack"
+                                                  "Scrolling"
+                                                ]
+                                              )
+                                            );
+                                            default = null;
+                                          };
+                                        };
+                                      })
+                                    ]
                                   )
                                 )
                               );
@@ -1020,17 +1037,6 @@ in
                     );
                     default = null;
                   };
-                  auto_select_text = lib.mkOption {
-                    type = (
-                      lib.types.nullOr (
-                        lib.types.oneOf [
-                          (lib.types.nullOr catppuccinValue)
-                          (lib.types.nullOr base16Value)
-                        ]
-                      )
-                    );
-                    default = null;
-                  };
                   auto_select_fill = lib.mkOption {
                     type = (
                       lib.types.nullOr (
@@ -1042,7 +1048,7 @@ in
                     );
                     default = null;
                   };
-                  accent = lib.mkOption {
+                  auto_select_text = lib.mkOption {
                     type = (
                       lib.types.nullOr (
                         lib.types.oneOf [
@@ -1334,6 +1340,17 @@ in
                             "Zenbones"
                             "Zenburn"
                           ])
+                        ]
+                      )
+                    );
+                    default = null;
+                  };
+                  accent = lib.mkOption {
+                    type = (
+                      lib.types.nullOr (
+                        lib.types.oneOf [
+                          (lib.types.nullOr catppuccinValue)
+                          (lib.types.nullOr base16Value)
                         ]
                       )
                     );

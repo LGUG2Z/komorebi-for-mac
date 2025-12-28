@@ -8,7 +8,6 @@ use crate::MONITOR_LEFT;
 use crate::MONITOR_RIGHT;
 use crate::MONITOR_TOP;
 use crate::config::KomobarConfig;
-use crate::config::KomobarTheme;
 use crate::config::MonitorConfigOrIndex;
 use crate::config::Position;
 use crate::config::PositionConfig;
@@ -52,6 +51,10 @@ use komorebi_client::PathExt;
 use komorebi_client::SocketMessage;
 use komorebi_themes::Base16Wrapper;
 use komorebi_themes::Catppuccin;
+use komorebi_themes::KomobarTheme;
+use komorebi_themes::KomobarThemeBase16;
+use komorebi_themes::KomobarThemeCatppuccin;
+use komorebi_themes::KomobarThemeCustom;
 use komorebi_themes::catppuccin_egui;
 use lazy_static::lazy_static;
 use parking_lot::Mutex;
@@ -174,12 +177,12 @@ pub fn apply_theme(
     render_config: Rc<RefCell<RenderConfig>>,
 ) {
     let (auto_select_fill, auto_select_text) = match theme {
-        KomobarTheme::Catppuccin {
+        KomobarTheme::Catppuccin(KomobarThemeCatppuccin {
             name: catppuccin,
             accent: catppuccin_value,
             auto_select_fill: catppuccin_auto_select_fill,
             auto_select_text: catppuccin_auto_select_text,
-        } => {
+        }) => {
             match catppuccin {
                 Catppuccin::Frappe => {
                     catppuccin_egui::set_theme(ctx, catppuccin_egui::FRAPPE);
@@ -244,12 +247,12 @@ pub fn apply_theme(
                 catppuccin_auto_select_text.map(|c| c.color32(catppuccin.as_theme())),
             )
         }
-        KomobarTheme::Base16 {
+        KomobarTheme::Base16(KomobarThemeBase16 {
             name: base16,
             accent: base16_value,
             auto_select_fill: base16_auto_select_fill,
             auto_select_text: base16_auto_select_text,
-        } => {
+        }) => {
             ctx.set_style(base16.style());
             let base16_value = base16_value.unwrap_or_default();
             let accent = base16_value.color32(Base16Wrapper::Base16(base16));
@@ -267,12 +270,12 @@ pub fn apply_theme(
                 base16_auto_select_text.map(|c| c.color32(Base16Wrapper::Base16(base16))),
             )
         }
-        KomobarTheme::Custom {
+        KomobarTheme::Custom(KomobarThemeCustom {
             colours,
             accent: base16_value,
             auto_select_fill: base16_auto_select_fill,
             auto_select_text: base16_auto_select_text,
-        } => {
+        }) => {
             let background = colours.background();
             ctx.set_style(colours.style());
             let base16_value = base16_value.unwrap_or_default();

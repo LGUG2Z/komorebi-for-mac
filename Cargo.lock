@@ -3091,7 +3091,7 @@ dependencies = [
 [[package]]
 name = "komorebi-themes"
 version = "0.1.40"
-source = "git+https://github.com/LGUG2Z/komorebi?rev=3a81f7babbb95f594f4d02ba16ea406ab83b1133#3a81f7babbb95f594f4d02ba16ea406ab83b1133"
+source = "git+https://github.com/LGUG2Z/komorebi?rev=0758c7d9008a8e174ac35f469e53fd8fddd6b672#0758c7d9008a8e174ac35f469e53fd8fddd6b672"
 dependencies = [
  "base16-egui-themes",
  "catppuccin-egui",

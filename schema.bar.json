@@ -1863,22 +1863,22 @@
       "description": "Catppuccin palette",
       "oneOf": [
         {
-          "description": "Frappe",
+          "description": "Frappe (https://catppuccin.com/palette#flavor-frappe)",
           "type": "string",
           "const": "Frappe"
         },
         {
-          "description": "Latte",
+          "description": "Latte (https://catppuccin.com/palette#flavor-latte)",
           "type": "string",
           "const": "Latte"
         },
         {
-          "description": "Macchiato",
+          "description": "Macchiato (https://catppuccin.com/palette#flavor-macchiato)",
           "type": "string",
           "const": "Macchiato"
         },
         {
-          "description": "Mocha",
+          "description": "Mocha (https://catppuccin.com/palette#flavor-mocha)",
           "type": "string",
           "const": "Mocha"
         }
@@ -2523,48 +2523,14 @@
           "description": "Theme from catppuccin-egui",
           "type": "object",
           "properties": {
-            "accent": {
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/CatppuccinValue"
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            },
-            "auto_select_fill": {
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/CatppuccinValue"
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            },
-            "auto_select_text": {
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/CatppuccinValue"
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            },
-            "name": {
-              "description": "Name of the Catppuccin theme (theme previews: https://github.com/catppuccin/catppuccin)",
-              "$ref": "#/$defs/Catppuccin"
-            },
             "palette": {
               "type": "string",
               "const": "Catppuccin"
             }
           },
+          "$ref": "#/$defs/KomobarThemeCatppuccin",
           "required": [
-            "palette",
-            "name"
+            "palette"
           ]
         },
         {
@@ -2572,48 +2538,14 @@
           "description": "Theme from base16-egui-themes",
           "type": "object",
           "properties": {
-            "accent": {
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/Base16Value"
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            },
-            "auto_select_fill": {
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/Base16Value"
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            },
-            "auto_select_text": {
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/Base16Value"
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            },
-            "name": {
-              "description": "Name of the Base16 theme (theme previews: https://tinted-theming.github.io/tinted-gallery/)",
-              "$ref": "#/$defs/Base16"
-            },
             "palette": {
               "type": "string",
               "const": "Base16"
             }
           },
+          "$ref": "#/$defs/KomobarThemeBase16",
           "required": [
-            "palette",
-            "name"
+            "palette"
           ]
         },
         {
@@ -2621,50 +2553,157 @@
           "description": "Custom Base16 theme",
           "type": "object",
           "properties": {
-            "accent": {
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/Base16Value"
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            },
-            "auto_select_fill": {
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/Base16Value"
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            },
-            "auto_select_text": {
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/Base16Value"
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            },
-            "colours": {
-              "description": "Colours of the custom Base16 theme palette",
-              "$ref": "#/$defs/Base16ColourPalette"
-            },
             "palette": {
               "type": "string",
               "const": "Custom"
             }
           },
+          "$ref": "#/$defs/KomobarThemeCustom",
           "required": [
-            "palette",
-            "colours"
+            "palette"
           ]
         }
+      ]
+    },
+    "KomobarThemeBase16": {
+      "description": "Theme from base16-egui-themes",
+      "type": "object",
+      "properties": {
+        "accent": {
+          "description": "Accent colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Base0D"
+        },
+        "auto_select_fill": {
+          "description": "Auto select fill colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "auto_select_text": {
+          "description": "Auto select text colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "name": {
+          "description": "Name of the Base16 theme (previews: https://tinted-theming.github.io/tinted-gallery/)",
+          "$ref": "#/$defs/Base16"
+        }
+      },
+      "required": [
+        "name"
+      ]
+    },
+    "KomobarThemeCatppuccin": {
+      "description": "Theme from catppuccin-egui",
+      "type": "object",
+      "properties": {
+        "accent": {
+          "description": "Accent colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CatppuccinValue"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Blue"
+        },
+        "auto_select_fill": {
+          "description": "Auto select fill colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CatppuccinValue"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "auto_select_text": {
+          "description": "Auto select text colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CatppuccinValue"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "name": {
+          "description": "Name of the Catppuccin theme (previews: https://github.com/catppuccin/catppuccin)",
+          "$ref": "#/$defs/Catppuccin"
+        }
+      },
+      "required": [
+        "name"
+      ]
+    },
+    "KomobarThemeCustom": {
+      "description": "Theme from base16-egui-themes",
+      "type": "object",
+      "properties": {
+        "accent": {
+          "description": "Accent colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "Blue"
+        },
+        "auto_select_fill": {
+          "description": "Auto select fill colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "auto_select_text": {
+          "description": "Auto select text colour",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Base16Value"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "colours": {
+          "description": "Colours of the custom Base16 theme palette",
+          "$ref": "#/$defs/Base16ColourPalette"
+        }
+      },
+      "required": [
+        "colours"
       ]
     },
     "KomorebiConfig": {
