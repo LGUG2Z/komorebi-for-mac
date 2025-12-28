@@ -560,6 +560,7 @@ impl From<Position> for Pos2 {
 /// Komorebi bar theme
 pub enum KomobarTheme {
     /// Theme from catppuccin-egui
+    #[cfg_attr(feature = "schemars", schemars(title = "Catppuccin"))]
     Catppuccin {
         /// Name of the Catppuccin theme (theme previews: https://github.com/catppuccin/catppuccin)
         name: komorebi_themes::Catppuccin,
@@ -568,6 +569,7 @@ pub enum KomobarTheme {
         auto_select_text: Option<komorebi_themes::CatppuccinValue>,
     },
     /// Theme from base16-egui-themes
+    #[cfg_attr(feature = "schemars", schemars(title = "Base16"))]
     Base16 {
         /// Name of the Base16 theme (theme previews: https://tinted-theming.github.io/tinted-gallery/)
         name: komorebi_themes::Base16,
@@ -576,6 +578,7 @@ pub enum KomobarTheme {
         auto_select_text: Option<komorebi_themes::Base16Value>,
     },
     /// Custom Base16 theme
+    #[cfg_attr(feature = "schemars", schemars(title = "Custom"))]
     Custom {
         /// Colours of the custom Base16 theme palette
         colours: Box<komorebi_themes::Base16ColourPalette>,

@@ -468,6 +468,7 @@
           "const": "EaseInOutBounce"
         },
         {
+          "title": "CubicBezier",
           "description": "Custom Cubic Bézier function",
           "type": "object",
           "properties": {
@@ -595,10 +596,12 @@
       "description": "Aspect ratio for temporarily floating windows",
       "anyOf": [
         {
+          "title": "Predefined",
           "description": "A predefined aspect ratio",
           "$ref": "#/$defs/PredefinedAspectRatio"
         },
         {
+          "title": "Custom",
           "description": "A custom W:H aspect ratio",
           "type": "array",
           "maxItems": 2,
@@ -2538,6 +2541,7 @@
       "description": "Komorebi theme",
       "oneOf": [
         {
+          "title": "Catppuccin",
           "description": "A theme from catppuccin-egui",
           "type": "object",
           "properties": {
@@ -2640,6 +2644,7 @@
           ]
         },
         {
+          "title": "Base16",
           "description": "A theme from base16-egui-themes",
           "type": "object",
           "properties": {
@@ -2742,6 +2747,7 @@
           ]
         },
         {
+          "title": "Custom",
           "description": "A custom Base16 theme",
           "type": "object",
           "properties": {

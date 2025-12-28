@@ -47,8 +47,8 @@ deadlock $RUST_LOG="trace":
 docgen starlight:
     rm {{ starlight }}/src/data/cli/macos/*.md
     cargo run --package komorebic -- docgen --output {{ starlight }}/src/data/cli/macos
-    schemars-docgen ./schema.json --output {{ starlight }}/src/content/docs/reference/komorebi-macos.mdx --format mdx --title "komorebi.json (macOS)" --description "komorebi for Mac configuration schema reference"
-    schemars-docgen ./schema.bar.json --output {{ starlight }}/src/content/docs/reference/bar-macos.mdx --format mdx --title "komorebi.bar.json (macOS)" --description "komorebi-bar for Mac configuration schema reference"
+    schemars-docgen ./schema.json --output {{ starlight }}/src/content/docs/reference/komorebi-macos.mdx --title "komorebi.json (macOS)" --description "komorebi for Mac configuration schema reference"
+    schemars-docgen ./schema.bar.json --output {{ starlight }}/src/content/docs/reference/bar-macos.mdx --title "komorebi.bar.json (macOS)" --description "komorebi-bar for Mac configuration schema reference"
 
 jsonschema:
     cargo run --package komorebic -- static-config-schema > schema.json

@@ -2158,6 +2158,7 @@
           "const": "DayDateMonthYear"
         },
         {
+          "title": "Custom",
           "description": "Custom format (https://docs.rs/chrono/latest/chrono/format/strftime/index.html)",
           "type": "object",
           "properties": {
@@ -2171,6 +2172,7 @@
           ]
         },
         {
+          "title": "CustomModifiers",
           "description": "Custom format with modifiers",
           "type": "object",
           "properties": {
@@ -2337,6 +2339,7 @@
       "description": "Grouping",
       "oneOf": [
         {
+          "title": "None",
           "description": "No grouping is applied",
           "type": "object",
           "properties": {
@@ -2350,6 +2353,7 @@
           ]
         },
         {
+          "title": "Bar",
           "description": "Widgets are grouped as a whole",
           "type": "object",
           "properties": {
@@ -2364,6 +2368,7 @@
           ]
         },
         {
+          "title": "Alignment",
           "description": "Widgets are grouped by alignment",
           "type": "object",
           "properties": {
@@ -2378,6 +2383,7 @@
           ]
         },
         {
+          "title": "Widget",
           "description": "Widgets are grouped individually",
           "type": "object",
           "properties": {
@@ -2513,6 +2519,7 @@
       "description": "Komorebi bar theme",
       "oneOf": [
         {
+          "title": "Catppuccin",
           "description": "Theme from catppuccin-egui",
           "type": "object",
           "properties": {
@@ -2561,6 +2568,7 @@
           ]
         },
         {
+          "title": "Base16",
           "description": "Theme from base16-egui-themes",
           "type": "object",
           "properties": {
@@ -2609,6 +2617,7 @@
           ]
         },
         {
+          "title": "Custom",
           "description": "Custom Base16 theme",
           "type": "object",
           "properties": {
@@ -2784,26 +2793,40 @@
     },
     "KomorebiLayout": {
       "description": "Komorebi layout kind",
-      "anyOf": [
+      "oneOf": [
         {
+          "title": "Default",
           "description": "Predefined layout",
-          "$ref": "#/$defs/DefaultLayout"
+          "type": "object",
+          "properties": {
+            "Default": {
+              "$ref": "#/$defs/DefaultLayout"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "Default"
+          ]
         },
         {
           "description": "Monocle mode",
-          "type": "null"
+          "type": "string",
+          "const": "Monocle"
         },
         {
           "description": "Floating layer",
-          "type": "null"
+          "type": "string",
+          "const": "Floating"
         },
         {
           "description": "Paused",
-          "type": "null"
+          "type": "string",
+          "const": "Paused"
         },
         {
           "description": "Custom layout",
-          "type": "null"
+          "type": "string",
+          "const": "Custom"
         }
       ]
     },
@@ -3450,6 +3473,7 @@
           "const": "BinaryRectangle"
         },
         {
+          "title": "Default",
           "description": "Custom format (https://docs.rs/chrono/latest/chrono/format/strftime/index.html)",
           "type": "object",
           "properties": {
@@ -3502,6 +3526,7 @@
       "description": "Widget configuration",
       "oneOf": [
         {
+          "title": "Applications",
           "description": "Applications widget configuration",
           "type": "object",
           "properties": {
@@ -3515,6 +3540,7 @@
           ]
         },
         {
+          "title": "Battery",
           "description": "Battery widget configuration",
           "type": "object",
           "properties": {
@@ -3528,6 +3554,7 @@
           ]
         },
         {
+          "title": "Cpu",
           "description": "CPU widget configuration",
           "type": "object",
           "properties": {
@@ -3541,6 +3568,7 @@
           ]
         },
         {
+          "title": "Date",
           "description": "Date widget configuration",
           "type": "object",
           "properties": {
@@ -3554,6 +3582,7 @@
           ]
         },
         {
+          "title": "Komorebi",
           "description": "Komorebi widget configuration",
           "type": "object",
           "properties": {
@@ -3567,6 +3596,7 @@
           ]
         },
         {
+          "title": "Memory",
           "description": "Memory widget configuration",
           "type": "object",
           "properties": {
@@ -3580,6 +3610,7 @@
           ]
         },
         {
+          "title": "Network",
           "description": "Network widget configuration",
           "type": "object",
           "properties": {
@@ -3593,6 +3624,7 @@
           ]
         },
         {
+          "title": "Storage",
           "description": "Storage widget configuration",
           "type": "object",
           "properties": {
@@ -3606,6 +3638,7 @@
           ]
         },
         {
+          "title": "Time",
           "description": "Time widget configuration",
           "type": "object",
           "properties": {
@@ -3619,6 +3652,7 @@
           ]
         },
         {
+          "title": "Update",
           "description": "Update widget configuration",
           "type": "object",
           "properties": {
@@ -3634,7 +3668,7 @@
       ]
     },
     "WorkspacesDisplayFormat": {
-      "description": "Workspaces widget display format",
+      "description": "Workspaces display format",
       "anyOf": [
         {
           "description": "Show all icons only",

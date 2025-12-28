@@ -24,10 +24,10 @@ use std::fmt::Formatter;
 
 #[derive(Copy, Clone, Debug, Serialize, PartialEq)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-#[serde(untagged)]
 /// Komorebi layout kind
 pub enum KomorebiLayout {
     /// Predefined layout
+    #[cfg_attr(feature = "schemars", schemars(title = "Default"))]
     Default(komorebi_client::DefaultLayout),
     /// Monocle mode
     Monocle,
