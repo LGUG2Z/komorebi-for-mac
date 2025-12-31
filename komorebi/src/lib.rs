@@ -152,6 +152,8 @@ lazy_static! {
 
 pub static DEFAULT_WORKSPACE_PADDING: AtomicI32 = AtomicI32::new(5);
 pub static DEFAULT_CONTAINER_PADDING: AtomicI32 = AtomicI32::new(5);
+pub static DEFAULT_RESIZE_DELTA: i32 = 50;
+pub static DEFAULT_MOUSE_FOLLOWS_FOCUS: bool = true;
 
 pub const PUBLIC_KEY: [u8; 32] = [
     0x5a, 0x69, 0x4a, 0xe1, 0x3c, 0x4b, 0xc8, 0x4e, 0xc3, 0x79, 0x0f, 0xab, 0x27, 0x6b, 0x7e, 0xdd,

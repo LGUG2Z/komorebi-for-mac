@@ -103,7 +103,7 @@
         "null"
       ],
       "format": "int32",
-      "default": 10
+      "default": 5
     },
     "default_workspace_padding": {
       "description": "Global default workspace padding",
@@ -112,7 +112,7 @@
         "null"
       ],
       "format": "int32",
-      "default": 10
+      "default": 5
     },
     "display_index_preferences": {
       "description": "Set display index preferences",

@@ -449,12 +449,12 @@ in
         };
         default_container_padding = lib.mkOption {
           type = (lib.types.nullOr lib.types.int);
-          default = 10;
+          default = 5;
           description = "Global default container padding";
         };
         default_workspace_padding = lib.mkOption {
           type = (lib.types.nullOr lib.types.int);
-          default = 10;
+          default = 5;
           description = "Global default workspace padding";
         };
         display_index_preferences = lib.mkOption {
@@ -755,39 +755,6 @@ in
                       ]
                     );
                   };
-                  stack_border = lib.mkOption {
-                    type = (
-                      lib.types.nullOr (
-                        lib.types.oneOf [
-                          (lib.types.nullOr catppuccinValue)
-                          (lib.types.nullOr base16Value)
-                        ]
-                      )
-                    );
-                    default = null;
-                  };
-                  unfocused_border = lib.mkOption {
-                    type = (
-                      lib.types.nullOr (
-                        lib.types.oneOf [
-                          (lib.types.nullOr catppuccinValue)
-                          (lib.types.nullOr base16Value)
-                        ]
-                      )
-                    );
-                    default = null;
-                  };
-                  single_border = lib.mkOption {
-                    type = (
-                      lib.types.nullOr (
-                        lib.types.oneOf [
-                          (lib.types.nullOr catppuccinValue)
-                          (lib.types.nullOr base16Value)
-                        ]
-                      )
-                    );
-                    default = null;
-                  };
                   unfocused_locked_border = lib.mkOption {
                     type = (
                       lib.types.nullOr (
@@ -874,7 +841,7 @@ in
                     );
                     default = null;
                   };
-                  floating_border = lib.mkOption {
+                  monocle_border = lib.mkOption {
                     type = (
                       lib.types.nullOr (
                         lib.types.oneOf [
@@ -886,17 +853,6 @@ in
                     default = null;
                   };
                   bar_accent = lib.mkOption {
-                    type = (
-                      lib.types.nullOr (
-                        lib.types.oneOf [
-                          (lib.types.nullOr catppuccinValue)
-                          (lib.types.nullOr base16Value)
-                        ]
-                      )
-                    );
-                    default = null;
-                  };
-                  monocle_border = lib.mkOption {
                     type = (
                       lib.types.nullOr (
                         lib.types.oneOf [
@@ -1188,6 +1144,50 @@ in
                             "Zenbones"
                             "Zenburn"
                           ])
+                        ]
+                      )
+                    );
+                    default = null;
+                  };
+                  unfocused_border = lib.mkOption {
+                    type = (
+                      lib.types.nullOr (
+                        lib.types.oneOf [
+                          (lib.types.nullOr catppuccinValue)
+                          (lib.types.nullOr base16Value)
+                        ]
+                      )
+                    );
+                    default = null;
+                  };
+                  stack_border = lib.mkOption {
+                    type = (
+                      lib.types.nullOr (
+                        lib.types.oneOf [
+                          (lib.types.nullOr catppuccinValue)
+                          (lib.types.nullOr base16Value)
+                        ]
+                      )
+                    );
+                    default = null;
+                  };
+                  single_border = lib.mkOption {
+                    type = (
+                      lib.types.nullOr (
+                        lib.types.oneOf [
+                          (lib.types.nullOr catppuccinValue)
+                          (lib.types.nullOr base16Value)
+                        ]
+                      )
+                    );
+                    default = null;
+                  };
+                  floating_border = lib.mkOption {
+                    type = (
+                      lib.types.nullOr (
+                        lib.types.oneOf [
+                          (lib.types.nullOr catppuccinValue)
+                          (lib.types.nullOr base16Value)
                         ]
                       )
                     );
