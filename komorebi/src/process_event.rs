@@ -274,6 +274,40 @@ impl WindowManager {
                             }
                         }
 
+                        // check monocle_container for tabbed applications
+                        let mut update_monocle = false;
+                        if let Some(monocle) = &workspace.monocle_container
+                            && let Some(window) = monocle.focused_window()
+                            && window.application.name().unwrap_or_default() == application_name
+                            && window.application.process_id == process_id
+                        {
+                            let tab_rect = MacosApi::window_rect(&element)?;
+                            let main_rect = match MacosApi::window_rect(&window.element) {
+                                Ok(rect) => rect,
+                                Err(AccessibilityError::Api(
+                                    AccessibilityApiError::InvalidUIElement,
+                                )) => {
+                                    first_tab_destroyed = true;
+                                    tab_rect
+                                }
+                                Err(error) => return Err(error.into()),
+                            };
+
+                            if tab_rect == main_rect && window.id != window_id {
+                                update_monocle = true;
+                                tabbed_window = true;
+                            }
+                        }
+
+                        if update_monocle {
+                            if let Some(monocle) = workspace.monocle_container.as_mut()
+                                && let Some(window) = monocle.focused_window_mut()
+                            {
+                                window.id = window_id;
+                                window.element = AccessibilityUiElement(element.clone());
+                            }
+                        }
+
                         if first_tab_destroyed {
                             self.reap_invalid_windows_for_application(process_id)?;
                         }
