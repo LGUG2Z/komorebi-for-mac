@@ -58,18 +58,23 @@ unsafe extern "C-unwind" fn application_observer_callback(
     _context: *mut c_void,
 ) {
     unsafe {
+        let notification_str = notification.as_ref().to_string();
         let name =
             AccessibilityApi::copy_attribute_value::<CFString>(element.as_ref(), kAXTitleAttribute)
                 .map(|s| s.to_string());
 
-        if let Some(name) = name
-            && !name.is_empty()
-        {
+        // AXUIElementDestroyed fires when the element is already gone,
+        // so we can't get the title - but we still need to process it
+        let is_destroyed = matches!(
+            AccessibilityNotification::from_str(&notification_str),
+            Ok(AccessibilityNotification::AXUIElementDestroyed)
+        );
+
+        if is_destroyed || name.as_ref().is_some_and(|n| !n.is_empty()) {
             let mut process_id = 0;
             element.as_ref().pid(NonNull::from_mut(&mut process_id));
 
-            if let Ok(notification) =
-                AccessibilityNotification::from_str(&notification.as_ref().to_string())
+            if let Ok(notification) = AccessibilityNotification::from_str(&notification_str)
                 && let Some(event) = WindowManagerEvent::from_system_notification(
                     SystemNotification::Accessibility(notification),
                     process_id,
@@ -77,7 +82,8 @@ unsafe extern "C-unwind" fn application_observer_callback(
                 )
             {
                 tracing::debug!(
-                    "notification: {notification}, process: {process_id}, name: \"{name}\"",
+                    "notification: {notification}, process: {process_id}, name: \"{}\"",
+                    name.as_deref().unwrap_or("<destroyed>")
                 );
 
                 window_manager_event_listener::send_notification(event);

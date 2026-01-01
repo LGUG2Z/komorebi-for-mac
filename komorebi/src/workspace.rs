@@ -449,7 +449,8 @@ impl Workspace {
         }
 
         for window_id in &invalid_window_ids {
-            self.remove_window(*window_id)?;
+            // Ignore errors - window may have already been removed by the reaper thread
+            let _ = self.remove_window(*window_id);
         }
 
         for window_id in &invalid_floating_window_ids {
