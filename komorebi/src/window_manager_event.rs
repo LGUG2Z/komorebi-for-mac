@@ -24,6 +24,8 @@ pub enum ManualNotification {
     ShowOnFocusChangeWindowlessAppRestored,
     Manage,
     Unmanage,
+    MoveEnd,
+    ResizeEnd,
 }
 
 #[derive(Debug, Copy, Clone, Serialize, Deserialize, Display)]
@@ -95,6 +97,13 @@ impl WindowManagerEvent {
                 .map(|window_id| WindowManagerEvent::Manage(notification, process_id, window_id)),
             SystemNotification::Manual(ManualNotification::Unmanage) => window_id
                 .map(|window_id| WindowManagerEvent::Unmanage(notification, process_id, window_id)),
+            SystemNotification::Manual(ManualNotification::MoveEnd) => window_id
+                .map(|window_id| WindowManagerEvent::MoveEnd(notification, process_id, window_id)),
+            SystemNotification::Manual(ManualNotification::ResizeEnd) => {
+                window_id.map(|window_id| {
+                    WindowManagerEvent::ResizeEnd(notification, process_id, window_id)
+                })
+            }
             SystemNotification::Accessibility(AccessibilityNotification::AXWindowMoved) => {
                 if MacosApi::left_mouse_button_is_pressed() {
                     window_id.map(|window_id| {

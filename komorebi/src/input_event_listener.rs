@@ -44,14 +44,37 @@ extern "C-unwind" fn callback(
             element.pid(NonNull::from_mut(&mut pid));
         }
 
-        if pid != 0
-            && let Some(event) = WindowManagerEvent::from_system_notification(
+        if pid != 0 {
+            let window_id = AccessibilityApi::window_id(&element).ok();
+
+            // Send MoveEnd to handle pending drag-to-swap operations
+            // macOS doesn't reliably fire AXWindowMoved after mouse release
+            if let Some(event) = WindowManagerEvent::from_system_notification(
+                SystemNotification::Manual(ManualNotification::MoveEnd),
+                pid,
+                window_id,
+            ) {
+                window_manager_event_listener::send_notification(event);
+            }
+
+            // Send ResizeEnd to handle pending resize operations
+            // macOS doesn't reliably fire AXWindowResized after mouse release
+            if let Some(event) = WindowManagerEvent::from_system_notification(
+                SystemNotification::Manual(ManualNotification::ResizeEnd),
+                pid,
+                window_id,
+            ) {
+                window_manager_event_listener::send_notification(event);
+            }
+
+            // Handle tab dragging to create new windows
+            if let Some(event) = WindowManagerEvent::from_system_notification(
                 SystemNotification::Manual(ManualNotification::ShowOnInputEvent),
                 pid,
-                AccessibilityApi::window_id(&element).ok(),
-            )
-        {
-            window_manager_event_listener::send_notification(event);
+                window_id,
+            ) {
+                window_manager_event_listener::send_notification(event);
+            }
         }
     }
 
