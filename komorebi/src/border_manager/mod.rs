@@ -384,6 +384,12 @@ fn handle_notifications(
                             }
                         }
                         border.tracking_window_id = focused_window_id;
+                        // Only update tracking element if same process (safe for tabbed apps)
+                        if window.application.process_id == border.process_id {
+                            let border_ptr =
+                                std::ptr::addr_of_mut!(**border).cast::<std::ffi::c_void>();
+                            border.update_tracking_element(window.element.clone(), border_ptr);
+                        }
                     }
 
                     // Update the border's monitor idx in case it changed
@@ -499,6 +505,12 @@ fn handle_notifications(
                                 }
                             }
                             border.tracking_window_id = window.id;
+                            // Only update tracking element if same process (safe for tabbed apps)
+                            if window.application.process_id == border.process_id {
+                                let border_ptr =
+                                    std::ptr::addr_of_mut!(**border).cast::<std::ffi::c_void>();
+                                border.update_tracking_element(window.element.clone(), border_ptr);
+                            }
                         }
 
                         border.monitor_idx = Some(monitor_idx);

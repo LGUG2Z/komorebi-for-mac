@@ -7,6 +7,7 @@ use crate::LibraryError;
 use crate::MANAGE_IDENTIFIERS;
 use crate::PERMAIGNORE_CLASSES;
 use crate::REGEX_IDENTIFIERS;
+use crate::TABBED_APPLICATIONS;
 use crate::WINDOW_RESTORE_POSITIONS;
 use crate::accessibility::AccessibilityApi;
 use crate::accessibility::action_constants::kAXPressAction;
@@ -748,10 +749,26 @@ impl Window {
 
         let cf_boolean = CFBoolean::new(true);
         let value = &**cf_boolean;
-        AccessibilityApi::set_attribute_cf_value(&self.element, kAXMainAttribute, value)?;
+
+        // For tabbed applications, use the current main window element instead of
+        // the stored element, which may point to a different tab
+        let tabbed_applications = TABBED_APPLICATIONS.lock();
+        let is_tabbed = tabbed_applications.contains(&self.application.name().unwrap_or_default());
+        drop(tabbed_applications);
+
+        let element_to_focus = if is_tabbed {
+            self.application
+                .main_window()
+                .map(AccessibilityUiElement)
+                .unwrap_or_else(|| self.element.clone())
+        } else {
+            self.element.clone()
+        };
+
+        AccessibilityApi::set_attribute_cf_value(&element_to_focus, kAXMainAttribute, value)?;
 
         if mouse_follows_focus {
-            MacosApi::center_cursor_in_rect(&MacosApi::window_rect(&self.element)?.into())?
+            MacosApi::center_cursor_in_rect(&MacosApi::window_rect(&element_to_focus)?.into())?
         }
 
         Ok(())

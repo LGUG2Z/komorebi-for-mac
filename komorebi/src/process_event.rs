@@ -213,10 +213,13 @@ impl WindowManager {
                     let tabbed_applications = TABBED_APPLICATIONS.lock();
                     if tabbed_applications.contains(&application_name) {
                         let mut first_tab_destroyed = false;
+                        let mut container_idx_to_update = None;
 
-                        for window in workspace.visible_windows() {
-                            if let Some(window) = window
+                        for (container_idx, container) in workspace.containers().iter().enumerate()
+                        {
+                            if let Some(window) = container.focused_window()
                                 && window.application.name().unwrap_or_default() == application_name
+                                && window.application.process_id == process_id
                             {
                                 let tab_rect = MacosApi::window_rect(&element)?;
                                 let main_rect = match MacosApi::window_rect(&window.element) {
@@ -227,18 +230,16 @@ impl WindowManager {
                                         // this means we have closed the 1st tab, so we need this window object to be reaped
                                         // and for the new 1st tab to be the key element of the window struct
                                         if let Some(event) =
-                                                WindowManagerEvent::from_system_notification(
-                                                    SystemNotification::Manual(
-                                                        ManualNotification::ShowOnFocusChangeFirstTabDestroyed,
-                                                    ),
-                                                    event.process_id(),
-                                                    Some(window_id),
-                                                )
-                                            {
-                                                window_manager_event_listener::send_notification(
-                                                    event,
-                                                );
-                                            }
+                                            WindowManagerEvent::from_system_notification(
+                                                SystemNotification::Manual(
+                                                    ManualNotification::ShowOnFocusChangeFirstTabDestroyed,
+                                                ),
+                                                event.process_id(),
+                                                Some(window_id),
+                                            )
+                                        {
+                                            window_manager_event_listener::send_notification(event);
+                                        }
 
                                         first_tab_destroyed = true;
 
@@ -252,9 +253,24 @@ impl WindowManager {
                                 };
 
                                 if tab_rect == main_rect {
-                                    tracing::debug!("ignoring focus change for tabbed window");
-                                    tabbed_window = true;
+                                    if window.id != window_id {
+                                        // Tab changed - update stored element
+                                        container_idx_to_update = Some(container_idx);
+                                        tabbed_window = true;
+                                    }
+                                    // If window.id == window_id, proceed with normal focus handling
                                 }
+                            }
+                        }
+
+                        // Update the window element outside the immutable borrow
+                        if let Some(container_idx) = container_idx_to_update {
+                            if let Some(container) =
+                                workspace.containers_mut().get_mut(container_idx)
+                                && let Some(window) = container.focused_window_mut()
+                            {
+                                window.id = window_id;
+                                window.element = AccessibilityUiElement(element.clone());
                             }
                         }
 

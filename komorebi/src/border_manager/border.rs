@@ -81,6 +81,7 @@ pub struct Border {
     pub observer: AccessibilityObserver,
     pub tracking_element: AccessibilityUiElement,
     pub tracking_window_id: u32,
+    pub process_id: i32,
     pub monitor_idx: Option<usize>,
     pub ns_window: NsWindow,
     pub window_kind: WindowKind,
@@ -116,6 +117,7 @@ impl Border {
         let mut border = Box::new(Self {
             id: id.to_string(),
             tracking_window_id,
+            process_id,
             monitor_idx,
             observer: observer.clone(),
             tracking_element: element.clone(),
@@ -141,6 +143,41 @@ impl Border {
         });
 
         Ok(border)
+    }
+
+    pub fn update_tracking_element(
+        &mut self,
+        new_element: AccessibilityUiElement,
+        border_ptr: *mut c_void,
+    ) {
+        let old_element = &self.tracking_element;
+        let notifications = [
+            kAXWindowMovedNotification,
+            kAXWindowResizedNotification,
+            kAXMainWindowChangedNotification,
+        ];
+
+        // re-register observer notifications on the new element
+        if let Some(ref observer) = self.observer.0 {
+            for notification in &notifications {
+                let _ = AccessibilityApi::remove_notification_from_observer(
+                    observer,
+                    &old_element.0,
+                    notification,
+                );
+            }
+
+            for notification in &notifications {
+                let _ = AccessibilityApi::add_notification_to_observer(
+                    observer,
+                    &new_element.0,
+                    notification,
+                    Some(border_ptr),
+                );
+            }
+        }
+
+        self.tracking_element = new_element;
     }
 
     pub fn update(&self) {
