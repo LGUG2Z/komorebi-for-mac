@@ -945,8 +945,20 @@ impl Window {
                     return Ok(false);
                 }
             }
-            Some(_) => {
-                debug.has_title = true;
+            Some(title) => {
+                // Raycast is dumb and reports an empty string as a title
+                if title.is_empty() {
+                    if TITLELESS_APPLICATIONS
+                        .lock()
+                        .contains(&self.exe().unwrap_or_default())
+                    {
+                        debug.matches_titleless_applications = self.exe();
+                    } else {
+                        return Ok(false);
+                    }
+                } else {
+                    debug.has_title = true;
+                }
             }
         }
 
