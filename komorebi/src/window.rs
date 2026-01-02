@@ -8,6 +8,7 @@ use crate::MANAGE_IDENTIFIERS;
 use crate::PERMAIGNORE_CLASSES;
 use crate::REGEX_IDENTIFIERS;
 use crate::TABBED_APPLICATIONS;
+use crate::TITLELESS_APPLICATIONS;
 use crate::WINDOW_RESTORE_POSITIONS;
 use crate::accessibility::AccessibilityApi;
 use crate::accessibility::action_constants::kAXPressAction;
@@ -933,11 +934,21 @@ impl Window {
         //
         // debug.has_minimum_height = true;
 
-        if self.title().is_none() {
-            return Ok(false);
+        match self.title() {
+            None => {
+                if TITLELESS_APPLICATIONS
+                    .lock()
+                    .contains(&self.exe().unwrap_or_default())
+                {
+                    debug.matches_titleless_applications = self.exe();
+                } else {
+                    return Ok(false);
+                }
+            }
+            Some(_) => {
+                debug.has_title = true;
+            }
         }
-
-        debug.has_title = true;
 
         // let is_cloaked = self.is_cloaked().unwrap_or_default();
         //
@@ -961,13 +972,15 @@ impl Window {
         //     (true, _) |
         //     // If not allowing cloaked windows, we need to ensure the window is not cloaked
         //     (false, false) => {
-        if let (Some(title), Some(exe_name), Some(role), Some(subrole), Some(path)) = (
-            self.title(),
-            self.exe(),
-            self.role(),
-            self.subrole(),
-            self.path(),
-        ) {
+        let title = if debug.matches_titleless_applications.is_some() {
+            self.exe()
+        } else {
+            self.title()
+        };
+
+        if let (Some(title), Some(exe_name), Some(role), Some(subrole), Some(path)) =
+            (title, self.exe(), self.role(), self.subrole(), self.path())
+        {
             debug.title = Some(title.clone());
             debug.exe_name = Some(exe_name.clone());
             debug.role = Some(role.clone());
@@ -1270,6 +1283,7 @@ pub struct RuleDebug {
     pub matches_managed_override: Option<MatchingRule>,
     // pub matches_layered_whitelist: Option<MatchingRule>,
     pub matches_floating_applications: Option<MatchingRule>,
+    pub matches_titleless_applications: Option<String>,
     // pub matches_wsl2_gui: Option<String>,
     // pub matches_no_titlebar: Option<MatchingRule>,
 }

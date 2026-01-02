@@ -260,6 +260,16 @@
       "format": "int32",
       "default": 50
     },
+    "tabbed_applications": {
+      "description": "Identify applications which use native tabs for special handling",
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "string"
+      }
+    },
     "theme": {
       "description": "Theme configuration options\n\nIf a theme is specified, `border_colours` will have no effect",
       "anyOf": [
@@ -270,6 +280,16 @@
           "type": "null"
         }
       ]
+    },
+    "titleless_applications": {
+      "description": "Identify applications which should be managed despite not reporting titles to the system",
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "string"
+      }
     },
     "toggle_float_placement": {
       "description": "Determines the placement of a new window when toggling to float",
@@ -3119,9 +3139,12 @@
         {
           "description": "Animation configuration prefixed for a specific animation kind",
           "type": "object",
-          "additionalProperties": {
-            "type": "boolean"
-          }
+          "properties": {
+            "movement": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
         },
         {
           "description": "Animation configuration for all animation kinds",
@@ -3135,11 +3158,14 @@
         {
           "description": "Animation configuration prefixed for a specific animation kind",
           "type": "object",
-          "additionalProperties": {
-            "type": "integer",
-            "format": "uint64",
-            "minimum": 0
-          }
+          "properties": {
+            "movement": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0
+            }
+          },
+          "additionalProperties": false
         },
         {
           "description": "Animation configuration for all animation kinds",
@@ -3155,9 +3181,12 @@
         {
           "description": "Animation configuration prefixed for a specific animation kind",
           "type": "object",
-          "additionalProperties": {
-            "$ref": "#/$defs/AnimationStyle"
-          }
+          "properties": {
+            "movement": {
+              "$ref": "#/$defs/AnimationStyle"
+            }
+          },
+          "additionalProperties": false
         },
         {
           "description": "Animation configuration for all animation kinds",

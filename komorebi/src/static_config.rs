@@ -10,6 +10,8 @@ use crate::FLOATING_WINDOW_TOGGLE_ASPECT_RATIO;
 use crate::IGNORE_IDENTIFIERS;
 use crate::MANAGE_IDENTIFIERS;
 use crate::REGEX_IDENTIFIERS;
+use crate::TABBED_APPLICATIONS;
+use crate::TITLELESS_APPLICATIONS;
 use crate::WORKSPACE_MATCHING_RULES;
 use crate::animation::ANIMATION_DURATION_GLOBAL;
 use crate::animation::ANIMATION_DURATION_PER_ANIMATION;
@@ -530,6 +532,12 @@ pub struct StaticConfig {
     /// Identify applications which should be managed as floating windows
     #[serde(skip_serializing_if = "Option::is_none")]
     pub floating_applications: Option<Vec<MatchingRule>>,
+    /// Identify applications which should be managed despite not reporting titles to the system
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub titleless_applications: Option<Vec<String>>,
+    /// Identify applications which use native tabs for special handling
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tabbed_applications: Option<Vec<String>>,
     // /// Identify border overflow applications
     // #[serde(skip_serializing_if = "Option::is_none")]
     // pub border_overflow_applications: Option<Vec<MatchingRule>>,
@@ -730,6 +738,7 @@ impl From<&WindowManager> for StaticConfig {
             global_work_area_offset: value.work_area_offset,
             ignore_rules: None,
             floating_applications: None,
+            titleless_applications: None,
             manage_rules: None,
             // border_overflow_applications: None,
             // tray_and_multi_window_applications: None,
@@ -749,6 +758,7 @@ impl From<&WindowManager> for StaticConfig {
             // remove_titlebar_applications: Option::from(NO_TITLEBAR.lock().clone()),
             floating_window_aspect_ratio: Option::from(*FLOATING_WINDOW_TOGGLE_ASPECT_RATIO.lock()),
             // window_handling_behaviour: Option::from(WINDOW_HANDLING_BEHAVIOUR.load()),
+            tabbed_applications: None,
         }
     }
 }
@@ -916,6 +926,8 @@ impl StaticConfig {
         // let mut slow_application_identifiers = SLOW_APPLICATION_IDENTIFIERS.lock();
         let mut floating_applications = FLOATING_APPLICATIONS.lock();
         // let mut no_titlebar_applications = NO_TITLEBAR.lock();
+        let mut titleless_applications = TITLELESS_APPLICATIONS.lock();
+        let mut tabbed_applications = TABBED_APPLICATIONS.lock();
 
         if let Some(rules) = &mut self.ignore_rules {
             populate_rules(rules, &mut ignore_identifiers, &mut regex_identifiers)?;
@@ -927,6 +939,22 @@ impl StaticConfig {
 
         if let Some(rules) = &mut self.manage_rules {
             populate_rules(rules, &mut manage_identifiers, &mut regex_identifiers)?;
+        }
+
+        if let Some(rules) = &mut self.tabbed_applications {
+            for r in rules {
+                if !tabbed_applications.contains(r) {
+                    tabbed_applications.push(r.to_string());
+                }
+            }
+        }
+
+        if let Some(rules) = &mut self.titleless_applications {
+            for r in rules {
+                if !titleless_applications.contains(r) {
+                    titleless_applications.push(r.to_string());
+                }
+            }
         }
 
         // if let Some(rules) = &mut self.object_name_change_applications {

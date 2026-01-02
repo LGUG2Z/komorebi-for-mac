@@ -962,6 +962,17 @@ in
                       ]
                     );
                   };
+                  auto_select_text = lib.mkOption {
+                    type = (
+                      lib.types.nullOr (
+                        lib.types.oneOf [
+                          (lib.types.nullOr catppuccinValue)
+                          (lib.types.nullOr base16Value)
+                        ]
+                      )
+                    );
+                    default = null;
+                  };
                   name = lib.mkOption {
                     type = (
                       lib.types.nullOr (
@@ -1248,6 +1259,17 @@ in
                     );
                     default = null;
                   };
+                  accent = lib.mkOption {
+                    type = (
+                      lib.types.nullOr (
+                        lib.types.oneOf [
+                          (lib.types.nullOr catppuccinValue)
+                          (lib.types.nullOr base16Value)
+                        ]
+                      )
+                    );
+                    default = null;
+                  };
                   colours = lib.mkOption {
                     type = (
                       lib.types.nullOr (
@@ -1323,29 +1345,7 @@ in
                     );
                     default = null;
                   };
-                  accent = lib.mkOption {
-                    type = (
-                      lib.types.nullOr (
-                        lib.types.oneOf [
-                          (lib.types.nullOr catppuccinValue)
-                          (lib.types.nullOr base16Value)
-                        ]
-                      )
-                    );
-                    default = null;
-                  };
                   auto_select_fill = lib.mkOption {
-                    type = (
-                      lib.types.nullOr (
-                        lib.types.oneOf [
-                          (lib.types.nullOr catppuccinValue)
-                          (lib.types.nullOr base16Value)
-                        ]
-                      )
-                    );
-                    default = null;
-                  };
-                  auto_select_text = lib.mkOption {
                     type = (
                       lib.types.nullOr (
                         lib.types.oneOf [

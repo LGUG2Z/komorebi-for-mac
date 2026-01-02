@@ -147,6 +147,7 @@ lazy_static! {
         "komorebi".to_string(),
         "komorebic".to_string()
     ]));
+    static ref TITLELESS_APPLICATIONS: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
     static ref UNMANAGED_WINDOW_IDS: Arc<Mutex<Vec<u32>>> = Arc::new(Mutex::new(vec![]));
 }
 

@@ -252,26 +252,23 @@ impl WindowManager {
                                     Err(error) => return Err(error.into()),
                                 };
 
-                                if tab_rect == main_rect {
-                                    if window.id != window_id {
-                                        // Tab changed - update stored element
-                                        container_idx_to_update = Some(container_idx);
-                                        tabbed_window = true;
-                                    }
-                                    // If window.id == window_id, proceed with normal focus handling
+                                if tab_rect == main_rect && window.id != window_id {
+                                    // Tab changed - update stored element
+                                    container_idx_to_update = Some(container_idx);
+                                    tabbed_window = true;
                                 }
+                                // If window.id == window_id, proceed with normal focus handling
                             }
                         }
 
                         // Update the window element outside the immutable borrow
-                        if let Some(container_idx) = container_idx_to_update {
-                            if let Some(container) =
+                        if let Some(container_idx) = container_idx_to_update
+                            && let Some(container) =
                                 workspace.containers_mut().get_mut(container_idx)
-                                && let Some(window) = container.focused_window_mut()
-                            {
-                                window.id = window_id;
-                                window.element = AccessibilityUiElement(element.clone());
-                            }
+                            && let Some(window) = container.focused_window_mut()
+                        {
+                            window.id = window_id;
+                            window.element = AccessibilityUiElement(element.clone());
                         }
 
                         // check monocle_container for tabbed applications
@@ -299,13 +296,12 @@ impl WindowManager {
                             }
                         }
 
-                        if update_monocle {
-                            if let Some(monocle) = workspace.monocle_container.as_mut()
-                                && let Some(window) = monocle.focused_window_mut()
-                            {
-                                window.id = window_id;
-                                window.element = AccessibilityUiElement(element.clone());
-                            }
+                        if update_monocle
+                            && let Some(monocle) = workspace.monocle_container.as_mut()
+                            && let Some(window) = monocle.focused_window_mut()
+                        {
+                            window.id = window_id;
+                            window.element = AccessibilityUiElement(element.clone());
                         }
 
                         if first_tab_destroyed {
