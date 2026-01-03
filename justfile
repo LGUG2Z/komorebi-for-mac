@@ -14,14 +14,32 @@ fix:
 clean:
     cargo clean
 
-install-with-jsonschema target:
-    cargo install --path {{ target }} --locked --target-dir ~/.cargo/bin
+install-targets *targets:
+    for target in {{ targets }}; do just install-target $target; done
 
-install target:
-    cargo install --path {{ target }} --locked --target-dir ~/.cargo/bin --no-default-features
+install-target target:
+    cargo install --path {{ target }} --locked --no-default-features
 
-build target:
-    cargo build --package {{ target }} --locked --release
+install-targets-with-jsonschema *targets:
+    for target in {{ targets }}; do just install-target-with-jsonschema $target; done
+
+install-target-with-jsonschema target:
+    cargo install --path {{ target }} --locked
+
+install:
+    just install-targets komorebic komorebi komorebi-bar
+
+install-with-jsonschema:
+    just install-targets-with-jsonschema komorebic komorebic-no-console komorebi komorebi-bar komorebi-gui komorebi-shortcuts
+
+build-targets *targets:
+    for target in {{ targets }}; do just build-target $target; done
+
+build-target target:
+    cargo build --package {{ target }} --locked --release --no-default-features
+
+build:
+    just build-targets komorebic komorebi komorebi-bar
 
 run target:
     cargo run --bin {{ target }} --locked
