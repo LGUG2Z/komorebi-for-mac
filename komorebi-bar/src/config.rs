@@ -13,15 +13,6 @@ use serde::Serialize;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-mod defaults {
-    pub const HEIGHT: f32 = 50.0;
-    pub const FONT_SIZE: f32 = 12.5;
-    pub const ICON_SCALE: f32 = 1.4;
-    pub const MAX_LABEL_WIDTH: f32 = 400.0;
-    pub const TRANSPARENCY_ALPHA: u8 = 200;
-    pub const WIDGET_SPACING: f32 = 10.0;
-}
-
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 /// The `komorebi.bar.json` static configuration file reference for komorebi for Mac `v0.1.0`
@@ -29,7 +20,7 @@ mod defaults {
 /// `"$schema": "https://komorebi-for-mac.lgug2z.com/komorebi.bar.0.1.0.schema.json"`
 pub struct KomobarConfig {
     /// Bar height
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = defaults::HEIGHT)))]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = 50.0)))]
     pub height: Option<f32>,
     /// Bar padding. Use one value for all sides or use a grouped padding for horizontal and/or
     /// vertical definition which can each take a single value for a symmetric padding or two
@@ -89,21 +80,21 @@ pub struct KomobarConfig {
     /// Font family
     pub font_family: Option<String>,
     /// Font size
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = defaults::FONT_SIZE)))]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = 12.5)))]
     pub font_size: Option<f32>,
     /// Scale of the icons relative to the font_size [[1.0-2.0]]
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = defaults::ICON_SCALE)))]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = 1.4)))]
     pub icon_scale: Option<f32>,
     /// Max label width before text truncation
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = defaults::MAX_LABEL_WIDTH)))]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = 400.0)))]
     pub max_label_width: Option<f32>,
     /// Theme
     pub theme: Option<KomobarTheme>,
     /// Alpha value for the color transparency [[0-255]]
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = defaults::TRANSPARENCY_ALPHA)))]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = 200)))]
     pub transparency_alpha: Option<u8>,
     /// Spacing between widgets
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = defaults::WIDGET_SPACING)))]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = 10.0)))]
     pub widget_spacing: Option<f32>,
     /// Visual grouping for widgets
     pub grouping: Option<Grouping>,

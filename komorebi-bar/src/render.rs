@@ -24,10 +24,6 @@ use std::sync::atomic::Ordering;
 
 static SHOW_KOMOREBI_LAYOUT_OPTIONS: AtomicUsize = AtomicUsize::new(0);
 
-mod defaults {
-    pub const TRANSPARENCY_ALPHA: u8 = 200;
-}
-
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 #[serde(tag = "kind")]
@@ -370,7 +366,7 @@ pub struct GroupingConfig {
     /// Styles for the grouping
     pub style: Option<GroupingStyle>,
     /// Alpha value for the color transparency [[0-255]]
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = defaults::TRANSPARENCY_ALPHA)))]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = 200)))]
     pub transparency_alpha: Option<u8>,
     /// Rounding values for the 4 corners. Can be a single or 4 values.
     pub rounding: Option<RoundingConfig>,

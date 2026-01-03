@@ -16,12 +16,6 @@ use std::time::Duration;
 use std::time::Instant;
 use sysinfo::Disks;
 
-mod defaults {
-    pub const DATA_REFRESH_INTERVAL: u64 = 10;
-    pub const SHOW_READ_ONLY_DISKS: bool = false;
-    pub const SHOW_REMOVABLE_DISKS: bool = true;
-}
-
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
 /// Storage widget configuration
@@ -29,15 +23,15 @@ pub struct StorageConfig {
     /// Enable the Storage widget
     pub enable: bool,
     /// Data refresh interval in seconds
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = defaults::DATA_REFRESH_INTERVAL)))]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = 10)))]
     pub data_refresh_interval: Option<u64>,
     /// Display label prefix
     pub label_prefix: Option<LabelPrefix>,
     /// Show disks that are read only
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = defaults::SHOW_READ_ONLY_DISKS)))]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = false)))]
     pub show_read_only_disks: Option<bool>,
     /// Show removable disks
-    #[cfg_attr(feature = "schemars", schemars(extend("default" = defaults::SHOW_REMOVABLE_DISKS)))]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = true)))]
     pub show_removable_disks: Option<bool>,
     /// Select when the current percentage is over this value [[1-100]]
     pub auto_select_over: Option<u8>,
