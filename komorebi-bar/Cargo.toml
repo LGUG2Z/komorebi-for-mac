@@ -31,7 +31,11 @@ objc2 = { version = "0.6", default-features = false, features = ["std"] }
 objc2-app-kit = { version = "0.3", default-features = false, features = [
   "std",
   "NSApplication",
+  "NSResponder",
+  "NSView",
+  "NSWindow",
 ] }
+raw-window-handle = "0.6"
 parking_lot = { workspace = true }
 random_word = { version = "0.5", features = ["en"] }
 reqwest = { version = "0.12", features = ["blocking"] }

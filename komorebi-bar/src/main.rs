@@ -23,6 +23,9 @@ use komorebi_client::replace_env_in_path;
 use objc2::MainThreadMarker;
 use objc2_app_kit::NSApplication;
 use objc2_app_kit::NSApplicationActivationPolicy;
+use objc2_app_kit::NSView;
+use raw_window_handle::HasWindowHandle;
+use raw_window_handle::RawWindowHandle;
 use std::io::BufReader;
 use std::io::Read;
 use std::path::PathBuf;
@@ -210,6 +213,8 @@ fn main() -> eyre::Result<()> {
 
     MONITOR_INDEX.store(monitor_index, Ordering::SeqCst);
 
+    // use monitor.size for the actual monitor bounds (top-left origin in global coordinates)
+    // the window level kCGBackstopMenuLevel positions the bar behind the menu bar
     match config.position {
         None => {
             config.position = Some(PositionConfig {
@@ -288,6 +293,19 @@ fn main() -> eyre::Result<()> {
                 let app = NSApplication::sharedApplication(MainThreadMarker::new_unchecked());
                 app.setActivationPolicy(NSApplicationActivationPolicy::Accessory);
             }
+
+            if let Ok(handle) = cc.window_handle()
+                && let RawWindowHandle::AppKit(appkit_handle) = handle.as_raw() {
+                    // kCGBackstopMenuLevel = -20 (behind menu bar, at notch level)
+                    const K_CG_BACKSTOP_MENU_LEVEL: isize = -20;
+
+                    unsafe {
+                        let ns_view: &NSView = appkit_handle.ns_view.cast().as_ref();
+                        if let Some(ns_window) = ns_view.window() {
+                            ns_window.setLevel(K_CG_BACKSTOP_MENU_LEVEL);
+                        }
+                    }
+                }
 
             let ctx_repainter = cc.egui_ctx.clone();
             std::thread::spawn(move || loop {

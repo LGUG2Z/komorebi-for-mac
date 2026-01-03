@@ -465,54 +465,57 @@ impl Komobar {
 
         if let Some(monitor_index) = self.monitor_index {
             if let (prev_rect, Some(new_rect)) = (&self.work_area_offset, &config_work_area_offset)
+                && new_rect != prev_rect
             {
-                if new_rect != prev_rect {
-                    self.work_area_offset = *new_rect;
-                    if let Err(error) = komorebi_client::send_message(
-                        &SocketMessage::MonitorWorkAreaOffset(monitor_index, *new_rect),
-                    ) {
-                        tracing::error!(
-                            "error applying work area offset to monitor '{}': {}",
-                            monitor_index,
-                            error,
-                        );
-                    } else {
-                        tracing::info!("work area offset applied to monitor: {}", monitor_index);
-                    }
-                }
-            } else if let Some(height) = self.config.height.or(Some(BAR_HEIGHT)) {
-                // We only add the `bottom_margin` to the work_area_offset since the top margin is
-                // already considered on the `size_rect.top`
-                let bottom_margin = self
-                    .config
-                    .margin
-                    .as_ref()
-                    .map_or(0, |v| v.to_individual(0.0).bottom as i32);
-
-                let new_rect = komorebi_client::Rect {
-                    left: 0,
-                    top: (height as i32)
-                        + (self.size_rect.top - MONITOR_TOP.load(Ordering::SeqCst))
-                        + bottom_margin,
-                    right: 0,
-                    bottom: (height as i32)
-                        + (self.size_rect.top - MONITOR_TOP.load(Ordering::SeqCst))
-                        + bottom_margin,
-                };
-
-                if new_rect != self.work_area_offset {
-                    self.work_area_offset = new_rect;
-                    if let Err(error) = komorebi_client::send_message(
-                        &SocketMessage::MonitorWorkAreaOffset(monitor_index, new_rect),
-                    ) {
-                        tracing::error!(
-                            "error applying work area offset to monitor '{monitor_index}': {error}"
-                        );
-                    } else {
-                        tracing::info!("work area offset applied to monitor: {monitor_index}",);
-                    }
+                self.work_area_offset = *new_rect;
+                if let Err(error) = komorebi_client::send_message(
+                    &SocketMessage::MonitorWorkAreaOffset(monitor_index, *new_rect),
+                ) {
+                    tracing::error!(
+                        "error applying work area offset to monitor '{}': {}",
+                        monitor_index,
+                        error,
+                    );
+                } else {
+                    tracing::info!("work area offset applied to monitor: {}", monitor_index);
                 }
             }
+            // TODO: Not sure if we need this now that we are drawing behind the notch
+            // TODO: Also need to figure out how this looks on external monitors
+            // TODO: Probably not going to support other positions on macOS
+            // else if let Some(height) = self.config.height.or(Some(BAR_HEIGHT)) {
+            //     // We only add the `bottom_margin` to the work_area_offset since the top margin is
+            //     // already considered on the `size_rect.top`
+            //     let bottom_margin = self
+            //         .config
+            //         .margin
+            //         .as_ref()
+            //         .map_or(0, |v| v.to_individual(0.0).bottom as i32);
+
+            //     let new_rect = komorebi_client::Rect {
+            //         left: 0,
+            //         top: (height as i32)
+            //             + (self.size_rect.top - MONITOR_TOP.load(Ordering::SeqCst))
+            //             + bottom_margin,
+            //         right: 0,
+            //         bottom: (height as i32)
+            //             + (self.size_rect.top - MONITOR_TOP.load(Ordering::SeqCst))
+            //             + bottom_margin,
+            //     };
+
+            //     if new_rect != self.work_area_offset {
+            //         self.work_area_offset = new_rect;
+            //         if let Err(error) = komorebi_client::send_message(
+            //             &SocketMessage::MonitorWorkAreaOffset(monitor_index, new_rect),
+            //         ) {
+            //             tracing::error!(
+            //                 "error applying work area offset to monitor '{monitor_index}': {error}"
+            //             );
+            //         } else {
+            //             tracing::info!("work area offset applied to monitor: {monitor_index}",);
+            //         }
+            //     }
+            // }
         } else if self.monitor_info.is_some() && !self.disabled {
             tracing::warn!(
                 "couldn't find the monitor index of this bar! Disabling the bar until the monitor connects..."
