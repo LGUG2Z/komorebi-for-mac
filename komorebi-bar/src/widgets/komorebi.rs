@@ -762,6 +762,7 @@ impl LockedContainerBar {
 /// Updated whenever Komorebi state changes.
 #[derive(Clone, Debug)]
 pub struct MonitorInfo {
+    pub device: String,
     pub workspaces: Vec<WorkspaceInfo>,
     pub layout: KomorebiLayout,
     pub mouse_follows_focus: bool,
@@ -776,6 +777,7 @@ pub struct MonitorInfo {
 impl Default for MonitorInfo {
     fn default() -> Self {
         Self {
+            device: String::default(),
             workspaces: Vec::new(),
             layout: KomorebiLayout::Default(komorebi_client::DefaultLayout::BSP),
             mouse_follows_focus: true,
@@ -829,6 +831,7 @@ impl MonitorInfo {
         let monitor = &state.monitors.elements()[self.monitor_index];
         self.work_area_offset = monitor.work_area_offset;
         self.focused_workspace_idx = Some(monitor.focused_workspace_idx());
+        self.device = monitor.device.clone();
 
         // Layout
         let focused_ws = &monitor.workspaces()[monitor.focused_workspace_idx()];

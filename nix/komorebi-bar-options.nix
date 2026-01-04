@@ -875,46 +875,49 @@ in
         };
         monitor = lib.mkOption {
           type = (
-            lib.types.oneOf [
-              lib.types.int
-              (lib.types.submodule {
-                options = {
-                  index = lib.mkOption {
-                    type = lib.types.int;
-                    description = "Komorebi monitor index of the monitor on which to render the bar";
+            lib.types.nullOr (
+              lib.types.oneOf [
+                lib.types.int
+                (lib.types.submodule {
+                  options = {
+                    index = lib.mkOption {
+                      type = lib.types.int;
+                      description = "Komorebi monitor index of the monitor on which to render the bar";
+                    };
+                    work_area_offset = lib.mkOption {
+                      type = (
+                        lib.types.nullOr (
+                          lib.types.submodule {
+                            options = {
+                              bottom = lib.mkOption {
+                                type = lib.types.int;
+                                description = "Height of the rectangle (from the top point)";
+                              };
+                              left = lib.mkOption {
+                                type = lib.types.int;
+                                description = "Left point of the rectangle";
+                              };
+                              right = lib.mkOption {
+                                type = lib.types.int;
+                                description = "Width of the recentangle (from the left point)";
+                              };
+                              top = lib.mkOption {
+                                type = lib.types.int;
+                                description = "Top point of the rectangle";
+                              };
+                            };
+                          }
+                        )
+                      );
+                      default = null;
+                      description = "Automatically apply a work area offset for this monitor to accommodate the bar";
+                    };
                   };
-                  work_area_offset = lib.mkOption {
-                    type = (
-                      lib.types.nullOr (
-                        lib.types.submodule {
-                          options = {
-                            bottom = lib.mkOption {
-                              type = lib.types.int;
-                              description = "Height of the rectangle (from the top point)";
-                            };
-                            left = lib.mkOption {
-                              type = lib.types.int;
-                              description = "Left point of the rectangle";
-                            };
-                            right = lib.mkOption {
-                              type = lib.types.int;
-                              description = "Width of the recentangle (from the left point)";
-                            };
-                            top = lib.mkOption {
-                              type = lib.types.int;
-                              description = "Top point of the rectangle";
-                            };
-                          };
-                        }
-                      )
-                    );
-                    default = null;
-                    description = "Automatically apply a work area offset for this monitor to accommodate the bar";
-                  };
-                };
-              })
-            ]
+                })
+              ]
+            )
           );
+          default = 0;
           description = "The monitor index or the full monitor options";
         };
         padding = lib.mkOption {
@@ -961,17 +964,6 @@ in
                         "Custom"
                       ]
                     );
-                  };
-                  auto_select_text = lib.mkOption {
-                    type = (
-                      lib.types.nullOr (
-                        lib.types.oneOf [
-                          (lib.types.nullOr catppuccinValue)
-                          (lib.types.nullOr base16Value)
-                        ]
-                      )
-                    );
-                    default = null;
                   };
                   name = lib.mkOption {
                     type = (
@@ -1259,7 +1251,18 @@ in
                     );
                     default = null;
                   };
-                  accent = lib.mkOption {
+                  auto_select_text = lib.mkOption {
+                    type = (
+                      lib.types.nullOr (
+                        lib.types.oneOf [
+                          (lib.types.nullOr catppuccinValue)
+                          (lib.types.nullOr base16Value)
+                        ]
+                      )
+                    );
+                    default = null;
+                  };
+                  auto_select_fill = lib.mkOption {
                     type = (
                       lib.types.nullOr (
                         lib.types.oneOf [
@@ -1345,7 +1348,7 @@ in
                     );
                     default = null;
                   };
-                  auto_select_fill = lib.mkOption {
+                  accent = lib.mkOption {
                     type = (
                       lib.types.nullOr (
                         lib.types.oneOf [

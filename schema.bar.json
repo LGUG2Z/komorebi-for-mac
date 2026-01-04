@@ -99,7 +99,15 @@
     },
     "monitor": {
       "description": "The monitor index or the full monitor options",
-      "$ref": "#/$defs/MonitorConfigOrIndex"
+      "anyOf": [
+        {
+          "$ref": "#/$defs/MonitorConfigOrIndex"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": 0
     },
     "padding": {
       "description": "Bar padding. Use one value for all sides or use a grouped padding for horizontal and/or\nvertical definition which can each take a single value for a symmetric padding or two\nvalues for each side, i.e.:\n```json\n\"padding\": {\n    \"horizontal\": 10.0\n}\n```\nor:\n```json\n\"padding\": {\n    \"horizontal\": [left, right]\n}\n```\nYou can also set individual padding on each side like this:\n```json\n\"padding\": {\n    \"top\": 10.0,\n    \"bottom\": 10.0,\n    \"left\": 10.0,\n    \"right\": 10.0\n}\n```",
@@ -163,7 +171,6 @@
     }
   },
   "required": [
-    "monitor",
     "left_widgets",
     "right_widgets"
   ],
