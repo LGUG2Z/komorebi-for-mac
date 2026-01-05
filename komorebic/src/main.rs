@@ -1490,6 +1490,8 @@ fn main() -> eyre::Result<()> {
                 <key>PATH</key>
                 <string>$HOME/.nix-profile/bin:/etc/profiles/per-user/$USER/bin:/run/current-system/sw/bin:/nix/var/nix/profiles/default/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
         </dict>
+        <key>RunAtLoad</key>
+        <true/>
         <key>KeepAlive</key>
         <true/>
         <key>Label</key>
@@ -1500,6 +1502,10 @@ fn main() -> eyre::Result<()> {
         <array>
                 <string>{}</string>
         </array>
+        <key>StandardOutPath</key>
+        <string>/tmp/komorebi.out.log</string>
+        <key>StandardErrorPath</key>
+        <string>/tmp/komorebi.err.log</string>
 </dict>
 </plist>"#,
                         komorebic_exe.to_string_lossy()
@@ -1517,6 +1523,8 @@ fn main() -> eyre::Result<()> {
                 <key>PATH</key>
                 <string>$HOME/.nix-profile/bin:/etc/profiles/per-user/$USER/bin:/run/current-system/sw/bin:/nix/var/nix/profiles/default/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
         </dict>
+        <key>RunAtLoad</key>
+        <true/>
         <key>KeepAlive</key>
         <true/>
         <key>Label</key>
@@ -1529,6 +1537,10 @@ fn main() -> eyre::Result<()> {
                 <string>--config</string>
                 <string>{}</string>
         </array>
+        <key>StandardOutPath</key>
+        <string>/tmp/komorebi.out.log</string>
+        <key>StandardErrorPath</key>
+        <string>/tmp/komorebi.err.log</string>
 </dict>
 </plist>"#,
                         komorebic_exe.to_string_lossy(),
