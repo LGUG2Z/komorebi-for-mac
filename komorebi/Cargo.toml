@@ -102,6 +102,7 @@ objc2-quartz-core = { version = "0.3", default-features = false, features = [
 parking_lot = { workspace = true }
 pastey = { workspace = true }
 regex = "1"
+# pinning to 0.12 until this is resolved: https://github.com/seanmonstar/reqwest/issues/2924
 reqwest = { version = "0.12", features = ["blocking"] }
 schemars = { workspace = true, optional = true }
 serde = { workspace = true }
