@@ -722,6 +722,8 @@ enum SubCommand {
     /// Generate komorebic CLI completions for the target shell
     #[clap(arg_required_else_help = true)]
     Completions(Completions),
+    /// Show the System Settings permissions dialogs required by komorebi
+    Permissions,
     /// Gather example configurations for a new-user quickstart
     Quickstart,
     /// Specify an email associated with an Individual Commercial Use License
@@ -1334,6 +1336,48 @@ fn main() -> eyre::Result<()> {
                     );
                 }
             }
+        }
+        SubCommand::Permissions => {
+            let mut current_exe = std::env::current_exe().expect("unable to get exec path");
+            current_exe.pop();
+            let komorebi_exe = current_exe.join("komorebi");
+
+            let term_program = std::env::var("TERM_PROGRAM")
+                .unwrap_or_else(|_| String::from("this terminal emulator"));
+
+            println!(
+                "\nPlease grant Accessibility permissions to \"{}\" and \"{term_program}\"",
+                komorebi_exe.display()
+            );
+            println!("Accessibility permissions are required for komorebi to to manage windows");
+            Command::new("open")
+                .arg(
+                    "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility",
+                )
+                .spawn()?;
+
+            println!("\nHit return when done...");
+            std::io::stdout().flush()?;
+            let mut input = String::new();
+            std::io::stdin().read_line(&mut input)?;
+
+            println!(
+                "Please grant Screen Recording permissions to \"{}\" and \"{term_program}\"",
+                komorebi_exe.display()
+            );
+            println!(
+                "Screen Recording permissions are required to for komorebi to read window titles"
+            );
+            Command::new("open")
+                .arg(
+                    "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture",
+                )
+                .spawn()?;
+
+            println!("\nHit return when done...");
+            std::io::stdout().flush()?;
+            let mut input = String::new();
+            std::io::stdin().read_line(&mut input)?;
         }
         SubCommand::Quickstart => {
             fn write_file_with_prompt(
