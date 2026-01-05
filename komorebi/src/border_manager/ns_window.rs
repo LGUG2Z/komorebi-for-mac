@@ -1,4 +1,5 @@
 use crate::border_manager::BORDER_OFFSET;
+use crate::border_manager::BORDER_OFFSET_ADJUSTMENT;
 use crate::border_manager::BORDER_RADIUS;
 use crate::border_manager::BORDER_WIDTH;
 use color_eyre::eyre;
@@ -38,7 +39,7 @@ unsafe impl Send for NsWindow {}
 
 impl NsWindow {
     pub fn new(ns_rect: NSRect, target_window_id: u32) -> eyre::Result<NsWindow> {
-        let offset = BORDER_OFFSET.load(Ordering::Relaxed) as f64;
+        let offset = BORDER_OFFSET.load(Ordering::Relaxed) as f64 + BORDER_OFFSET_ADJUSTMENT as f64;
 
         let mut ns_rect = ns_rect;
 

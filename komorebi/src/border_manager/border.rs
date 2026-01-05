@@ -6,6 +6,7 @@ use crate::accessibility::notification_constants::kAXMainWindowChangedNotificati
 use crate::accessibility::notification_constants::kAXWindowMovedNotification;
 use crate::accessibility::notification_constants::kAXWindowResizedNotification;
 use crate::border_manager::BORDER_OFFSET;
+use crate::border_manager::BORDER_OFFSET_ADJUSTMENT;
 use crate::border_manager::BORDER_WIDTH;
 use crate::border_manager::ns_window::NsWindow;
 use crate::border_manager::window_kind_colour;
@@ -56,7 +57,8 @@ unsafe extern "C-unwind" fn border_observer_callback(
                     rect.size,
                 );
 
-                let offset = BORDER_OFFSET.load(Ordering::Relaxed) as f64;
+                let offset =
+                    BORDER_OFFSET.load(Ordering::Relaxed) as f64 + BORDER_OFFSET_ADJUSTMENT as f64;
 
                 ns_rect.origin.x -= offset;
                 ns_rect.origin.y -= offset;

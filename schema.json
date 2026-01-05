@@ -52,7 +52,7 @@
         "null"
       ],
       "format": "int32",
-      "default": 5
+      "default": 0
     },
     "border_radius": {
       "description": "Radius of window borders",
@@ -70,7 +70,7 @@
         "null"
       ],
       "format": "int32",
-      "default": 6
+      "default": 10
     },
     "cross_boundary_behaviour": {
       "description": "Determine what happens when an action is called on a window at a monitor boundary",

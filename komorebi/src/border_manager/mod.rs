@@ -29,10 +29,18 @@ use std::sync::atomic::AtomicI32;
 use std::sync::atomic::AtomicU32;
 use std::sync::atomic::Ordering;
 
-pub static BORDER_WIDTH: AtomicI32 = AtomicI32::new(6);
-pub static BORDER_OFFSET: AtomicI32 = AtomicI32::new(5);
+pub static BORDER_WIDTH: AtomicI32 = AtomicI32::new(10);
+pub static BORDER_OFFSET: AtomicI32 = AtomicI32::new(0);
 pub static BORDER_RADIUS: AtomicI32 = AtomicI32::new(10);
 pub static BORDER_ENABLED: AtomicBool = AtomicBool::new(true);
+
+// Windows has a 7px invisible border around every app which the border_x
+// config options have to take into account. In order to keep the komorebi
+// configuration truly portable across Windows and macOS, we need to add
+// that same 7px adjustment to whatever BORDER_OFFSET is set to. I hate this,
+// but config compatibility has to come first, and komorebi for Windows already
+// has tens of thousands of users.
+pub static BORDER_OFFSET_ADJUSTMENT: i32 = 7;
 
 lazy_static! {
     pub static ref FOCUSED: AtomicU32 =
