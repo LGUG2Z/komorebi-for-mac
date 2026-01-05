@@ -73,14 +73,6 @@ jsonschema:
     cargo run --package komorebic -- application-specific-configuration-schema > schema.asc.json
     cargo run --package komorebi-bar -- --schema > schema.bar.json
 
-version := `cargo metadata --format-version 1 --no-deps | jq -r '.packages[] | select(.name == "komorebi") | .version'`
-
-schemagen:
-    mkdir -p komorebi-schema
-    schemars-docgen schema.json -o komorebi-schema/komorebi.html
-    schemars-docgen schema.bar.json -o komorebi-schema/bar.html
-    cp schema.json komorebi-schema/komorebi.{{ version }}.schema.json
-    cp schema.bar.json komorebi-schema/komorebi.bar.{{ version }}.schema.json
 
 nixgen:
     schemars-nixgen schema.json -o nix/komorebi-options.nix --name komorebi --description "komorebi for Mac configuration"
@@ -88,7 +80,13 @@ nixgen:
     nix fmt nix/
     nix build -f nix/tests/default.nix
 
+version := `cargo metadata --format-version 1 --no-deps | jq -r '.packages[] | select(.name == "komorebi") | .version'`
+
 schemapub:
+    rm -rf komorebi-schema
+    mkdir -p komorebi-schema
+    cp schema.json komorebi-schema/komorebi.{{ version }}.schema.json
+    cp schema.bar.json komorebi-schema/komorebi.bar.{{ version }}.schema.json
     wrangler pages deploy --project-name komorebi-for-mac --branch main ./komorebi-schema
 
 depcheck:
