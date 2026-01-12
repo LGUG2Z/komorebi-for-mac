@@ -649,8 +649,40 @@ impl WindowManager {
                     // self.update_focused_workspace(false, false)?;
                 }
             }
-            WindowManagerEvent::Destroy(_, process_id) => {
-                self.reap_invalid_windows_for_application(process_id)?;
+            WindowManagerEvent::Destroy(notification, process_id) => {
+                // some apps like Discord in all of their relentless Electron slop stupidity
+                // hijack CMD+W to send a HIDE instead of a close (i.e. the equivalent of pressing CMD+H)
+                let mut should_force_reap = false;
+                if matches!(
+                    notification,
+                    SystemNotification::Accessibility(
+                        AccessibilityNotification::AXApplicationHidden
+                    )
+                ) {
+                    let application = self.application(process_id)?;
+                    let window_count = application
+                        .window_elements()
+                        .map(|elements| elements.len())
+                        .unwrap_or(0);
+
+                    // force reap if the app has exactly 1 window (i.e. the one being hidden)
+                    if window_count == 1 {
+                        tracing::debug!(
+                            "app {} has only 1 window and sent AXApplicationHidden, treating as window close",
+                            application.name().unwrap_or_default()
+                        );
+                        should_force_reap = true;
+                    }
+                }
+
+                if should_force_reap {
+                    let workspace = self.focused_workspace_mut()?;
+                    workspace.reap_invalid_windows_for_application(process_id, &[])?;
+                } else {
+                    // app has multiple windows, use normal orphan reaping strategy
+                    self.reap_invalid_windows_for_application(process_id)?;
+                }
+
                 self.update_focused_workspace(false, false)?;
             }
             WindowManagerEvent::Unmanage(_, _, window_id) => {

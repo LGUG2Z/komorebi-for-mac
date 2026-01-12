@@ -81,7 +81,10 @@ impl WindowManagerEvent {
             SystemNotification::Accessibility(AccessibilityNotification::AXUIElementDestroyed)
             | SystemNotification::AppKitWorkspace(
                 AppKitWorkspaceNotification::NSWorkspaceDidTerminateApplicationNotification,
-            ) => Some(WindowManagerEvent::Destroy(notification, process_id)),
+            )
+            | SystemNotification::Accessibility(AccessibilityNotification::AXApplicationHidden) => {
+                Some(WindowManagerEvent::Destroy(notification, process_id))
+            }
             // TODO: figure out if we wanna handle the hide/unhide notifications separately
             // TODO: maybe turn window id into a vec of window IDs for hidden apps
             SystemNotification::Accessibility(AccessibilityNotification::AXWindowMiniaturized) => {

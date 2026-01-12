@@ -73,7 +73,6 @@ jsonschema:
     cargo run --package komorebic -- application-specific-configuration-schema > schema.asc.json
     cargo run --package komorebi-bar -- --schema > schema.bar.json
 
-
 nixgen:
     schemars-nixgen schema.json -o nix/komorebi-options.nix --name komorebi --description "komorebi for Mac configuration"
     schemars-nixgen schema.bar.json -o nix/komorebi-bar-options.nix --name komorebi-bar --description "komorebi for Mac bar configuration"

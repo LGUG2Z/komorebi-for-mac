@@ -407,6 +407,14 @@ impl Workspace {
                 && focused_window.application.process_id == process_id
             {
                 if !valid_window_ids.contains(&focused_window.id) {
+                    if let Ok(rect) = MacosApi::window_rect(&focused_window.element) {
+                        tracing::debug!(
+                            "reaping window {} ({}): rect = {:?}",
+                            focused_window.id,
+                            focused_window.title().unwrap_or_default(),
+                            rect
+                        );
+                    }
                     invalid_window_ids.push(focused_window.id);
                 }
 
@@ -424,6 +432,14 @@ impl Workspace {
             if focused_window.application.process_id == process_id
                 && !valid_window_ids.contains(&focused_window.id)
             {
+                if let Ok(rect) = MacosApi::window_rect(&focused_window.element) {
+                    tracing::debug!(
+                        "reaping monocle window {} ({}): rect = {:?}",
+                        focused_window.id,
+                        focused_window.title().unwrap_or_default(),
+                        rect
+                    );
+                }
                 invalid_window_ids.push(focused_window.id);
             }
 
@@ -437,6 +453,14 @@ impl Workspace {
         for window in self.floating_windows() {
             if window.application.process_id == process_id {
                 if !valid_window_ids.contains(&window.id) {
+                    if let Ok(rect) = MacosApi::window_rect(&window.element) {
+                        tracing::debug!(
+                            "reaping floating window {} ({}): rect = {:?}",
+                            window.id,
+                            window.title().unwrap_or_default(),
+                            rect
+                        );
+                    }
                     invalid_floating_window_ids.push(window.id);
                 }
 
