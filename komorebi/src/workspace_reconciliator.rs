@@ -104,6 +104,25 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
         let updated_pair = (notification.monitor_idx, notification.workspace_idx);
 
         if focused_pair != updated_pair {
+            // don't switch workspaces if the current workspace is empty
+            // this happens when the user just closed the last window on a workspace
+            // and the last focused application, usually on another workspace, takes focus
+            // and in doing so triggers the reconciliator
+            if let Ok(workspace) = wm.focused_workspace()
+                && workspace.containers().is_empty()
+            {
+                tracing::debug!(
+                    "current workspace is empty (user closed last window), not reconciling to prevent unwanted workspace switch"
+                );
+                let now = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_millis() as u64;
+                LAST_RECONCILIATION.store(now, Ordering::SeqCst);
+                RECONCILIATION_IN_PROGRESS.store(false, Ordering::Relaxed);
+                continue;
+            }
+
             tracing::info!("reconciliating workspace");
             wm.focus_monitor(notification.monitor_idx)?;
             let mouse_follows_focus = wm.mouse_follows_focus;

@@ -683,6 +683,17 @@ impl WindowManager {
                     self.reap_invalid_windows_for_application(process_id)?;
                 }
 
+                // if the workspace is now empty (last window was closed), activate Finder
+                // instead of letting an app on another workspace take focus (technically
+                // the other app will take focus first, but this ensures that _eventually_
+                // i.e. quicker than the user can recognize, Finder will be the focused app)
+                if self.focused_workspace()?.containers().is_empty() {
+                    tracing::debug!(
+                        "workspace is now empty, activating Finder to prevent unwanted workspace switch"
+                    );
+                    MacosApi::activate_finder();
+                }
+
                 self.update_focused_workspace(false, false)?;
             }
             WindowManagerEvent::Unmanage(_, _, window_id) => {

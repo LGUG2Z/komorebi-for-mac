@@ -459,4 +459,25 @@ impl MacosApi {
     pub fn left_mouse_button_is_pressed() -> bool {
         NSEvent::pressedMouseButtons() & 0x1 != 0
     }
+
+    pub fn activate_finder() {
+        use objc2_app_kit::NSApplicationActivationOptions;
+
+        DispatchQueue::main().exec_sync(move || {
+            let workspace = NSWorkspace::sharedWorkspace();
+
+            let apps = workspace.runningApplications();
+            for app in apps.iter() {
+                if let Some(bundle_id) = app.bundleIdentifier()
+                    && bundle_id.to_string() == "com.apple.finder"
+                {
+                    // Activate without opening a new window
+                    app.activateWithOptions(NSApplicationActivationOptions::empty());
+                    return;
+                }
+            }
+
+            tracing::warn!("could not find running Finder application");
+        });
+    }
 }
