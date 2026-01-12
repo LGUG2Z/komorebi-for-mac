@@ -214,10 +214,6 @@
               pkgs.just
               pkgs.prettier
               pkgs.wrangler
-
-              pkgs.python311Packages.mkdocs-material
-              pkgs.python311Packages.mkdocs-macros
-              pkgs.python311Packages.setuptools
             ];
           };
 
