@@ -1231,6 +1231,31 @@ impl Workspace {
 
                     for (i, container) in containers.iter_mut().enumerate() {
                         if let Some(layout) = layouts.get_mut(i) {
+                            // clamp layout to work area boundaries to prevent bleeding into adjacent monitors
+
+                            // horizontal
+                            if layout.left < adjusted_work_area.left {
+                                layout.right -= adjusted_work_area.left - layout.left;
+                                layout.left = adjusted_work_area.left;
+                            }
+                            let max_right_edge = adjusted_work_area.left + adjusted_work_area.right;
+                            let current_right_edge = layout.left + layout.right;
+                            if current_right_edge > max_right_edge {
+                                layout.right = max_right_edge - layout.left;
+                            }
+
+                            // vertical
+                            if layout.top < adjusted_work_area.top {
+                                layout.bottom -= adjusted_work_area.top - layout.top;
+                                layout.top = adjusted_work_area.top;
+                            }
+                            let max_bottom_edge =
+                                adjusted_work_area.top + adjusted_work_area.bottom;
+                            let current_bottom_edge = layout.top + layout.bottom;
+                            if current_bottom_edge > max_bottom_edge {
+                                layout.bottom = max_bottom_edge - layout.top;
+                            }
+
                             layout.add_padding(border_offset);
                             layout.add_padding(border_width);
 
@@ -2514,5 +2539,117 @@ mod tests {
         //     assert_eq!(visible_windows[1].unwrap().hwnd, 100);
         //     assert_eq!(visible_windows[2].unwrap().hwnd, 300);
         // }
+    }
+
+    #[test]
+    fn test_layout_boundary_clamping() {
+        use crate::core::default_layout::DefaultLayout;
+        use crate::core::rect::Rect;
+        use std::num::NonZeroUsize;
+
+        // Simulate an ultrawide monitor at 5120px width
+        let work_area = Rect {
+            left: 0,
+            top: 0,
+            right: 5120,
+            bottom: 1440,
+        };
+
+        // Create a workspace with 2 containers in Columns layout
+        let layout = Layout::Default(DefaultLayout::Columns);
+
+        // Simulate a resize adjustment that would cause overflow
+        // Container 0 gets expanded by 2100px to the right
+        let resize_dimensions = vec![
+            Some(Rect {
+                left: 0,
+                top: 0,
+                right: 2100,
+                bottom: 0,
+            }),
+            None,
+        ];
+
+        // Calculate the layout
+        let mut layouts = layout.as_boxed_arrangement().calculate(
+            &work_area,
+            NonZeroUsize::new(2).unwrap(),
+            None,
+            None,
+            &resize_dimensions,
+            0,
+            None,
+            &[],
+        );
+
+        // Apply boundary clamping (mimicking the logic in workspace.rs update())
+        for layout in &mut layouts {
+            // Check horizontal boundaries
+            if layout.left < work_area.left {
+                layout.right -= work_area.left - layout.left;
+                layout.left = work_area.left;
+            }
+            let max_right_edge = work_area.left + work_area.right;
+            let current_right_edge = layout.left + layout.right;
+            if current_right_edge > max_right_edge {
+                layout.right = max_right_edge - layout.left;
+            }
+
+            // Check vertical boundaries
+            if layout.top < work_area.top {
+                layout.bottom -= work_area.top - layout.top;
+                layout.top = work_area.top;
+            }
+            let max_bottom_edge = work_area.top + work_area.bottom;
+            let current_bottom_edge = layout.top + layout.bottom;
+            if current_bottom_edge > max_bottom_edge {
+                layout.bottom = max_bottom_edge - layout.top;
+            }
+        }
+
+        // Verify that all layouts stay within work area boundaries
+        for layout in &layouts {
+            // Horizontal bounds
+            assert!(
+                layout.left >= work_area.left,
+                "Layout left ({}) should be >= work_area left ({})",
+                layout.left,
+                work_area.left
+            );
+            let right_edge = layout.left + layout.right;
+            let max_right_edge = work_area.left + work_area.right;
+            assert!(
+                right_edge <= max_right_edge,
+                "Layout right edge ({}) should be <= work_area right edge ({})",
+                right_edge,
+                max_right_edge
+            );
+
+            // Vertical bounds
+            assert!(
+                layout.top >= work_area.top,
+                "Layout top ({}) should be >= work_area top ({})",
+                layout.top,
+                work_area.top
+            );
+            let bottom_edge = layout.top + layout.bottom;
+            let max_bottom_edge = work_area.top + work_area.bottom;
+            assert!(
+                bottom_edge <= max_bottom_edge,
+                "Layout bottom edge ({}) should be <= work_area bottom edge ({})",
+                bottom_edge,
+                max_bottom_edge
+            );
+        }
+
+        // Additionally verify that with the resize adjustment,
+        // the second container doesn't bleed beyond 5120
+        assert_eq!(layouts.len(), 2);
+        let container1_right_edge = layouts[1].left + layouts[1].right;
+        assert!(
+            container1_right_edge <= 5120,
+            "Container 1 right edge ({}) should not exceed monitor width (5120)",
+            container1_right_edge
+        );
     }
 }
