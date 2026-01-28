@@ -252,10 +252,21 @@ impl WindowManager {
                                     Err(error) => return Err(error.into()),
                                 };
 
+                                // Check if this is truly a tab change within the same window
+                                // by verifying the stored element's window ID matches the container's window ID
                                 if tab_rect == main_rect && window.id != window_id {
-                                    // Tab changed - update stored element
-                                    container_idx_to_update = Some(container_idx);
-                                    tabbed_window = true;
+                                    // Additional check: verify the stored element belongs to this container
+                                    // This prevents treating separate windows as tabs when they have matching geometry
+                                    if let Ok(stored_window_id) =
+                                        AccessibilityApi::window_id(&window.element.0)
+                                        && stored_window_id == window.id
+                                    {
+                                        // All checks pass: stored element matches container ID = true tab change
+                                        container_idx_to_update = Some(container_idx);
+                                        tabbed_window = true;
+                                    }
+                                    // If stored_window_id != window.id, this is a stale element or different window
+                                    // Don't set tabbed_window=true, allow normal focus handling
                                 }
                                 // If window.id == window_id, proceed with normal focus handling
                             }
@@ -468,12 +479,20 @@ impl WindowManager {
 
                     let tabbed_applications = TABBED_APPLICATIONS.lock();
                     if tabbed_applications.contains(&application_name) {
-                        for window in workspace.visible_windows().iter().flatten() {
-                            if window.application.name().unwrap_or_default() == application_name {
-                                let tab_rect = MacosApi::window_rect(element)?;
-                                let main_rect = MacosApi::window_rect(&window.element)?;
-                                if tab_rect == main_rect {
-                                    tabbed_window = true;
+                        // Get the window_id for the new window
+                        if let Ok(new_window_id) = AccessibilityApi::window_id(element) {
+                            for window in workspace.visible_windows().iter().flatten() {
+                                if window.application.name().unwrap_or_default() == application_name
+                                {
+                                    let tab_rect = MacosApi::window_rect(element)?;
+                                    let main_rect = MacosApi::window_rect(&window.element)?;
+                                    // BOTH conditions must be true:
+                                    // 1. Geometry matches (original check - preserves existing behavior)
+                                    // 2. Window IDs match (new check - prevents false positives)
+                                    if tab_rect == main_rect && window.id == new_window_id {
+                                        tabbed_window = true;
+                                        break;
+                                    }
                                 }
                             }
                         }

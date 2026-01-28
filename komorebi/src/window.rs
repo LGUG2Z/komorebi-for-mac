@@ -758,10 +758,19 @@ impl Window {
         drop(tabbed_applications);
 
         let element_to_focus = if is_tabbed {
-            self.application
-                .main_window()
-                .map(AccessibilityUiElement)
-                .unwrap_or_else(|| self.element.clone())
+            // For tabbed apps, we still need to check if the stored element is valid
+            // If valid, use it directly (allows focusing specific windows)
+            // If invalid (tab was closed), fall back to main_window() for the active tab
+            match AccessibilityApi::window_id(&self.element.0) {
+                Ok(_) => self.element.clone(), // Element is valid, use it
+                Err(_) => {
+                    // Element is invalid (tab closed), get current main window
+                    self.application
+                        .main_window()
+                        .map(AccessibilityUiElement)
+                        .unwrap_or_else(|| self.element.clone())
+                }
+            }
         } else {
             self.element.clone()
         };
