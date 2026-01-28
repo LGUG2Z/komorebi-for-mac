@@ -1,5 +1,3 @@
-use crate::core::config_generation::ApplicationConfiguration;
-use crate::core::config_generation::ApplicationOptions;
 use crate::core::config_generation::MatchingRule;
 use color_eyre::Result;
 use serde::Deserialize;
@@ -59,79 +57,10 @@ pub struct AscApplicationRules {
     /// Rules to manage specific windows as floating windows
     #[serde(skip_serializing_if = "Option::is_none")]
     pub floating: Option<Vec<MatchingRule>>,
-    /// Rules to ignore specific windows from the transparency feature
+    /// Rules to identify applications which are title-less - only accepts Simple Exe rules
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub transparency_ignore: Option<Vec<MatchingRule>>,
-    /// Rules to identify applications which minimize to the tray or have multiple windows
+    pub titleless: Option<Vec<MatchingRule>>,
+    /// Rules to identify applications which are title-less - only accepts Simple Exe rules
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub tray_and_multi_window: Option<Vec<MatchingRule>>,
-    /// Rules to identify applications which have the `WS_EX_LAYERED` Extended Window Style
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub layered: Option<Vec<MatchingRule>>,
-    /// Rules to identify applications which send the `EVENT_OBJECT_NAMECHANGE` event on launch
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub object_name_change: Option<Vec<MatchingRule>>,
-    /// Rules to identify applications which are slow to send initial event notifications
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub slow_application: Option<Vec<MatchingRule>>,
-}
-
-impl From<Vec<ApplicationConfiguration>> for ApplicationSpecificConfiguration {
-    fn from(value: Vec<ApplicationConfiguration>) -> Self {
-        let mut map = BTreeMap::new();
-
-        for entry in &value {
-            let key = entry.name.clone();
-            let mut rules = AscApplicationRules {
-                ignore: None,
-                manage: None,
-                floating: None,
-                transparency_ignore: None,
-                tray_and_multi_window: None,
-                layered: None,
-                object_name_change: None,
-                slow_application: None,
-            };
-
-            rules.ignore = entry.ignore_identifiers.clone();
-
-            if let Some(options) = &entry.options {
-                for opt in options {
-                    match opt {
-                        ApplicationOptions::ObjectNameChange => {
-                            rules.object_name_change =
-                                Some(vec![MatchingRule::Simple(entry.identifier.clone())]);
-                        }
-                        ApplicationOptions::Layered => {
-                            rules.layered =
-                                Some(vec![MatchingRule::Simple(entry.identifier.clone())]);
-                        }
-                        ApplicationOptions::TrayAndMultiWindow => {
-                            rules.tray_and_multi_window =
-                                Some(vec![MatchingRule::Simple(entry.identifier.clone())]);
-                        }
-                        ApplicationOptions::Force => {
-                            rules.manage =
-                                Some(vec![MatchingRule::Simple(entry.identifier.clone())]);
-                        }
-                        ApplicationOptions::BorderOverflow => {}
-                    }
-                }
-            }
-
-            if rules.ignore.is_some()
-                || rules.manage.is_some()
-                || rules.floating.is_some()
-                || rules.transparency_ignore.is_some()
-                || rules.tray_and_multi_window.is_some()
-                || rules.layered.is_some()
-                || rules.object_name_change.is_some()
-                || rules.slow_application.is_some()
-            {
-                map.insert(key, AscApplicationRulesOrSchema::AscApplicationRules(rules));
-            }
-        }
-
-        Self(map)
-    }
+    pub tabbed: Option<Vec<MatchingRule>>,
 }

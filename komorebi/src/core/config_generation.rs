@@ -1,22 +1,8 @@
-use clap::ValueEnum;
 use serde::Deserialize;
 use serde::Serialize;
 use strum::Display;
-use strum::EnumString;
 
 use super::ApplicationIdentifier;
-
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, Display, EnumString, ValueEnum)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-#[strum(serialize_all = "snake_case")]
-#[serde(rename_all = "snake_case")]
-pub enum ApplicationOptions {
-    ObjectNameChange,
-    Layered,
-    TrayAndMultiWindow,
-    Force,
-    BorderOverflow,
-}
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
@@ -99,31 +85,6 @@ impl From<IdWithIdentifierAndComment> for IdWithIdentifier {
             kind: value.kind,
             id: value.id.clone(),
             matching_strategy: value.matching_strategy,
-        }
-    }
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-pub struct ApplicationConfiguration {
-    pub name: String,
-    pub identifier: IdWithIdentifier,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub options: Option<Vec<ApplicationOptions>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(alias = "float_identifiers")]
-    pub ignore_identifiers: Option<Vec<MatchingRule>>,
-}
-
-impl ApplicationConfiguration {
-    pub fn populate_default_matching_strategies(&mut self) {
-        if self.identifier.matching_strategy.is_none() {
-            match self.identifier.kind {
-                ApplicationIdentifier::Exe | ApplicationIdentifier::Path => {
-                    self.identifier.matching_strategy = Option::from(MatchingStrategy::Equals);
-                }
-                ApplicationIdentifier::Class | ApplicationIdentifier::Title => {}
-            }
         }
     }
 }

@@ -138,10 +138,7 @@ lazy_static! {
         })]));
     static ref PERMAIGNORE_CLASSES: Arc<Mutex<Vec<String>>> =
         Arc::new(Mutex::new(vec!["AXDialog".to_string(),]));
-    static ref TABBED_APPLICATIONS: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![
-        "Finder".to_string(),
-        "Ghostty".to_string()
-    ]));
+    static ref TABBED_APPLICATIONS: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
     static ref DO_NOT_OBSERVE_APPLICATIONS: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![
         "Spotlight".to_string(),
         "komorebi".to_string(),

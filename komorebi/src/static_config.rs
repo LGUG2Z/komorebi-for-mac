@@ -23,6 +23,7 @@ use crate::animation::ANIMATION_STYLE_PER_ANIMATION;
 use crate::animation::DEFAULT_ANIMATION_FPS;
 use crate::animation::PerAnimationPrefixConfig;
 use crate::border_manager;
+use crate::core::ApplicationIdentifier;
 use crate::core::CrossBoundaryBehaviour;
 use crate::core::FloatingLayerBehaviour;
 use crate::core::MoveBehaviour;
@@ -1049,13 +1050,10 @@ impl StaticConfig {
                 AppSpecificConfigurationPath::Single(path) => handle_asc_file(
                     path,
                     &mut ignore_identifiers,
-                    &mut vec![],
-                    &mut vec![],
-                    &mut vec![],
                     &mut manage_identifiers,
                     &mut floating_applications,
-                    &mut vec![],
-                    &mut vec![],
+                    &mut tabbed_applications,
+                    &mut titleless_applications,
                     &mut regex_identifiers,
                 )?,
                 AppSpecificConfigurationPath::Multiple(paths) => {
@@ -1063,13 +1061,10 @@ impl StaticConfig {
                         handle_asc_file(
                             path,
                             &mut ignore_identifiers,
-                            &mut vec![],
-                            &mut vec![],
-                            &mut vec![],
                             &mut manage_identifiers,
                             &mut floating_applications,
-                            &mut vec![],
-                            &mut vec![],
+                            &mut tabbed_applications,
+                            &mut titleless_applications,
                             &mut regex_identifiers,
                         )?
                     }
@@ -1599,13 +1594,10 @@ fn populate_rules(
 fn handle_asc_file(
     path: &PathBuf,
     ignore_identifiers: &mut Vec<MatchingRule>,
-    object_name_change_identifiers: &mut Vec<MatchingRule>,
-    layered_identifiers: &mut Vec<MatchingRule>,
-    tray_and_multi_window_identifiers: &mut Vec<MatchingRule>,
     manage_identifiers: &mut Vec<MatchingRule>,
     floating_applications: &mut Vec<MatchingRule>,
-    transparency_blacklist: &mut Vec<MatchingRule>,
-    slow_application_identifiers: &mut Vec<MatchingRule>,
+    tabbed_applications: &mut Vec<String>,
+    titleless_applications: &mut Vec<String>,
     regex_identifiers: &mut HashMap<String, Regex>,
 ) -> eyre::Result<()> {
     match path.extension() {
@@ -1631,36 +1623,26 @@ fn handle_asc_file(
                                 populate_rules(rules, floating_applications, regex_identifiers)?;
                             }
 
-                            if let Some(rules) = &mut entry.transparency_ignore {
-                                populate_rules(rules, transparency_blacklist, regex_identifiers)?;
+                            if let Some(rules) = &entry.tabbed {
+                                for rule in rules {
+                                    if let MatchingRule::Simple(simple) = rule
+                                        && matches!(simple.kind, ApplicationIdentifier::Exe)
+                                        && !tabbed_applications.contains(&simple.id)
+                                    {
+                                        tabbed_applications.push(simple.id.clone());
+                                    }
+                                }
                             }
 
-                            if let Some(rules) = &mut entry.tray_and_multi_window {
-                                populate_rules(
-                                    rules,
-                                    tray_and_multi_window_identifiers,
-                                    regex_identifiers,
-                                )?;
-                            }
-
-                            if let Some(rules) = &mut entry.layered {
-                                populate_rules(rules, layered_identifiers, regex_identifiers)?;
-                            }
-
-                            if let Some(rules) = &mut entry.object_name_change {
-                                populate_rules(
-                                    rules,
-                                    object_name_change_identifiers,
-                                    regex_identifiers,
-                                )?;
-                            }
-
-                            if let Some(rules) = &mut entry.slow_application {
-                                populate_rules(
-                                    rules,
-                                    slow_application_identifiers,
-                                    regex_identifiers,
-                                )?;
+                            if let Some(rules) = &entry.titleless {
+                                for rule in rules {
+                                    if let MatchingRule::Simple(simple) = rule
+                                        && matches!(simple.kind, ApplicationIdentifier::Exe)
+                                        && !titleless_applications.contains(&simple.id)
+                                    {
+                                        titleless_applications.push(simple.id.clone());
+                                    }
+                                }
                             }
                         }
                     }
