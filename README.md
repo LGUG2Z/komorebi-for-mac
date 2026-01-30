@@ -40,8 +40,19 @@ standard macOS desktop environment.
 _komorebi for Mac_ aims to make _as few modifications as possible_ to the
 operating system and desktop environment by default.
 
-_komorebi for Mac_ is currently under development, and this repository is
-currently restricted to sponsors.
+[LGUG2Z/komorebi-for-mac](https://github.com/LGUG2Z/komorebi-for-mac) is the
+public repository where versioned releases will be published.
+
+[KomoCorp/komorebi-for-mac](https://github.com/KomoCorp/komorebi-for-mac) is the
+private repository available to certain GitHub Sponsors tiers where ongoing
+development work happens and nightly releases are made available.
+
+If you are reading this sentence on the public repository, _komorebi for Mac_
+has still not had its first versioned release. If you would like to try out this
+initial public snapshot, you should [build from
+source](https://komorebi-starlight.lgug2z.workers.dev/guides/installation/#building-from-source)
+and follow the
+[quickstart](https://komorebi-starlight.lgug2z.workers.dev/guides/quickstart/).
 
 ## Community
 
@@ -116,13 +127,15 @@ Licenses [can be found here](https://lgug2z.com/software/komorebi).
 
 # Contribution Guidelines
 
-_komorebi for Mac_ is currently not accepting contributions.
+_komorebi for Mac_ is currently accepting minimally invasive bug fixes.
+Proposals for any other kind of contributions can be discussed with me on
+Discord.
 
-[//]: # "If you would like to contribute to `komorebi` please take the time to carefully"
-[//]: # "read the guidelines below."
-[//]: #
-[//]: # "Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for more information about how"
-[//]: # "code contributions to `komorebi` are licensed."
+If you would like to contribute to `komorebi` please take the time to carefully
+read the guidelines below.
+
+Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for more information about how
+code contributions to `komorebi` are licensed.
 
 ## Commit hygiene
 
@@ -250,14 +263,14 @@ handled events and messages as in the example above in the Named Pipes section.
 
 ## Rust Client
 
-As of `v0.1.22` it is possible to use the `komorebi-client` crate to subscribe
-to notifications of every `WindowManagerEvent` and `SocketMessage` handled by
-`komorebi` in a Rust codebase.
+It is possible to use the `komorebi-client` crate to subscribe to notifications
+of every `WindowManagerEvent` and `SocketMessage` handled by `komorebi` in a
+Rust codebase.
 
 Below is a simple example of how to use `komorebi-client` in a basic Rust application.
 
 ```rust
-// komorebi-client = { git = "https://github.com/LGUG2Z/komorebi", tag = "v0.1.38"}
+// komorebi-client = { git = "https://github.com/LGUG2Z/komorebi-for-mac" }
 
 use anyhow::Result;
 use komorebi_client::Notification;
