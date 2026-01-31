@@ -55,16 +55,6 @@
             "$ref": "#/$defs/MatchingRule"
           }
         },
-        "layered": {
-          "description": "Rules to identify applications which have the `WS_EX_LAYERED` Extended Window Style",
-          "type": [
-            "array",
-            "null"
-          ],
-          "items": {
-            "$ref": "#/$defs/MatchingRule"
-          }
-        },
         "manage": {
           "description": "Rules to forcibly manage specific windows",
           "type": [
@@ -75,8 +65,8 @@
             "$ref": "#/$defs/MatchingRule"
           }
         },
-        "object_name_change": {
-          "description": "Rules to identify applications which send the `EVENT_OBJECT_NAMECHANGE` event on launch",
+        "tabbed": {
+          "description": "Rules to identify applications which are title-less - only accepts Simple Exe rules",
           "type": [
             "array",
             "null"
@@ -85,28 +75,8 @@
             "$ref": "#/$defs/MatchingRule"
           }
         },
-        "slow_application": {
-          "description": "Rules to identify applications which are slow to send initial event notifications",
-          "type": [
-            "array",
-            "null"
-          ],
-          "items": {
-            "$ref": "#/$defs/MatchingRule"
-          }
-        },
-        "transparency_ignore": {
-          "description": "Rules to ignore specific windows from the transparency feature",
-          "type": [
-            "array",
-            "null"
-          ],
-          "items": {
-            "$ref": "#/$defs/MatchingRule"
-          }
-        },
-        "tray_and_multi_window": {
-          "description": "Rules to identify applications which minimize to the tray or have multiple windows",
+        "titleless": {
+          "description": "Rules to identify applications which are title-less - only accepts Simple Exe rules",
           "type": [
             "array",
             "null"
