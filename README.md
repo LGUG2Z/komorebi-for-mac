@@ -49,9 +49,9 @@ development work happens and nightly releases are made available.
 
 If you are reading this sentence on the public repository, _komorebi for Mac_
 has still not had its first versioned release. If you would like to try out this
-initial public snapshot, you should [build from
-source](https://komorebi-starlight.lgug2z.workers.dev/guides/installation/#building-from-source)
-and follow the
+initial public snapshot, you can `brew install lgug2z/tap/komorebi-for-mac` or [build from
+source](https://komorebi-starlight.lgug2z.workers.dev/guides/installation/#building-from-source),
+and then follow the
 [quickstart](https://komorebi-starlight.lgug2z.workers.dev/guides/quickstart/).
 
 ## Community
