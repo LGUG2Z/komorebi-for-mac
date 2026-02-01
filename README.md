@@ -246,16 +246,16 @@ This may also be polled to build further integrations and widgets on top of.
 
 ## Unix Domain Sockets
 
-It is possible to subscribe to notifications of every `WindowManagerEvent` and `SocketMessage` handled
-by `komorebi` using [Unix Domain Sockets](https://devblogs.microsoft.com/commandline/af_unix-comes-to-windows/).
+It is possible to subscribe to notifications of every `WindowManagerEvent` and
+`SocketMessage` handled by `komorebi` using Unix Domain Sockets.
 
 UDS are also the only mode of communication between `komorebi` and `komorebic`.
 
-First, your application must create a socket in `$ENV:LocalAppData\komorebi`. Once the socket has been created, run the
-following command:
+First, your application must create a socket in `$HOME/Library/Application
+Support/komorebi`. Once the socket has been created, run the following command:
 
-```powershell
-komorebic.exe subscribe-socket <your socket name>
+```bash
+komorebic subscribe-socket <your socket name>
 ```
 
 If the socket exists, komorebi will start pushing JSON data of successfully
@@ -310,22 +310,13 @@ pub fn main() -> anyhow::Result<()> {
 }
 ```
 
-A read-world example can be found
-in [komokana](https://github.com/LGUG2Z/komokana/blob/feature/komorebi-uds/src/main.rs).
-
 ## Subscription Event Notification Schema
 
 A [JSON Schema](https://json-schema.org/) of the event notifications emitted to
 subscribers can be generated with the `komorebic notification-schema` command.
-The output of this command can be redirected to the clipboard or a file, which
-can be used with services such as [Quicktype](https://app.quicktype.io/) to
-generate type definitions in different programming languages.
 
 ## Socket Message Schema
 
 A [JSON Schema](https://json-schema.org/) of socket messages used to send
 instructions to `komorebi` can be generated with the `komorebic socket-schema`
-command. The output of this command can be redirected to the clipboard or a
-file, which can be used with services such
-as [Quicktype](https://app.quicktype.io/) to generate type definitions in
-different programming languages.
+command.
