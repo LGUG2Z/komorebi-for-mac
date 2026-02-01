@@ -19,6 +19,7 @@ on:
 
 jobs:
   build:
+    if: github.repository == 'KomoCorp/komorebi-for-mac'
     runs-on: self-hosted
     permissions: write-all
     env:
@@ -35,7 +36,7 @@ jobs:
           path: |
             result/bin/komorebi*
           retention-days: 14
-      - if: ${{ github.ref == 'refs/heads/master' && github.repository == 'KomoCorp/komorebi-for-mac' }}
+      - if: ${{ github.ref == 'refs/heads/master' }}
         uses: exuanbo/actions-deploy-gist@v1
         with:
           token: ${{ secrets.GH_USER_API_TOKEN }}
@@ -52,7 +53,7 @@ jobs:
           git tag -d nightly || true
           git tag nightly
           kokai release --no-emoji --add-links github:commits,issues --ref nightly >"CHANGELOG.md"
-      - if: ${{ github.ref == 'refs/heads/master' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' ) && github.repository == 'KomoCorp/komorebi-for-mac' }}
+      - if: ${{ github.ref == 'refs/heads/master' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' ) }}
         shell: bash
         run: |
           gh release delete nightly --yes || true
@@ -65,7 +66,7 @@ jobs:
             --notes-file CHANGELOG.md \
             komorebi-nightly-aarch64-apple-darwin.zip \
             checksums.txt
-      - if: ${{ github.ref == 'refs/heads/master' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' ) && github.repository == 'KomoCorp/komorebi-for-mac' }}
+      - if: ${{ github.ref == 'refs/heads/master' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' ) }}
         shell: bash
         run: |
           ASSET_ID=$(gh api repos/${{ github.repository }}/releases/tags/nightly \
@@ -78,7 +79,7 @@ jobs:
 
           echo "Asset ID: $ASSET_ID"
           echo "SHA256: $SHA256"
-      - if: ${{ github.ref == 'refs/heads/master' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' ) && github.repository == 'KomoCorp/komorebi-for-mac' }}
+      - if: ${{ github.ref == 'refs/heads/master' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' ) }}
         shell: bash
         env:
           GIT_AUTHOR_NAME: "JeezyBot"
