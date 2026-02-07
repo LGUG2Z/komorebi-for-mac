@@ -965,17 +965,6 @@ in
                       ]
                     );
                   };
-                  auto_select_text = lib.mkOption {
-                    type = (
-                      lib.types.nullOr (
-                        lib.types.oneOf [
-                          (lib.types.nullOr catppuccinValue)
-                          (lib.types.nullOr base16Value)
-                        ]
-                      )
-                    );
-                    default = null;
-                  };
                   colours = lib.mkOption {
                     type = (
                       lib.types.nullOr (
@@ -1047,6 +1036,17 @@ in
                             };
                           };
                         }
+                      )
+                    );
+                    default = null;
+                  };
+                  auto_select_fill = lib.mkOption {
+                    type = (
+                      lib.types.nullOr (
+                        lib.types.oneOf [
+                          (lib.types.nullOr catppuccinValue)
+                          (lib.types.nullOr base16Value)
+                        ]
                       )
                     );
                     default = null;
@@ -1348,7 +1348,7 @@ in
                     );
                     default = null;
                   };
-                  auto_select_fill = lib.mkOption {
+                  auto_select_text = lib.mkOption {
                     type = (
                       lib.types.nullOr (
                         lib.types.oneOf [

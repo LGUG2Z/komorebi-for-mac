@@ -21,21 +21,21 @@ use crate::application::Application;
 use crate::border_manager;
 use crate::cf_array_as;
 use crate::core::ApplicationIdentifier;
+use crate::core::Axis;
+use crate::core::Layout;
+use crate::core::LayoutOptions;
 use crate::core::MoveBehaviour;
+use crate::core::OperationDirection;
+use crate::core::Rect;
+use crate::core::ScrollingLayoutOptions;
 use crate::core::SocketMessage;
 use crate::core::StateQuery;
 use crate::core::WindowContainerBehaviour;
 use crate::core::WindowKind;
-use crate::core::arrangement::Axis;
 use crate::core::config_generation::IdWithIdentifier;
 use crate::core::config_generation::MatchingRule;
 use crate::core::config_generation::MatchingStrategy;
 use crate::core::config_generation::WorkspaceMatchingRule;
-use crate::core::default_layout::LayoutOptions;
-use crate::core::default_layout::ScrollingLayoutOptions;
-use crate::core::layout::Layout;
-use crate::core::operation_direction::OperationDirection;
-use crate::core::rect::Rect;
 use crate::core_graphics::CoreGraphicsApi;
 use crate::current_space_id;
 use crate::macos_api::MacosApi;
@@ -1513,6 +1513,8 @@ impl WindowManager {
                             center_focused_column: Default::default(),
                         }),
                         grid: None,
+                        column_ratios: None,
+                        row_ratios: None,
                     },
                 };
 
@@ -1871,7 +1873,7 @@ pub fn read_commands_uds(
 mod tests {
     use crate::SocketMessage;
     use crate::WindowManagerEvent;
-    use crate::core::rect::Rect;
+    use crate::core::Rect;
     use crate::monitor;
     use crate::window_manager::WindowManager;
     use crossbeam_channel::Receiver;

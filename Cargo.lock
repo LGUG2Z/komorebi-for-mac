@@ -1968,7 +1968,7 @@ dependencies = [
  "palette",
  "rand 0.7.3",
  "serde",
- "serde_yaml",
+ "serde_yaml 0.8.26",
  "shell-words",
  "shellexpand",
  "toml",
@@ -3009,6 +3009,7 @@ dependencies = [
  "dispatch2",
  "ed25519-dalek",
  "hotwatch",
+ "komorebi-layouts",
  "komorebi-themes",
  "lazy_static",
  "nanoid",
@@ -3088,9 +3089,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "komorebi-layouts"
+version = "0.1.40"
+source = "git+https://github.com/LGUG2Z/komorebi?rev=b4f00fbc1257ab858aa4f45c06a8d3f176aee9a0#b4f00fbc1257ab858aa4f45c06a8d3f176aee9a0"
+dependencies = [
+ "clap",
+ "color-eyre",
+ "objc2-core-foundation",
+ "schemars 1.2.1",
+ "serde",
+ "serde_json_lenient",
+ "serde_yaml 0.9.34+deprecated",
+ "strum",
+ "tracing",
+]
+
+[[package]]
 name = "komorebi-themes"
 version = "0.1.40"
-source = "git+https://github.com/LGUG2Z/komorebi?rev=0758c7d9008a8e174ac35f469e53fd8fddd6b672#0758c7d9008a8e174ac35f469e53fd8fddd6b672"
+source = "git+https://github.com/LGUG2Z/komorebi?rev=b4f00fbc1257ab858aa4f45c06a8d3f176aee9a0#b4f00fbc1257ab858aa4f45c06a8d3f176aee9a0"
 dependencies = [
  "base16-egui-themes",
  "catppuccin-egui",
@@ -5456,6 +5473,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde_yaml"
+version = "0.9.34+deprecated"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6a8b1a1a2ebf674015cc02edccce75287f1a0130d394307b36743c2f5d504b47"
+dependencies = [
+ "indexmap 2.13.0",
+ "itoa",
+ "ryu",
+ "serde",
+ "unsafe-libyaml",
+]
+
+[[package]]
 name = "servo-fontconfig"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6326,6 +6356,12 @@ name = "unicode-xid"
 version = "0.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ebc1c04c71510c7f702b52b7c350734c9ff1295c464a03335b00bb84fc54f853"
+
+[[package]]
+name = "unsafe-libyaml"
+version = "0.2.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "673aac59facbab8a9007c7f6108d11f63b603f7cabff99fabf650fea5c32b861"
 
 [[package]]
 name = "untrusted"

@@ -1,5 +1,5 @@
+use crate::core::Rect;
 use crate::core::animation::AnimationStyle;
-use crate::core::rect::Rect;
 
 use super::style::apply_ease_func;
 

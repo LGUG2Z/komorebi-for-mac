@@ -1,11 +1,6 @@
 use crate::animation::AnimationPrefix;
 use crate::core::animation::AnimationStyle;
-use crate::core::arrangement::Axis;
-use crate::core::cycle_direction::CycleDirection;
-use crate::core::default_layout::DefaultLayout;
-use crate::core::operation_direction::OperationDirection;
 use crate::core::pathext::ResolvedPathBuf;
-use crate::core::rect::Rect;
 use clap::ValueEnum;
 use color_eyre::eyre;
 use komorebi_themes::KomorebiTheme;
@@ -17,17 +12,31 @@ use std::str::FromStr;
 use strum::Display;
 use strum::EnumString;
 
+// Re-export types from komorebi-layouts
+pub use komorebi_layouts::Arrangement;
+pub use komorebi_layouts::Axis;
+pub use komorebi_layouts::CycleDirection;
+pub use komorebi_layouts::DEFAULT_RATIO;
+pub use komorebi_layouts::DEFAULT_SECONDARY_RATIO;
+pub use komorebi_layouts::DefaultLayout;
+pub use komorebi_layouts::Direction;
+pub use komorebi_layouts::GridLayoutOptions;
+pub use komorebi_layouts::Layout;
+pub use komorebi_layouts::LayoutOptions;
+pub use komorebi_layouts::MAX_RATIO;
+pub use komorebi_layouts::MAX_RATIOS;
+pub use komorebi_layouts::MIN_RATIO;
+pub use komorebi_layouts::OperationDirection;
+pub use komorebi_layouts::Rect;
+pub use komorebi_layouts::ScrollingLayoutOptions;
+pub use komorebi_layouts::Sizing;
+
+// Keep local modules that aren't in komorebi-layouts
 pub mod animation;
-pub mod arrangement;
 pub mod asc;
 pub mod config_generation;
-pub mod cycle_direction;
-pub mod default_layout;
-pub mod direction;
-pub mod layout;
-pub mod operation_direction;
 pub mod pathext;
-pub mod rect;
+pub mod rect_ext;
 
 #[derive(
     Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize, Display, EnumString, ValueEnum,
@@ -40,29 +49,6 @@ pub enum OperationBehaviour {
     Op,
     /// Ignore commands on temporarily unmanaged/floated windows
     NoOp,
-}
-
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, Display, EnumString, ValueEnum)]
-#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
-pub enum Sizing {
-    Increase,
-    Decrease,
-}
-
-impl Sizing {
-    #[must_use]
-    pub const fn adjust_by(&self, value: i32, adjustment: i32) -> i32 {
-        match self {
-            Self::Increase => value + adjustment,
-            Self::Decrease => {
-                if value > 0 && value - adjustment >= 0 {
-                    value - adjustment
-                } else {
-                    value
-                }
-            }
-        }
-    }
 }
 
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq)]

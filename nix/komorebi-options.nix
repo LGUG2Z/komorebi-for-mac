@@ -647,6 +647,11 @@ in
                                   lib.types.nullOr (
                                     lib.types.submodule {
                                       options = {
+                                        column_ratios = lib.mkOption {
+                                          type = (lib.types.nullOr (lib.types.listOf (lib.types.nullOr lib.types.number)));
+                                          default = null;
+                                          description = "Column width ratios (up to MAX_RATIOS values between 0.1 and 0.9)\n\n- Used by Columns layout: ratios for each column width\n- Used by Grid layout: ratios for column widths\n- Used by BSP, VerticalStack, RightMainVerticalStack: column_ratios[0] as primary split ratio\n- Used by HorizontalStack: column_ratios[0] as primary split ratio (top area height)\n- Used by UltrawideVerticalStack: column_ratios[0] as center ratio, column_ratios[1] as left ratio\n\nColumns without a ratio share remaining space equally.\nExample: `[0.3, 0.4, 0.3]` for 30%-40%-30% columns";
+                                        };
                                         grid = lib.mkOption {
                                           type = (
                                             lib.types.nullOr (
@@ -662,6 +667,11 @@ in
                                           );
                                           default = null;
                                           description = "Options related to the Grid layout";
+                                        };
+                                        row_ratios = lib.mkOption {
+                                          type = (lib.types.nullOr (lib.types.listOf (lib.types.nullOr lib.types.number)));
+                                          default = null;
+                                          description = "Row height ratios (up to MAX_RATIOS values between 0.1 and 0.9)\n\n- Used by Rows layout: ratios for each row height\n- Used by Grid layout: ratios for row heights\n\nRows without a ratio share remaining space equally.\nExample: `[0.5, 0.5]` for 50%-50% rows";
                                         };
                                         scrolling = lib.mkOption {
                                           type = (
@@ -789,7 +799,29 @@ in
                     );
                     default = null;
                   };
-                  bar_accent = lib.mkOption {
+                  stack_border = lib.mkOption {
+                    type = (
+                      lib.types.nullOr (
+                        lib.types.oneOf [
+                          (lib.types.nullOr catppuccinValue)
+                          (lib.types.nullOr base16Value)
+                        ]
+                      )
+                    );
+                    default = null;
+                  };
+                  single_border = lib.mkOption {
+                    type = (
+                      lib.types.nullOr (
+                        lib.types.oneOf [
+                          (lib.types.nullOr catppuccinValue)
+                          (lib.types.nullOr base16Value)
+                        ]
+                      )
+                    );
+                    default = null;
+                  };
+                  unfocused_border = lib.mkOption {
                     type = (
                       lib.types.nullOr (
                         lib.types.oneOf [
@@ -1097,39 +1129,6 @@ in
                     );
                     default = null;
                   };
-                  stack_border = lib.mkOption {
-                    type = (
-                      lib.types.nullOr (
-                        lib.types.oneOf [
-                          (lib.types.nullOr catppuccinValue)
-                          (lib.types.nullOr base16Value)
-                        ]
-                      )
-                    );
-                    default = null;
-                  };
-                  monocle_border = lib.mkOption {
-                    type = (
-                      lib.types.nullOr (
-                        lib.types.oneOf [
-                          (lib.types.nullOr catppuccinValue)
-                          (lib.types.nullOr base16Value)
-                        ]
-                      )
-                    );
-                    default = null;
-                  };
-                  single_border = lib.mkOption {
-                    type = (
-                      lib.types.nullOr (
-                        lib.types.oneOf [
-                          (lib.types.nullOr catppuccinValue)
-                          (lib.types.nullOr base16Value)
-                        ]
-                      )
-                    );
-                    default = null;
-                  };
                   colours = lib.mkOption {
                     type = (
                       lib.types.nullOr (
@@ -1205,7 +1204,18 @@ in
                     );
                     default = null;
                   };
-                  unfocused_border = lib.mkOption {
+                  bar_accent = lib.mkOption {
+                    type = (
+                      lib.types.nullOr (
+                        lib.types.oneOf [
+                          (lib.types.nullOr catppuccinValue)
+                          (lib.types.nullOr base16Value)
+                        ]
+                      )
+                    );
+                    default = null;
+                  };
+                  monocle_border = lib.mkOption {
                     type = (
                       lib.types.nullOr (
                         lib.types.oneOf [

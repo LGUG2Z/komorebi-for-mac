@@ -1,12 +1,12 @@
 use crate::DEFAULT_CONTAINER_PADDING;
 use crate::DEFAULT_WORKSPACE_PADDING;
 use crate::container::Container;
+use crate::core::DefaultLayout;
 use crate::core::FloatingLayerBehaviour;
+use crate::core::Layout;
+use crate::core::OperationDirection;
+use crate::core::Rect;
 use crate::core::WindowHidingPosition;
-use crate::core::default_layout::DefaultLayout;
-use crate::core::layout::Layout;
-use crate::core::operation_direction::OperationDirection;
-use crate::core::rect::Rect;
 use crate::macos_api::MacosApi;
 use crate::ring::Ring;
 use crate::static_config::Wallpaper;
