@@ -1040,6 +1040,17 @@ in
                     );
                     default = null;
                   };
+                  auto_select_text = lib.mkOption {
+                    type = (
+                      lib.types.nullOr (
+                        lib.types.oneOf [
+                          (lib.types.nullOr catppuccinValue)
+                          (lib.types.nullOr base16Value)
+                        ]
+                      )
+                    );
+                    default = null;
+                  };
                   auto_select_fill = lib.mkOption {
                     type = (
                       lib.types.nullOr (
@@ -1343,17 +1354,6 @@ in
                             "Zenbones"
                             "Zenburn"
                           ])
-                        ]
-                      )
-                    );
-                    default = null;
-                  };
-                  auto_select_text = lib.mkOption {
-                    type = (
-                      lib.types.nullOr (
-                        lib.types.oneOf [
-                          (lib.types.nullOr catppuccinValue)
-                          (lib.types.nullOr base16Value)
                         ]
                       )
                     );

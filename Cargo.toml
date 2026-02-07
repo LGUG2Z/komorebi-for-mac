@@ -13,8 +13,8 @@ members = [
 version = "0.1.0"
 
 [workspace.dependencies]
-komorebi-themes = { git = "https://github.com/LGUG2Z/komorebi", rev = "b4f00fbc1257ab858aa4f45c06a8d3f176aee9a0" }
-komorebi-layouts = { git = "https://github.com/LGUG2Z/komorebi", rev = "b4f00fbc1257ab858aa4f45c06a8d3f176aee9a0", features = [
+komorebi-themes = { git = "https://github.com/LGUG2Z/komorebi", rev = "98122bd9d4aabbff927a29228acf6c8a0246c509" }
+komorebi-layouts = { git = "https://github.com/LGUG2Z/komorebi", rev = "98122bd9d4aabbff927a29228acf6c8a0246c509", features = [
   "darwin",
   "schemars",
 ] }
