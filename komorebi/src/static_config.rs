@@ -284,7 +284,13 @@ impl From<&Workspace> for WorkspaceConfig {
                     Layout::Default(layout) => Option::from(layout),
                 })
                 .flatten(),
-            layout_options: value.layout_options,
+            layout_options: {
+                tracing::debug!(
+                    "Parsing workspace config - layout_options: {:?}",
+                    value.layout_options
+                );
+                value.layout_options
+            },
             // custom_layout: value
             //     .workspace_config
             //     .as_ref()
