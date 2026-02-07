@@ -604,6 +604,9 @@ struct EnableAutostart {
     #[clap(action, short, long)]
     #[clap(value_parser = replace_env_in_path)]
     config: Option<PathBuf>,
+    /// Enable autostart of komorebi-bar
+    #[clap(long)]
+    bar: bool,
 }
 
 #[derive(Parser)]
@@ -1606,6 +1609,99 @@ fn main() -> eyre::Result<()> {
                 .args(["load", &*target.to_string_lossy()])
                 .output()?;
             println!("Ran 'launchctl load {}'", target.display());
+
+            if args.bar {
+                let komorebi_bar_exe = current_exe.join("komorebi-bar");
+                let komorebic_exe_for_bar = current_exe.join("komorebic");
+
+                // Create a launcher script that waits for komorebi to be healthy
+                let launcher_script = format!(
+                    r#"#!/bin/sh
+
+# Wait for komorebi to be healthy
+max_attempts=30
+attempt=0
+
+while [ $attempt -lt $max_attempts ]; do
+    if {} state >/dev/null 2>&1; then
+        # komorebi is healthy, start the bar
+        exec {}
+    fi
+    attempt=$((attempt + 1))
+    sleep 1
+done
+
+# If we get here, komorebi failed to start
+echo "komorebi-bar: Timeout waiting for komorebi to become healthy" >&2
+exit 1
+"#,
+                    komorebic_exe_for_bar.to_string_lossy(),
+                    komorebi_bar_exe.to_string_lossy()
+                );
+
+                let launcher_path = DATA_DIR.join("komorebi-bar-launcher.sh");
+                std::fs::write(&launcher_path, &launcher_script)?;
+
+                // Make the script executable
+                #[cfg(unix)]
+                {
+                    use std::os::unix::fs::PermissionsExt;
+                    let mut perms = std::fs::metadata(&launcher_path)?.permissions();
+                    perms.set_mode(0o755);
+                    std::fs::set_permissions(&launcher_path, perms)?;
+                }
+
+                let bar_plist = format!(
+                    r#"<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+        <key>EnvironmentVariables</key>
+        <dict>
+                <key>PATH</key>
+                <string>$HOME/.nix-profile/bin:/etc/profiles/per-user/$USER/bin:/run/current-system/sw/bin:/nix/var/nix/profiles/default/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        </dict>
+        <key>RunAtLoad</key>
+        <true/>
+        <key>KeepAlive</key>
+        <dict>
+                <key>SuccessfulExit</key>
+                <false/>
+        </dict>
+        <key>Label</key>
+        <string>com.lgug2z.komorebi-bar</string>
+        <key>ProcessType</key>
+        <string>Interactive</string>
+        <key>ProgramArguments</key>
+        <array>
+                <string>{}</string>
+        </array>
+        <key>StandardOutPath</key>
+        <string>/tmp/komorebi-bar.out.log</string>
+        <key>StandardErrorPath</key>
+        <string>/tmp/komorebi-bar.err.log</string>
+</dict>
+</plist>"#,
+                    launcher_path.to_string_lossy()
+                );
+
+                let bar_target = dirs::home_dir()
+                    .expect("no $HOME dir")
+                    .join("Library")
+                    .join("LaunchAgents")
+                    .join("com.lgug2z.komorebi-bar.plist");
+
+                std::fs::write(&bar_target, &bar_plist)?;
+                println!(
+                    "Created com.lgug2z.komorebi-bar.plist at {}",
+                    bar_target.display()
+                );
+
+                Command::new("launchctl")
+                    .args(["load", &*bar_target.to_string_lossy()])
+                    .output()?;
+                println!("Ran 'launchctl load {}'", bar_target.display());
+            }
         }
         SubCommand::DisableAutostart => {
             let target = dirs::home_dir()
@@ -1620,6 +1716,29 @@ fn main() -> eyre::Result<()> {
             println!("Ran 'launchctl unload {}'", target.display());
             std::fs::remove_file(&target)?;
             println!("Deleted {}", target.display());
+
+            // Also remove bar plist if it exists
+            let bar_target = dirs::home_dir()
+                .expect("no $HOME dir")
+                .join("Library")
+                .join("LaunchAgents")
+                .join("com.lgug2z.komorebi-bar.plist");
+
+            if bar_target.exists() {
+                Command::new("launchctl")
+                    .args(["unload", &*bar_target.to_string_lossy()])
+                    .output()?;
+                println!("Ran 'launchctl unload {}'", bar_target.display());
+                std::fs::remove_file(&bar_target)?;
+                println!("Deleted {}", bar_target.display());
+            }
+
+            // Clean up launcher script if it exists
+            let launcher_path = DATA_DIR.join("komorebi-bar-launcher.sh");
+            if launcher_path.exists() {
+                std::fs::remove_file(&launcher_path)?;
+                println!("Deleted {}", launcher_path.display());
+            }
         }
         SubCommand::Start(args) => {
             let mut command = &mut Command::new("komorebi");
