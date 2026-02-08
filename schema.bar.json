@@ -71,7 +71,7 @@
       "default": 1.4
     },
     "left_widgets": {
-      "description": "Options for mouse interaction on the bar\nLeft side widgets (ordered left-to-right)",
+      "description": "Left side widgets (ordered left-to-right)",
       "type": "array",
       "items": {
         "$ref": "#/$defs/WidgetConfig"

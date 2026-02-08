@@ -99,7 +99,7 @@ pub struct KomobarConfig {
     pub widget_spacing: Option<f32>,
     /// Visual grouping for widgets
     pub grouping: Option<Grouping>,
-    /// Options for mouse interaction on the bar
+    // /// Options for mouse interaction on the bar
     // pub mouse: Option<MouseConfig>,
     /// Left side widgets (ordered left-to-right)
     pub left_widgets: Vec<WidgetConfig>,
