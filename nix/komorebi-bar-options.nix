@@ -861,7 +861,7 @@ in
         };
         left_widgets = lib.mkOption {
           type = (lib.types.listOf widgetConfig);
-          description = "Options for mouse interaction on the bar\nLeft side widgets (ordered left-to-right)";
+          description = "Left side widgets (ordered left-to-right)";
         };
         margin = lib.mkOption {
           type = (lib.types.nullOr spacingKind);
@@ -965,6 +965,17 @@ in
                       ]
                     );
                   };
+                  auto_select_text = lib.mkOption {
+                    type = (
+                      lib.types.nullOr (
+                        lib.types.oneOf [
+                          (lib.types.nullOr catppuccinValue)
+                          (lib.types.nullOr base16Value)
+                        ]
+                      )
+                    );
+                    default = null;
+                  };
                   colours = lib.mkOption {
                     type = (
                       lib.types.nullOr (
@@ -1036,17 +1047,6 @@ in
                             };
                           };
                         }
-                      )
-                    );
-                    default = null;
-                  };
-                  auto_select_text = lib.mkOption {
-                    type = (
-                      lib.types.nullOr (
-                        lib.types.oneOf [
-                          (lib.types.nullOr catppuccinValue)
-                          (lib.types.nullOr base16Value)
-                        ]
                       )
                     );
                     default = null;
