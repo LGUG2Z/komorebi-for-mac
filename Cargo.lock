@@ -3091,7 +3091,7 @@ dependencies = [
 [[package]]
 name = "komorebi-layouts"
 version = "0.1.40"
-source = "git+https://github.com/LGUG2Z/komorebi?rev=98122bd9d4aabbff927a29228acf6c8a0246c509#98122bd9d4aabbff927a29228acf6c8a0246c509"
+source = "git+https://github.com/LGUG2Z/komorebi?rev=c165172b5a636f383739a99dc51a35fe4a3a77ef#c165172b5a636f383739a99dc51a35fe4a3a77ef"
 dependencies = [
  "clap",
  "color-eyre",

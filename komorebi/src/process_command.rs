@@ -36,6 +36,7 @@ use crate::core::config_generation::IdWithIdentifier;
 use crate::core::config_generation::MatchingRule;
 use crate::core::config_generation::MatchingStrategy;
 use crate::core::config_generation::WorkspaceMatchingRule;
+
 use crate::core_graphics::CoreGraphicsApi;
 use crate::current_space_id;
 use crate::macos_api::MacosApi;
@@ -1517,6 +1518,29 @@ impl WindowManager {
                         row_ratios: None,
                     },
                 };
+
+                focused_workspace.layout_options = Some(options);
+                self.update_focused_workspace(false, false)?;
+            }
+            SocketMessage::LayoutRatios(ref columns, ref rows) => {
+                use crate::core::validate_ratios;
+
+                let focused_workspace = self.focused_workspace_mut()?;
+
+                let mut options = focused_workspace.layout_options.unwrap_or(LayoutOptions {
+                    scrolling: None,
+                    grid: None,
+                    column_ratios: None,
+                    row_ratios: None,
+                });
+
+                if let Some(cols) = columns {
+                    options.column_ratios = Some(validate_ratios(cols));
+                }
+
+                if let Some(rws) = rows {
+                    options.row_ratios = Some(validate_ratios(rws));
+                }
 
                 focused_workspace.layout_options = Some(options);
                 self.update_focused_workspace(false, false)?;

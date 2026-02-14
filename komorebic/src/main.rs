@@ -622,6 +622,16 @@ struct ScrollingLayoutColumns {
 }
 
 #[derive(Parser)]
+struct LayoutRatios {
+    /// Column width ratios (space-separated values between 0.1 and 0.9)
+    #[clap(short, long, num_args = 1..)]
+    columns: Option<Vec<f32>>,
+    /// Row height ratios (space-separated values between 0.1 and 0.9)
+    #[clap(short, long, num_args = 1..)]
+    rows: Option<Vec<f32>>,
+}
+
+#[derive(Parser)]
 struct Border {
     #[clap(value_enum)]
     boolean_state: BooleanState,
@@ -969,6 +979,8 @@ enum SubCommand {
     /// Set the number of visible columns for the Scrolling layout on the focused workspace
     #[clap(arg_required_else_help = true)]
     ScrollingLayoutColumns(ScrollingLayoutColumns),
+    /// Set the layout column and row ratios for the focused workspace
+    LayoutRatios(LayoutRatios),
     // /// Load a custom layout from file for the focused workspace
     // #[clap(hide = true)]
     // #[clap(arg_required_else_help = true)]
@@ -2336,6 +2348,15 @@ exit 1
         }
         SubCommand::ScrollingLayoutColumns(args) => {
             send_message(&SocketMessage::ScrollingLayoutColumns(args.count))?;
+        }
+        SubCommand::LayoutRatios(args) => {
+            if args.columns.is_none() && args.rows.is_none() {
+                println!(
+                    "No ratios provided, nothing to change. Use --columns or --rows to specify ratios."
+                );
+            } else {
+                send_message(&SocketMessage::LayoutRatios(args.columns, args.rows))?;
+            }
         }
         SubCommand::ClearWorkspaceLayoutRules(args) => {
             send_message(&SocketMessage::ClearWorkspaceLayoutRules(
