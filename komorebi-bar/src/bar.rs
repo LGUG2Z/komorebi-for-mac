@@ -1009,14 +1009,15 @@ impl eframe::App for Komobar {
             self.applied_theme_on_first_frame = true;
         }
 
-        // Check if egui's Window size is the expected one, if not, update it
+        // Check if egui's Window size is the expected one, if not, update it.
+        // Note: outer_rect is in logical pixels (same coordinate space as size_rect),
+        // so no scale_factor conversion is needed here.
         if let Some(current_rect) = ctx.input(|i| i.viewport().outer_rect) {
-            // Get the correct size according to scale factor
             let current_rect = komorebi_client::Rect {
-                left: (current_rect.min.x * self.scale_factor) as i32,
-                top: (current_rect.min.y * self.scale_factor) as i32,
-                right: ((current_rect.max.x - current_rect.min.x) * self.scale_factor) as i32,
-                bottom: ((current_rect.max.y - current_rect.min.y) * self.scale_factor) as i32,
+                left: current_rect.min.x as i32,
+                top: current_rect.min.y as i32,
+                right: (current_rect.max.x - current_rect.min.x) as i32,
+                bottom: (current_rect.max.y - current_rect.min.y) as i32,
             };
 
             if self.size_rect != current_rect {
