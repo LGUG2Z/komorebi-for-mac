@@ -407,7 +407,7 @@ impl WorkspacesBar {
                 // 2: Show icons, with no fallback | Label workspace name (no hover)
                 AllIconsAndText | Existing(DisplayFormat::IconAndText) => |bar, ctx, ui, ws| {
                     bar.show_icons(ctx, ui, ws);
-                    Self::show_label(ctx, ui, ws);
+                    bar.show_label(ctx, ui, ws);
                 },
                 // 3: Show icons, fallback if no icons and not selected | Label workspace name if selected else hover
                 AllIconsAndTextOnSelected | Existing(DisplayFormat::IconAndTextOnSelected) => {
@@ -416,7 +416,7 @@ impl WorkspacesBar {
                             bar.show_fallback_icon(ctx, ui, ws);
                         }
                         if ws.is_selected {
-                            Self::show_label(ctx, ui, ws);
+                            bar.show_label(ctx, ui, ws);
                         } else {
                             ui.response().on_hover_text(&ws.name);
                         }
@@ -427,11 +427,11 @@ impl WorkspacesBar {
                     if ws.is_selected {
                         bar.show_icons(ctx, ui, ws);
                     }
-                    Self::show_label(ctx, ui, ws);
+                    bar.show_label(ctx, ui, ws);
                 },
                 // 5: Never show icon (no icons at all) | Label workspace name always
-                Existing(DisplayFormat::Text) => |_, ctx, ui, ws| {
-                    Self::show_label(ctx, ui, ws);
+                Existing(DisplayFormat::Text) => |bar, ctx, ui, ws| {
+                    bar.show_label(ctx, ui, ws);
                 },
             };
 
@@ -469,33 +469,45 @@ impl WorkspacesBar {
 
     /// Draws a fallback icon (a rectangle with a diagonal) for the workspace.
     fn show_fallback_icon(&self, ctx: &Context, ui: &mut Ui, ws: &WorkspaceInfo) -> Response {
-        let (response, painter) = ui.allocate_painter(self.icon_size, Sense::hover());
-        let stroke: Stroke = Stroke::new(
-            1.0,
-            if ws.is_selected {
-                ctx.style().visuals.selection.stroke.color
-            } else {
-                ui.style().visuals.text_color()
-            },
-        );
-        let mut rect = response.rect;
-        let rounding = CornerRadius::same((rect.width() * 0.1) as u8);
-        rect = rect.shrink(stroke.width);
-        let c = rect.center();
-        let r = rect.width() / 2.0;
-        painter.rect_stroke(rect, rounding, stroke, StrokeKind::Outside);
-        painter.line_segment([c - vec2(r, r), c + vec2(r, r)], stroke);
-        response
+        Frame::NONE
+            .inner_margin(Margin::same(ui.style().spacing.button_padding.y as i8))
+            .show(ui, |ui| {
+                let (response, painter) = ui.allocate_painter(self.icon_size, Sense::hover());
+                let stroke: Stroke = Stroke::new(
+                    1.0,
+                    if ws.is_selected {
+                        ctx.style().visuals.selection.stroke.color
+                    } else {
+                        ui.style().visuals.text_color()
+                    },
+                );
+                let mut rect = response.rect;
+                let rounding = CornerRadius::same((rect.width() * 0.1) as u8);
+                rect = rect.shrink(stroke.width);
+                let c = rect.center();
+                let r = rect.width() / 2.0;
+                painter.rect_stroke(rect, rounding, stroke, StrokeKind::Outside);
+                painter.line_segment([c - vec2(r, r), c + vec2(r, r)], stroke);
+                response
+            })
+            .inner
     }
 
     /// Shows the workspace label (colored if selected).
-    fn show_label(ctx: &Context, ui: &mut Ui, ws: &WorkspaceInfo) -> Response {
-        if ws.is_selected {
-            let text = RichText::new(&ws.name).color(ctx.style().visuals.selection.stroke.color);
-            ui.add(Label::new(text).selectable(false))
-        } else {
-            ui.add(Label::new(&ws.name).selectable(false))
-        }
+    fn show_label(&self, ctx: &Context, ui: &mut Ui, ws: &WorkspaceInfo) -> Response {
+        Frame::NONE
+            .inner_margin(Margin::same(ui.style().spacing.button_padding.y as i8))
+            .show(ui, |ui| {
+                ui.set_min_height(self.icon_size.y);
+                if ws.is_selected {
+                    let text =
+                        RichText::new(&ws.name).color(ctx.style().visuals.selection.stroke.color);
+                    ui.add(Label::new(text).selectable(false))
+                } else {
+                    ui.add(Label::new(&ws.name).selectable(false))
+                }
+            })
+            .inner
     }
 }
 
