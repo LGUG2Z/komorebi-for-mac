@@ -47,9 +47,8 @@ public repository where versioned releases will be published.
 private repository available to certain GitHub Sponsors tiers where ongoing
 development work happens and nightly releases are made available.
 
-If you are reading this sentence on the public repository, _komorebi for Mac_
-has still not had its first versioned release. If you would like to try out this
-initial public snapshot, you can `brew install lgug2z/tap/komorebi-for-mac` or [build from
+You can try the latest public release with `brew install
+lgug2z/tap/komorebi-for-mac` or [build from
 source](https://komorebi-starlight.lgug2z.workers.dev/guides/installation/#building-from-source),
 and then follow the
 [quickstart](https://komorebi-starlight.lgug2z.workers.dev/guides/quickstart/).

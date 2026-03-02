@@ -3032,7 +3032,7 @@ checksum = "e2db585e1d738fc771bf08a151420d3ed193d9d895a36df7f6f8a9456b911ddc"
 
 [[package]]
 name = "komorebi"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "base64",
  "block2 0.6.2",
@@ -3079,7 +3079,7 @@ dependencies = [
 
 [[package]]
 name = "komorebi-bar"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "chrono",
  "chrono-tz",
@@ -3118,7 +3118,7 @@ dependencies = [
 
 [[package]]
 name = "komorebi-client"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "komorebi",
  "komorebi-themes",
@@ -3159,7 +3159,7 @@ dependencies = [
 
 [[package]]
 name = "komorebic"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "chrono",
  "clap",
