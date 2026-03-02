@@ -67,7 +67,7 @@ jobs:
         run: |
           kokai release --no-emoji --add-links github:commits,issues --ref ${{ inputs.tag }} > CHANGELOG.md
 
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: komorebi-aarch64-apple-darwin-${{ inputs.tag }}
           path: |

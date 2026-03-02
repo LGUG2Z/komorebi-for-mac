@@ -30,7 +30,7 @@ jobs:
           fetch-depth: 0
       - run: nix flake check
       - run: nix build
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: komorebi-aarch64-apple-darwin-${{ github.sha }}
           path: |
