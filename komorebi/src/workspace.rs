@@ -2554,8 +2554,8 @@ mod tests {
 
     #[test]
     fn test_layout_boundary_clamping() {
-        use crate::core::default_layout::DefaultLayout;
-        use crate::core::rect::Rect;
+        use crate::core::Rect;
+        use komorebi_layouts::default_layout::DefaultLayout;
         use std::num::NonZeroUsize;
 
         // Simulate an ultrawide monitor at 5120px width

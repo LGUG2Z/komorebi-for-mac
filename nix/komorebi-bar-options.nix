@@ -965,103 +965,6 @@ in
                       ]
                     );
                   };
-                  auto_select_text = lib.mkOption {
-                    type = (
-                      lib.types.nullOr (
-                        lib.types.oneOf [
-                          (lib.types.nullOr catppuccinValue)
-                          (lib.types.nullOr base16Value)
-                        ]
-                      )
-                    );
-                    default = null;
-                  };
-                  accent = lib.mkOption {
-                    type = (
-                      lib.types.nullOr (
-                        lib.types.oneOf [
-                          (lib.types.nullOr catppuccinValue)
-                          (lib.types.nullOr base16Value)
-                        ]
-                      )
-                    );
-                    default = null;
-                  };
-                  colours = lib.mkOption {
-                    type = (
-                      lib.types.nullOr (
-                        lib.types.submodule {
-                          options = {
-                            base_00 = lib.mkOption {
-                              type = colour;
-                              description = "Base00";
-                            };
-                            base_01 = lib.mkOption {
-                              type = colour;
-                              description = "Base01";
-                            };
-                            base_02 = lib.mkOption {
-                              type = colour;
-                              description = "Base02";
-                            };
-                            base_03 = lib.mkOption {
-                              type = colour;
-                              description = "Base03";
-                            };
-                            base_04 = lib.mkOption {
-                              type = colour;
-                              description = "Base04";
-                            };
-                            base_05 = lib.mkOption {
-                              type = colour;
-                              description = "Base05";
-                            };
-                            base_06 = lib.mkOption {
-                              type = colour;
-                              description = "Base06";
-                            };
-                            base_07 = lib.mkOption {
-                              type = colour;
-                              description = "Base07";
-                            };
-                            base_08 = lib.mkOption {
-                              type = colour;
-                              description = "Base08";
-                            };
-                            base_09 = lib.mkOption {
-                              type = colour;
-                              description = "Base09";
-                            };
-                            base_0a = lib.mkOption {
-                              type = colour;
-                              description = "Base0A";
-                            };
-                            base_0b = lib.mkOption {
-                              type = colour;
-                              description = "Base0B";
-                            };
-                            base_0c = lib.mkOption {
-                              type = colour;
-                              description = "Base0C";
-                            };
-                            base_0d = lib.mkOption {
-                              type = colour;
-                              description = "Base0D";
-                            };
-                            base_0e = lib.mkOption {
-                              type = colour;
-                              description = "Base0E";
-                            };
-                            base_0f = lib.mkOption {
-                              type = colour;
-                              description = "Base0F";
-                            };
-                          };
-                        }
-                      )
-                    );
-                    default = null;
-                  };
                   name = lib.mkOption {
                     type = (
                       lib.types.nullOr (
@@ -1348,7 +1251,104 @@ in
                     );
                     default = null;
                   };
+                  auto_select_text = lib.mkOption {
+                    type = (
+                      lib.types.nullOr (
+                        lib.types.oneOf [
+                          (lib.types.nullOr catppuccinValue)
+                          (lib.types.nullOr base16Value)
+                        ]
+                      )
+                    );
+                    default = null;
+                  };
+                  colours = lib.mkOption {
+                    type = (
+                      lib.types.nullOr (
+                        lib.types.submodule {
+                          options = {
+                            base_00 = lib.mkOption {
+                              type = colour;
+                              description = "Base00";
+                            };
+                            base_01 = lib.mkOption {
+                              type = colour;
+                              description = "Base01";
+                            };
+                            base_02 = lib.mkOption {
+                              type = colour;
+                              description = "Base02";
+                            };
+                            base_03 = lib.mkOption {
+                              type = colour;
+                              description = "Base03";
+                            };
+                            base_04 = lib.mkOption {
+                              type = colour;
+                              description = "Base04";
+                            };
+                            base_05 = lib.mkOption {
+                              type = colour;
+                              description = "Base05";
+                            };
+                            base_06 = lib.mkOption {
+                              type = colour;
+                              description = "Base06";
+                            };
+                            base_07 = lib.mkOption {
+                              type = colour;
+                              description = "Base07";
+                            };
+                            base_08 = lib.mkOption {
+                              type = colour;
+                              description = "Base08";
+                            };
+                            base_09 = lib.mkOption {
+                              type = colour;
+                              description = "Base09";
+                            };
+                            base_0a = lib.mkOption {
+                              type = colour;
+                              description = "Base0A";
+                            };
+                            base_0b = lib.mkOption {
+                              type = colour;
+                              description = "Base0B";
+                            };
+                            base_0c = lib.mkOption {
+                              type = colour;
+                              description = "Base0C";
+                            };
+                            base_0d = lib.mkOption {
+                              type = colour;
+                              description = "Base0D";
+                            };
+                            base_0e = lib.mkOption {
+                              type = colour;
+                              description = "Base0E";
+                            };
+                            base_0f = lib.mkOption {
+                              type = colour;
+                              description = "Base0F";
+                            };
+                          };
+                        }
+                      )
+                    );
+                    default = null;
+                  };
                   auto_select_fill = lib.mkOption {
+                    type = (
+                      lib.types.nullOr (
+                        lib.types.oneOf [
+                          (lib.types.nullOr catppuccinValue)
+                          (lib.types.nullOr base16Value)
+                        ]
+                      )
+                    );
+                    default = null;
+                  };
+                  accent = lib.mkOption {
                     type = (
                       lib.types.nullOr (
                         lib.types.oneOf [
