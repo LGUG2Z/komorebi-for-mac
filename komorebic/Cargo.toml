@@ -16,14 +16,14 @@ dirs = { workspace = true }
 fs-tail = "0.1"
 lazy_static = { workspace = true }
 pastey = { workspace = true }
-reqwest = { version = "0.12", features = ["blocking"] }
+reqwest = { version = "0.13", features = ["blocking"] }
 schemars = { workspace = true, optional = true }
 serde_json = { workspace = true }
 shadow-rs = { workspace = true }
 sysinfo = { workspace = true }
 
 [build-dependencies]
-reqwest = { version = "0.12", features = ["blocking"] }
+reqwest = { version = "0.13", features = ["blocking"] }
 shadow-rs = { workspace = true }
 
 [features]
