@@ -509,12 +509,19 @@ impl WindowManager {
 
         tracing::info!("focusing container");
 
-        let new_idx =
-            if workspace.maximized_window.is_some() || workspace.monocle_container.is_some() {
-                None
-            } else {
-                workspace.new_idx_for_direction(direction)
+        if workspace.monocle_container.is_some() {
+            let cycle_direction = match direction {
+                OperationDirection::Left | OperationDirection::Down => CycleDirection::Previous,
+                OperationDirection::Right | OperationDirection::Up => CycleDirection::Next,
             };
+            return self.cycle_monocle(cycle_direction);
+        }
+
+        let new_idx = if workspace.maximized_window.is_some() {
+            None
+        } else {
+            workspace.new_idx_for_direction(direction)
+        };
 
         let mut cross_monitor_monocle_or_max = false;
 
@@ -1352,6 +1359,29 @@ impl WindowManager {
         }
 
         workspace.reintegrate_monocle_container()
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn cycle_monocle(&mut self, direction: CycleDirection) -> eyre::Result<()> {
+        tracing::info!("cycling monocle container");
+
+        if self.focused_workspace()?.containers().is_empty() {
+            return Ok(());
+        }
+
+        let hiding_position = self
+            .focused_monitor()
+            .ok_or_eyre("there is no monitor")?
+            .window_hiding_position;
+
+        self.focused_workspace_mut()?
+            .cycle_monocle_container(direction)?;
+
+        for container in self.focused_workspace_mut()?.containers_mut() {
+            container.hide(hiding_position, None)?;
+        }
+
+        self.update_focused_workspace(true, true)
     }
 
     #[tracing::instrument(skip(self))]

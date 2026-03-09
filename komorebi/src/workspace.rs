@@ -934,6 +934,23 @@ impl Workspace {
         Ok(())
     }
 
+    pub fn cycle_monocle_container(&mut self, direction: CycleDirection) -> eyre::Result<()> {
+        if self.containers().is_empty() {
+            return Ok(());
+        }
+
+        self.reintegrate_monocle_container()?;
+
+        let new_idx = self
+            .new_idx_for_cycle_direction(direction)
+            .ok_or_eyre("there is no container to cycle monocle to")?;
+
+        self.focus_container(new_idx);
+        self.new_monocle_container()?;
+
+        Ok(())
+    }
+
     pub fn reintegrate_monocle_container(&mut self) -> eyre::Result<()> {
         let window_hiding_position = self.globals.window_hiding_position;
 
