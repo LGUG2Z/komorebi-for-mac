@@ -58,6 +58,7 @@ pub struct Workspace {
     pub resize_dimensions: Vec<Option<Rect>>,
     pub tile: bool,
     pub work_area_offset: Option<Rect>,
+    pub work_area_offset_rules: Vec<(usize, Rect)>,
     pub apply_window_based_work_area_offset: bool,
     pub window_container_behaviour: Option<WindowContainerBehaviour>,
     pub window_container_behaviour_rules: Option<Vec<(usize, WindowContainerBehaviour)>>,
@@ -109,6 +110,7 @@ impl Default for Workspace {
             resize_dimensions: vec![],
             layout: Layout::Default(DefaultLayout::BSP),
             work_area_offset: None,
+            work_area_offset_rules: vec![],
             latest_layout: vec![],
             layout_flip: None,
             layout_options: None,
@@ -181,6 +183,17 @@ impl Workspace {
         self.layout_rules = all_layout_rules.clone();
 
         self.work_area_offset = config.work_area_offset;
+
+        let mut all_work_area_offset_rules = vec![];
+        if let Some(work_area_offset_rules) = &config.work_area_offset_rules {
+            for (count, rect) in work_area_offset_rules {
+                all_work_area_offset_rules.push((*count, *rect));
+            }
+
+            all_work_area_offset_rules.sort_by_key(|(i, _)| *i);
+        }
+
+        self.work_area_offset_rules = all_work_area_offset_rules;
 
         self.apply_window_based_work_area_offset =
             config.apply_window_based_work_area_offset.unwrap_or(true);
@@ -1155,7 +1168,25 @@ impl Workspace {
         let border_width = self.globals.border_width;
         let border_offset = self.globals.border_offset;
         let work_area = self.globals.work_area;
-        let work_area_offset = self.work_area_offset.or(self.globals.work_area_offset);
+        let mut rules_work_area_offset = None;
+
+        if !self.work_area_offset_rules.is_empty() {
+            let count = if self.monocle_container.is_some() {
+                1
+            } else {
+                self.containers().len()
+            };
+
+            for (threshold, work_area_offset_rule) in &self.work_area_offset_rules {
+                if count >= *threshold {
+                    rules_work_area_offset = Some(*work_area_offset_rule);
+                }
+            }
+        };
+
+        let work_area_offset = rules_work_area_offset
+            .or(self.work_area_offset)
+            .or(self.globals.work_area_offset);
         let window_based_work_area_offset = self.globals.window_based_work_area_offset;
         let window_based_work_area_offset_limit = self.globals.window_based_work_area_offset_limit;
 

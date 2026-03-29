@@ -128,6 +128,7 @@ impl From<&WindowManager> for State {
                             resize_dimensions: workspace.resize_dimensions.clone(),
                             tile: workspace.tile,
                             work_area_offset: workspace.work_area_offset,
+                            work_area_offset_rules: workspace.work_area_offset_rules.clone(),
                             apply_window_based_work_area_offset: workspace
                                 .apply_window_based_work_area_offset,
                             window_container_behaviour: workspace.window_container_behaviour,
