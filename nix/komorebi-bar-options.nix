@@ -704,6 +704,20 @@ let
                     default = true;
                     description = "Show removable disks";
                   };
+                  storage_display_name = lib.mkOption {
+                    type = (
+                      lib.types.nullOr (
+                        lib.types.enum [
+                          "Mount"
+                          "Name"
+                          "MountAndName"
+                          "NameAndMount"
+                        ]
+                      )
+                    );
+                    default = null;
+                    description = "Storage display name";
+                  };
                 };
               }
             )
@@ -1262,6 +1276,17 @@ in
                     );
                     default = null;
                   };
+                  auto_select_fill = lib.mkOption {
+                    type = (
+                      lib.types.nullOr (
+                        lib.types.oneOf [
+                          (lib.types.nullOr catppuccinValue)
+                          (lib.types.nullOr base16Value)
+                        ]
+                      )
+                    );
+                    default = null;
+                  };
                   colours = lib.mkOption {
                     type = (
                       lib.types.nullOr (
@@ -1333,17 +1358,6 @@ in
                             };
                           };
                         }
-                      )
-                    );
-                    default = null;
-                  };
-                  auto_select_fill = lib.mkOption {
-                    type = (
-                      lib.types.nullOr (
-                        lib.types.oneOf [
-                          (lib.types.nullOr catppuccinValue)
-                          (lib.types.nullOr base16Value)
-                        ]
                       )
                     );
                     default = null;

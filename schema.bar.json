@@ -3434,10 +3434,45 @@
             "null"
           ],
           "default": true
+        },
+        "storage_display_name": {
+          "description": "Storage display name",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StorageDisplayName"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [
         "enable"
+      ]
+    },
+    "StorageDisplayName": {
+      "oneOf": [
+        {
+          "description": "Display label as mount point eg. /",
+          "type": "string",
+          "const": "Mount"
+        },
+        {
+          "description": "Display label as name eg. Macintosh HD",
+          "type": "string",
+          "const": "Name"
+        },
+        {
+          "description": "Display label as mount then name eg. / Macintosh HD",
+          "type": "string",
+          "const": "MountAndName"
+        },
+        {
+          "description": "Display label as name then mount eg. Macintosh HD /",
+          "type": "string",
+          "const": "NameAndMount"
+        }
       ]
     },
     "TimeConfig": {
