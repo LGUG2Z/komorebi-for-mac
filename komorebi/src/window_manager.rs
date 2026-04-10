@@ -924,11 +924,23 @@ impl WindowManager {
             .ok_or_eyre("there is no monitor")?
             .update_focused_workspace(offset)?;
 
-        if follow_focus
-            && let Ok(window) = self.focused_window_mut()
-            && trigger_focus
-        {
-            window.focus(mouse_follows_focus)?;
+        if follow_focus && trigger_focus {
+            // When a monocle container is active, workspace.update() already positioned it at
+            // the work area. Focus that window directly so the cursor follows the monocle
+            // window's actual on-screen position, not a hidden tiling container at the hiding
+            // corner.
+            let monocle_window = self
+                .focused_workspace_mut()?
+                .monocle_container
+                .as_mut()
+                .and_then(|c| c.focused_window_mut())
+                .cloned();
+
+            if let Some(window) = monocle_window {
+                window.focus(mouse_follows_focus)?;
+            } else if let Ok(window) = self.focused_window_mut() {
+                window.focus(mouse_follows_focus)?;
+            }
         }
 
         Ok(())
