@@ -1054,7 +1054,7 @@ in
                     );
                     default = null;
                   };
-                  accent = lib.mkOption {
+                  auto_select_fill = lib.mkOption {
                     type = (
                       lib.types.nullOr (
                         lib.types.oneOf [
@@ -1065,7 +1065,7 @@ in
                     );
                     default = null;
                   };
-                  auto_select_fill = lib.mkOption {
+                  accent = lib.mkOption {
                     type = (
                       lib.types.nullOr (
                         lib.types.oneOf [
