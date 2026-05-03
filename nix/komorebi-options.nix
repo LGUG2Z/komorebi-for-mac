@@ -176,6 +176,59 @@ let
       };
     }
   );
+  layoutOptions = (
+    lib.types.submodule {
+      options = {
+        column_ratios = lib.mkOption {
+          type = (lib.types.nullOr (lib.types.listOf (lib.types.nullOr lib.types.number)));
+          default = null;
+          description = "Column width ratios (up to MAX_RATIOS values between 0.1 and 0.9)\n\n- Used by Columns layout: ratios for each column width\n- Used by Grid layout: ratios for column widths\n- Used by BSP, VerticalStack, RightMainVerticalStack: column_ratios[0] as primary split ratio\n- Used by HorizontalStack: column_ratios[0] as primary split ratio (top area height)\n- Used by UltrawideVerticalStack: column_ratios[0] as center ratio, column_ratios[1] as left ratio\n\nColumns without a ratio share remaining space equally.\nExample: `[0.3, 0.4, 0.3]` for 30%-40%-30% columns";
+        };
+        grid = lib.mkOption {
+          type = (
+            lib.types.nullOr (
+              lib.types.submodule {
+                options = {
+                  rows = lib.mkOption {
+                    type = lib.types.int;
+                    description = "Maximum number of rows per grid column";
+                  };
+                };
+              }
+            )
+          );
+          default = null;
+          description = "Options related to the Grid layout";
+        };
+        row_ratios = lib.mkOption {
+          type = (lib.types.nullOr (lib.types.listOf (lib.types.nullOr lib.types.number)));
+          default = null;
+          description = "Row height ratios (up to MAX_RATIOS values between 0.1 and 0.9)\n\n- Used by Rows layout: ratios for each row height\n- Used by Grid layout: ratios for row heights\n\nRows without a ratio share remaining space equally.\nExample: `[0.5, 0.5]` for 50%-50% rows";
+        };
+        scrolling = lib.mkOption {
+          type = (
+            lib.types.nullOr (
+              lib.types.submodule {
+                options = {
+                  center_focused_column = lib.mkOption {
+                    type = (lib.types.nullOr lib.types.bool);
+                    default = null;
+                    description = "With an odd number of visible columns, keep the focused window column centered";
+                  };
+                  columns = lib.mkOption {
+                    type = lib.types.int;
+                    description = "Desired number of visible columns (default: 3)";
+                  };
+                };
+              }
+            )
+          );
+          default = null;
+          description = "Options related to the Scrolling layout";
+        };
+      };
+    }
+  );
   matchingRule = (
     lib.types.oneOf [
       idWithIdentifier
@@ -536,6 +589,30 @@ in
           default = null;
           description = "Individual window floating rules";
         };
+        layout_defaults = lib.mkOption {
+          type = (
+            lib.types.nullOr (
+              lib.types.attrsOf (
+                lib.types.submodule {
+                  options = {
+                    layout_options = lib.mkOption {
+                      type = (lib.types.nullOr layoutOptions);
+                      default = null;
+                      description = "Default layout options for this layout";
+                    };
+                    layout_options_rules = lib.mkOption {
+                      type = (lib.types.nullOr (lib.types.attrsOf layoutOptions));
+                      default = null;
+                      description = "Threshold-based layout options rules in the format of threshold => options.\nWhen container count >= threshold, the highest matching threshold's options\nfully replace the base `layout_options`.";
+                    };
+                  };
+                }
+              )
+            )
+          );
+          default = null;
+          description = "Per-layout default options and rules, keyed by layout name.\nApplied as fallback when a workspace does not define its own layout_options or layout_options_rules.\nIf a workspace defines either setting, all global defaults for that layout are completely replaced.";
+        };
         manage_rules = lib.mkOption {
           type = (lib.types.nullOr (lib.types.listOf matchingRule));
           default = null;
@@ -643,63 +720,14 @@ in
                                 description = "Specify an axis on which to flip the selected layout";
                               };
                               layout_options = lib.mkOption {
-                                type = (
-                                  lib.types.nullOr (
-                                    lib.types.submodule {
-                                      options = {
-                                        column_ratios = lib.mkOption {
-                                          type = (lib.types.nullOr (lib.types.listOf (lib.types.nullOr lib.types.number)));
-                                          default = null;
-                                          description = "Column width ratios (up to MAX_RATIOS values between 0.1 and 0.9)\n\n- Used by Columns layout: ratios for each column width\n- Used by Grid layout: ratios for column widths\n- Used by BSP, VerticalStack, RightMainVerticalStack: column_ratios[0] as primary split ratio\n- Used by HorizontalStack: column_ratios[0] as primary split ratio (top area height)\n- Used by UltrawideVerticalStack: column_ratios[0] as center ratio, column_ratios[1] as left ratio\n\nColumns without a ratio share remaining space equally.\nExample: `[0.3, 0.4, 0.3]` for 30%-40%-30% columns";
-                                        };
-                                        grid = lib.mkOption {
-                                          type = (
-                                            lib.types.nullOr (
-                                              lib.types.submodule {
-                                                options = {
-                                                  rows = lib.mkOption {
-                                                    type = lib.types.int;
-                                                    description = "Maximum number of rows per grid column";
-                                                  };
-                                                };
-                                              }
-                                            )
-                                          );
-                                          default = null;
-                                          description = "Options related to the Grid layout";
-                                        };
-                                        row_ratios = lib.mkOption {
-                                          type = (lib.types.nullOr (lib.types.listOf (lib.types.nullOr lib.types.number)));
-                                          default = null;
-                                          description = "Row height ratios (up to MAX_RATIOS values between 0.1 and 0.9)\n\n- Used by Rows layout: ratios for each row height\n- Used by Grid layout: ratios for row heights\n\nRows without a ratio share remaining space equally.\nExample: `[0.5, 0.5]` for 50%-50% rows";
-                                        };
-                                        scrolling = lib.mkOption {
-                                          type = (
-                                            lib.types.nullOr (
-                                              lib.types.submodule {
-                                                options = {
-                                                  center_focused_column = lib.mkOption {
-                                                    type = (lib.types.nullOr lib.types.bool);
-                                                    default = null;
-                                                    description = "With an odd number of visible columns, keep the focused window column centered";
-                                                  };
-                                                  columns = lib.mkOption {
-                                                    type = lib.types.int;
-                                                    description = "Desired number of visible columns (default: 3)";
-                                                  };
-                                                };
-                                              }
-                                            )
-                                          );
-                                          default = null;
-                                          description = "Options related to the Scrolling layout";
-                                        };
-                                      };
-                                    }
-                                  )
-                                );
+                                type = (lib.types.nullOr layoutOptions);
                                 default = null;
                                 description = "Layout-specific options";
+                              };
+                              layout_options_rules = lib.mkOption {
+                                type = (lib.types.nullOr (lib.types.attrsOf layoutOptions));
+                                default = null;
+                                description = "Threshold-based layout options rules in the format of threshold => options.\nWhen container count >= threshold, the highest matching threshold's options\nfully replace the base `layout_options`.\nThis follows the same threshold logic as `layout_rules`.";
                               };
                               layout_rules = lib.mkOption {
                                 type = (lib.types.nullOr (lib.types.attrsOf defaultLayout));
@@ -793,7 +821,7 @@ in
                       ]
                     );
                   };
-                  unfocused_locked_border = lib.mkOption {
+                  bar_accent = lib.mkOption {
                     type = (
                       lib.types.nullOr (
                         lib.types.oneOf [
@@ -804,82 +832,7 @@ in
                     );
                     default = null;
                   };
-                  colours = lib.mkOption {
-                    type = (
-                      lib.types.nullOr (
-                        lib.types.submodule {
-                          options = {
-                            base_00 = lib.mkOption {
-                              type = colour;
-                              description = "Base00";
-                            };
-                            base_01 = lib.mkOption {
-                              type = colour;
-                              description = "Base01";
-                            };
-                            base_02 = lib.mkOption {
-                              type = colour;
-                              description = "Base02";
-                            };
-                            base_03 = lib.mkOption {
-                              type = colour;
-                              description = "Base03";
-                            };
-                            base_04 = lib.mkOption {
-                              type = colour;
-                              description = "Base04";
-                            };
-                            base_05 = lib.mkOption {
-                              type = colour;
-                              description = "Base05";
-                            };
-                            base_06 = lib.mkOption {
-                              type = colour;
-                              description = "Base06";
-                            };
-                            base_07 = lib.mkOption {
-                              type = colour;
-                              description = "Base07";
-                            };
-                            base_08 = lib.mkOption {
-                              type = colour;
-                              description = "Base08";
-                            };
-                            base_09 = lib.mkOption {
-                              type = colour;
-                              description = "Base09";
-                            };
-                            base_0a = lib.mkOption {
-                              type = colour;
-                              description = "Base0A";
-                            };
-                            base_0b = lib.mkOption {
-                              type = colour;
-                              description = "Base0B";
-                            };
-                            base_0c = lib.mkOption {
-                              type = colour;
-                              description = "Base0C";
-                            };
-                            base_0d = lib.mkOption {
-                              type = colour;
-                              description = "Base0D";
-                            };
-                            base_0e = lib.mkOption {
-                              type = colour;
-                              description = "Base0E";
-                            };
-                            base_0f = lib.mkOption {
-                              type = colour;
-                              description = "Base0F";
-                            };
-                          };
-                        }
-                      )
-                    );
-                    default = null;
-                  };
-                  bar_accent = lib.mkOption {
+                  unfocused_border = lib.mkOption {
                     type = (
                       lib.types.nullOr (
                         lib.types.oneOf [
@@ -923,18 +876,7 @@ in
                     );
                     default = null;
                   };
-                  single_border = lib.mkOption {
-                    type = (
-                      lib.types.nullOr (
-                        lib.types.oneOf [
-                          (lib.types.nullOr catppuccinValue)
-                          (lib.types.nullOr base16Value)
-                        ]
-                      )
-                    );
-                    default = null;
-                  };
-                  unfocused_border = lib.mkOption {
+                  unfocused_locked_border = lib.mkOption {
                     type = (
                       lib.types.nullOr (
                         lib.types.oneOf [
@@ -1227,6 +1169,92 @@ in
                             "Zenburn"
                           ])
                         ]
+                      )
+                    );
+                    default = null;
+                  };
+                  single_border = lib.mkOption {
+                    type = (
+                      lib.types.nullOr (
+                        lib.types.oneOf [
+                          (lib.types.nullOr catppuccinValue)
+                          (lib.types.nullOr base16Value)
+                        ]
+                      )
+                    );
+                    default = null;
+                  };
+                  colours = lib.mkOption {
+                    type = (
+                      lib.types.nullOr (
+                        lib.types.submodule {
+                          options = {
+                            base_00 = lib.mkOption {
+                              type = colour;
+                              description = "Base00";
+                            };
+                            base_01 = lib.mkOption {
+                              type = colour;
+                              description = "Base01";
+                            };
+                            base_02 = lib.mkOption {
+                              type = colour;
+                              description = "Base02";
+                            };
+                            base_03 = lib.mkOption {
+                              type = colour;
+                              description = "Base03";
+                            };
+                            base_04 = lib.mkOption {
+                              type = colour;
+                              description = "Base04";
+                            };
+                            base_05 = lib.mkOption {
+                              type = colour;
+                              description = "Base05";
+                            };
+                            base_06 = lib.mkOption {
+                              type = colour;
+                              description = "Base06";
+                            };
+                            base_07 = lib.mkOption {
+                              type = colour;
+                              description = "Base07";
+                            };
+                            base_08 = lib.mkOption {
+                              type = colour;
+                              description = "Base08";
+                            };
+                            base_09 = lib.mkOption {
+                              type = colour;
+                              description = "Base09";
+                            };
+                            base_0a = lib.mkOption {
+                              type = colour;
+                              description = "Base0A";
+                            };
+                            base_0b = lib.mkOption {
+                              type = colour;
+                              description = "Base0B";
+                            };
+                            base_0c = lib.mkOption {
+                              type = colour;
+                              description = "Base0C";
+                            };
+                            base_0d = lib.mkOption {
+                              type = colour;
+                              description = "Base0D";
+                            };
+                            base_0e = lib.mkOption {
+                              type = colour;
+                              description = "Base0E";
+                            };
+                            base_0f = lib.mkOption {
+                              type = colour;
+                              description = "Base0F";
+                            };
+                          };
+                        }
                       )
                     );
                     default = null;
