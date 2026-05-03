@@ -8,6 +8,7 @@ use crate::DISPLAY_INDEX_PREFERENCES;
 use crate::FLOATING_APPLICATIONS;
 use crate::FLOATING_WINDOW_TOGGLE_ASPECT_RATIO;
 use crate::IGNORE_IDENTIFIERS;
+use crate::LAYOUT_DEFAULTS;
 use crate::MANAGE_IDENTIFIERS;
 use crate::REGEX_IDENTIFIERS;
 use crate::TABBED_APPLICATIONS;
@@ -29,6 +30,7 @@ use crate::core::CrossBoundaryBehaviour;
 use crate::core::DefaultLayout;
 use crate::core::FloatingLayerBehaviour;
 use crate::core::Layout;
+use crate::core::LayoutDefaultEntry;
 use crate::core::LayoutOptions;
 use crate::core::MoveBehaviour;
 use crate::core::OperationBehaviour;
@@ -542,6 +544,11 @@ pub struct StaticConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "schemars", schemars(extend("default" = DEFAULT_CONTAINER_PADDING)))]
     pub default_container_padding: Option<i32>,
+    /// Per-layout default options and rules, keyed by layout name.
+    /// Applied as fallback when a workspace does not define its own layout_options or layout_options_rules.
+    /// If a workspace defines either setting, all global defaults for that layout are completely replaced.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub layout_defaults: Option<HashMap<DefaultLayout, LayoutDefaultEntry>>,
     /// Monitor and workspace configurations
     #[serde(skip_serializing_if = "Option::is_none")]
     pub monitors: Option<Vec<MonitorConfig>>,
@@ -762,6 +769,14 @@ impl From<&WindowManager> for StaticConfig {
             default_container_padding: Option::from(
                 DEFAULT_CONTAINER_PADDING.load(Ordering::SeqCst),
             ),
+            layout_defaults: {
+                let guard = LAYOUT_DEFAULTS.lock();
+                if guard.is_empty() {
+                    None
+                } else {
+                    Some(guard.clone())
+                }
+            },
             monitors: Option::from(monitors),
             // window_hiding_behaviour: Option::from(*HIDING_BEHAVIOUR.lock()),
             global_work_area_offset: value.work_area_offset,
@@ -869,6 +884,12 @@ impl StaticConfig {
 
         if let Some(workspace) = self.default_workspace_padding {
             DEFAULT_WORKSPACE_PADDING.store(workspace, Ordering::SeqCst);
+        }
+
+        if let Some(defaults) = &self.layout_defaults {
+            *LAYOUT_DEFAULTS.lock() = defaults.clone();
+        } else {
+            LAYOUT_DEFAULTS.lock().clear();
         }
 
         if let Some(border_width) = self.border_width {
@@ -1279,7 +1300,7 @@ impl StaticConfig {
                 monitor.update_workspaces_globals(offset);
                 for (j, ws) in monitor.workspaces_mut().iter_mut().enumerate() {
                     if let Some(workspace_config) = monitor_config.workspaces.get_mut(j) {
-                        ws.load_static_config(workspace_config)?;
+                        ws.load_static_config(workspace_config, value.layout_defaults.as_ref())?;
                     }
                 }
 
@@ -1354,7 +1375,10 @@ impl StaticConfig {
 
                     for (j, ws) in m.workspaces_mut().iter_mut().enumerate() {
                         if let Some(workspace_config) = monitor_config.workspaces.get(j) {
-                            ws.load_static_config(workspace_config)?;
+                            ws.load_static_config(
+                                workspace_config,
+                                value.layout_defaults.as_ref(),
+                            )?;
                         }
                     }
 
@@ -1441,7 +1465,7 @@ impl StaticConfig {
 
                 for (j, ws) in monitor.workspaces_mut().iter_mut().enumerate() {
                     if let Some(workspace_config) = monitor_config.workspaces.get(j) {
-                        ws.load_static_config(workspace_config)?;
+                        ws.load_static_config(workspace_config, value.layout_defaults.as_ref())?;
                     }
                 }
 
@@ -1516,7 +1540,10 @@ impl StaticConfig {
 
                     for (j, ws) in m.workspaces_mut().iter_mut().enumerate() {
                         if let Some(workspace_config) = monitor_config.workspaces.get(j) {
-                            ws.load_static_config(workspace_config)?;
+                            ws.load_static_config(
+                                workspace_config,
+                                value.layout_defaults.as_ref(),
+                            )?;
                         }
                     }
 

@@ -2,6 +2,8 @@
 
 use crate::accessibility::error::AccessibilityError;
 use crate::core::ApplicationIdentifier;
+use crate::core::DefaultLayout;
+use crate::core::LayoutDefaultEntry;
 use crate::core::SocketMessage;
 use crate::core::SubscribeOptions;
 use crate::core::config_generation::IdWithIdentifier;
@@ -146,6 +148,8 @@ lazy_static! {
     ]));
     static ref TITLELESS_APPLICATIONS: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
     static ref UNMANAGED_WINDOW_IDS: Arc<Mutex<Vec<u32>>> = Arc::new(Mutex::new(vec![]));
+    pub static ref LAYOUT_DEFAULTS: Arc<Mutex<HashMap<DefaultLayout, LayoutDefaultEntry>>> =
+        Arc::new(Mutex::new(HashMap::new()));
 }
 
 pub static DEFAULT_WORKSPACE_PADDING: AtomicI32 = AtomicI32::new(5);

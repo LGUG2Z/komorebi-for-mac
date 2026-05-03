@@ -122,6 +122,7 @@ impl From<&WindowManager> for State {
                             layout_options: workspace.layout_options,
                             layout_rules: workspace.layout_rules.clone(),
                             layout_options_rules: workspace.layout_options_rules.clone(),
+                            layout_defaults_cache: workspace.layout_defaults_cache.clone(),
                             layout_flip: workspace.layout_flip,
                             workspace_padding: workspace.workspace_padding,
                             container_padding: workspace.container_padding,
