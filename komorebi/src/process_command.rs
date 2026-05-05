@@ -24,6 +24,7 @@ use crate::core::ApplicationIdentifier;
 use crate::core::Axis;
 use crate::core::Layout;
 use crate::core::LayoutOptions;
+use crate::core::MonocleFocusBehaviour;
 use crate::core::MoveBehaviour;
 use crate::core::OperationDirection;
 use crate::core::Rect;
@@ -1578,6 +1579,15 @@ impl WindowManager {
             }
             SocketMessage::CrossMonitorMoveBehaviour(behaviour) => {
                 self.cross_monitor_move_behaviour = behaviour;
+            }
+            SocketMessage::ToggleMonocleFocusBehaviour => {
+                self.monocle_focus_behaviour = match self.monocle_focus_behaviour {
+                    MonocleFocusBehaviour::Cycle => MonocleFocusBehaviour::NoOp,
+                    MonocleFocusBehaviour::NoOp => MonocleFocusBehaviour::Cycle,
+                };
+            }
+            SocketMessage::MonocleFocusBehaviour(behaviour) => {
+                self.monocle_focus_behaviour = behaviour;
             }
             SocketMessage::UnmanagedWindowOperationBehaviour(behaviour) => {
                 self.unmanaged_window_operation_behaviour = behaviour;

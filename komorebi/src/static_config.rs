@@ -32,6 +32,7 @@ use crate::core::FloatingLayerBehaviour;
 use crate::core::Layout;
 use crate::core::LayoutDefaultEntry;
 use crate::core::LayoutOptions;
+use crate::core::MonocleFocusBehaviour;
 use crate::core::MoveBehaviour;
 use crate::core::OperationBehaviour;
 use crate::core::Placement;
@@ -486,6 +487,10 @@ pub struct StaticConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "schemars", schemars(extend("default" = CrossBoundaryBehaviour::Monitor)))]
     pub cross_boundary_behaviour: Option<CrossBoundaryBehaviour>,
+    /// Determine what happens when focusing in a direction while a monocle container is active
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "schemars", schemars(extend("default" = MonocleFocusBehaviour::NoOp)))]
+    pub monocle_focus_behaviour: Option<MonocleFocusBehaviour>,
     /// Determine what happens when commands are sent while an unmanaged window is in the foreground
     #[serde(skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "schemars", schemars(extend("default" = OperationBehaviour::Op)))]
@@ -740,6 +745,7 @@ impl From<&WindowManager> for StaticConfig {
             ),
             cross_monitor_move_behaviour: Option::from(value.cross_monitor_move_behaviour),
             cross_boundary_behaviour: Option::from(value.cross_boundary_behaviour),
+            monocle_focus_behaviour: Option::from(value.monocle_focus_behaviour),
             unmanaged_window_operation_behaviour: Option::from(
                 value.unmanaged_window_operation_behaviour,
             ),
@@ -1199,6 +1205,7 @@ impl StaticConfig {
             cross_boundary_behaviour: value
                 .cross_boundary_behaviour
                 .unwrap_or(CrossBoundaryBehaviour::Monitor),
+            monocle_focus_behaviour: value.monocle_focus_behaviour.unwrap_or_default(),
             unmanaged_window_operation_behaviour: value
                 .unmanaged_window_operation_behaviour
                 .unwrap_or(OperationBehaviour::Op),
@@ -1574,6 +1581,7 @@ impl StaticConfig {
             value.float_rule_placement.unwrap_or(Placement::None);
         wm.cross_monitor_move_behaviour = value.cross_monitor_move_behaviour.unwrap_or_default();
         wm.cross_boundary_behaviour = value.cross_boundary_behaviour.unwrap_or_default();
+        wm.monocle_focus_behaviour = value.monocle_focus_behaviour.unwrap_or_default();
         wm.unmanaged_window_operation_behaviour = value
             .unmanaged_window_operation_behaviour
             .unwrap_or_default();

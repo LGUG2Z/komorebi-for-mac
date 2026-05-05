@@ -186,6 +186,19 @@ pub enum CrossBoundaryBehaviour {
 }
 
 #[derive(
+    Clone, Copy, Debug, Default, Serialize, Deserialize, Display, EnumString, ValueEnum, PartialEq,
+)]
+#[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
+/// Behaviour when focusing in a direction while a monocle container is active
+pub enum MonocleFocusBehaviour {
+    /// Cycle the monocle container to the next/previous container in the workspace
+    Cycle,
+    /// Do nothing, allowing focus to fall through to cross-monitor logic
+    #[default]
+    NoOp,
+}
+
+#[derive(
     Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Display, EnumString, ValueEnum,
 )]
 #[cfg_attr(feature = "schemars", derive(schemars::JsonSchema))]
@@ -308,6 +321,8 @@ pub enum SocketMessage {
     // WindowHidingBehaviour(HidingBehaviour),
     ToggleCrossMonitorMoveBehaviour,
     CrossMonitorMoveBehaviour(MoveBehaviour),
+    ToggleMonocleFocusBehaviour,
+    MonocleFocusBehaviour(MonocleFocusBehaviour),
     UnmanagedWindowOperationBehaviour(OperationBehaviour),
     // Current Workspace Commands
     ManageFocusedWindow,

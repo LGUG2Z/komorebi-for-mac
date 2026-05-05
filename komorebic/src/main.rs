@@ -146,6 +146,13 @@ gen_target_subcommand_args! {
     FocusStackWindow,
 }
 
+#[derive(Parser)]
+struct MonocleFocusBehaviour {
+    /// Desired monocle focus behaviour
+    #[clap(value_enum)]
+    behaviour: komorebi_client::MonocleFocusBehaviour,
+}
+
 macro_rules! gen_named_target_subcommand_args {
     // SubCommand Pattern
     ( $( $name:ident ),+ $(,)? ) => {
@@ -1119,6 +1126,11 @@ enum SubCommand {
     CrossMonitorMoveBehaviour(CrossMonitorMoveBehaviour),
     /// Toggle the behaviour when moving windows across monitor boundaries
     ToggleCrossMonitorMoveBehaviour,
+    /// Set the behaviour when focusing in a direction while a monocle container is active
+    #[clap(arg_required_else_help = true)]
+    MonocleFocusBehaviour(MonocleFocusBehaviour),
+    /// Toggle the behaviour when focusing in a direction while a monocle container is active
+    ToggleMonocleFocusBehaviour,
     /// Set the operation behaviour when the focused window is not managed
     #[clap(arg_required_else_help = true)]
     UnmanagedWindowOperationBehaviour(UnmanagedWindowOperationBehaviour),
@@ -2024,6 +2036,9 @@ exit 1
         SubCommand::ToggleCrossMonitorMoveBehaviour => {
             send_message(&SocketMessage::ToggleCrossMonitorMoveBehaviour)?;
         }
+        SubCommand::ToggleMonocleFocusBehaviour => {
+            send_message(&SocketMessage::ToggleMonocleFocusBehaviour)?;
+        }
         SubCommand::FocusMonitor(args) => {
             send_message(&SocketMessage::FocusMonitorNumber(args.target))?;
         }
@@ -2400,6 +2415,9 @@ exit 1
             send_message(&SocketMessage::CrossMonitorMoveBehaviour(
                 args.move_behaviour,
             ))?;
+        }
+        SubCommand::MonocleFocusBehaviour(args) => {
+            send_message(&SocketMessage::MonocleFocusBehaviour(args.behaviour))?;
         }
         SubCommand::UnmanagedWindowOperationBehaviour(args) => {
             send_message(&SocketMessage::UnmanagedWindowOperationBehaviour(

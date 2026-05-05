@@ -4,6 +4,7 @@ use crate::HOME_DIR;
 use crate::IGNORE_IDENTIFIERS;
 use crate::MANAGE_IDENTIFIERS;
 use crate::WORKSPACE_MATCHING_RULES;
+use crate::core::MonocleFocusBehaviour;
 use crate::core::MoveBehaviour;
 use crate::core::OperationBehaviour;
 use crate::core::Rect;
@@ -79,6 +80,7 @@ pub struct State {
     pub new_window_behaviour: WindowContainerBehaviour,
     pub float_override: bool,
     pub cross_monitor_move_behaviour: MoveBehaviour,
+    pub monocle_focus_behaviour: MonocleFocusBehaviour,
     pub unmanaged_window_operation_behaviour: OperationBehaviour,
     pub work_area_offset: Option<Rect>,
     // pub focus_follows_mouse: Option<FocusFollowsMouseImplementation>,
@@ -170,6 +172,7 @@ impl From<&WindowManager> for State {
             new_window_behaviour: wm.window_management_behaviour.current_behaviour,
             float_override: wm.window_management_behaviour.float_override,
             cross_monitor_move_behaviour: wm.cross_monitor_move_behaviour,
+            monocle_focus_behaviour: wm.monocle_focus_behaviour,
             // focus_follows_mouse: wm.focus_follows_mouse,
             mouse_follows_focus: wm.mouse_follows_focus,
             // has_pending_raise_op: wm.has_pending_raise_op,
@@ -200,6 +203,10 @@ impl State {
         }
 
         if self.cross_monitor_move_behaviour != new.cross_monitor_move_behaviour {
+            return true;
+        }
+
+        if self.monocle_focus_behaviour != new.monocle_focus_behaviour {
             return true;
         }
 

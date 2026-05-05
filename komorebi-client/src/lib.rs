@@ -8,6 +8,7 @@ pub use komorebi::core::Axis;
 pub use komorebi::core::CycleDirection;
 pub use komorebi::core::DefaultLayout;
 pub use komorebi::core::Layout;
+pub use komorebi::core::MonocleFocusBehaviour;
 pub use komorebi::core::MoveBehaviour;
 pub use komorebi::core::OperationBehaviour;
 pub use komorebi::core::OperationDirection;
