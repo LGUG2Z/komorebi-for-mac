@@ -196,6 +196,21 @@ impl SessionBuilder {
     }
 }
 
+/// komorebi-style log text from `(video_s, level, text after the level)` lines: the timestamp and
+/// the right-aligned level are added the way `tracing_subscriber` does.
+#[must_use]
+pub fn log_text(lines: &[(f64, &str, &str)]) -> String {
+    lines
+        .iter()
+        .map(|(video_s, level, text)| {
+            format!(
+                "{} {level:>5} {text}\n",
+                timeline::format_wall_us(wall_us(*video_s)).expect("time")
+            )
+        })
+        .collect()
+}
+
 /// A minimal komorebi `State` with one monitor, one workspace and the given windows (hwnd, title).
 #[must_use]
 pub fn state_with_windows(windows: &[(u64, &str)]) -> Value {
