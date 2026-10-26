@@ -41,6 +41,7 @@ objc2-core-graphics = { version = "0.3", default-features = false, features = [
   "CGError",
   "CGGeometry",
   "CGRemoteOperation",
+  "CGSession",
   "CGWindow",
 ] }
 objc2-core-media = { version = "0.3", default-features = false, features = [
