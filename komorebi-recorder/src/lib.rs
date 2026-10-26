@@ -3,6 +3,7 @@ pub mod clock;
 pub mod frames;
 pub mod incidents;
 pub mod recorder;
+pub mod recovery;
 pub mod report;
 pub mod session;
 pub mod sources;
