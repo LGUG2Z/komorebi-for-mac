@@ -2,3 +2,4 @@
 //! and never rewrites them afterwards.
 
 pub mod komorebi_log;
+pub mod managed_apps;

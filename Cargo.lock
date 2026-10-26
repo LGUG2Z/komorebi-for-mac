@@ -3179,7 +3179,10 @@ dependencies = [
  "chrono",
  "color-eyre",
  "libc",
+ "objc2-core-foundation",
+ "objc2-core-graphics",
  "serde",
+ "serde_json_lenient",
 ]
 
 [[package]]
