@@ -3177,12 +3177,14 @@ name = "komorebi-recorder"
 version = "0.1.1"
 dependencies = [
  "chrono",
+ "clap",
  "color-eyre",
  "crossbeam-channel",
  "komorebi-client",
  "libc",
  "objc2-core-foundation",
  "objc2-core-graphics",
+ "parking_lot",
  "serde",
  "serde_json_lenient",
 ]

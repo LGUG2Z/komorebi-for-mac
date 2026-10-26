@@ -8,6 +8,7 @@ edition = "2024"
 komorebi-client = { path = "../komorebi-client", default-features = false }
 
 chrono = { workspace = true }
+clap = { workspace = true }
 color-eyre = { workspace = true }
 crossbeam-channel = { workspace = true }
 libc = "0.2"
@@ -22,5 +23,6 @@ objc2-core-graphics = { version = "0.3", default-features = false, features = [
   "std",
   "CGWindow",
 ] }
+parking_lot = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
