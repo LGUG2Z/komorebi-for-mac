@@ -5,6 +5,7 @@ description = "Synchronized screen, log and trace capture for komorebi bug repro
 edition = "2024"
 
 [dependencies]
+chrono = { workspace = true }
 color-eyre = { workspace = true }
 libc = "0.2"
 serde = { workspace = true }
