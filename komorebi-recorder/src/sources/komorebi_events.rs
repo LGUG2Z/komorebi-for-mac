@@ -178,6 +178,12 @@ impl EventRecorder {
         self.counters.clone()
     }
 
+    /// The name this recorder is registered under with komorebi.
+    #[must_use]
+    pub fn subscriber_name(&self) -> &str {
+        &self.name
+    }
+
     /// Whether komorebi currently knows about this subscriber.
     #[must_use]
     pub fn is_subscribed(&self) -> bool {

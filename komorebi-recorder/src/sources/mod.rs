@@ -3,5 +3,6 @@
 
 pub mod komorebi_events;
 pub mod komorebi_log;
+pub mod komorebi_version;
 pub mod managed_apps;
 pub mod oslog;

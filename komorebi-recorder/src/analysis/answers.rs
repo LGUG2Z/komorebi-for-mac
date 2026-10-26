@@ -88,7 +88,8 @@ pub struct EventsData {
     /// How many events matched, including any not returned.
     pub matching: usize,
     pub total: usize,
-    /// The name komorebi knew this recorder by, found in its log; it makes pairing exact.
+    /// The name komorebi knew this recorder by. When komorebi logs at DEBUG it names it for each
+    /// notification pushed, which makes pairing events with handlers exact.
     pub subscriber: Option<String>,
 }
 

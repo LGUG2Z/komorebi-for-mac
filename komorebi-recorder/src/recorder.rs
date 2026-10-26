@@ -227,6 +227,8 @@ impl Live {
 pub struct KomorebiProcess {
     pub pid: i32,
     pub level: komorebi_log::DetectedLevel,
+    /// The binary it is running, which can be asked what version it is.
+    pub exe: Option<PathBuf>,
 }
 
 /// Find the running komorebi daemon and work out how verbose it is.
@@ -238,7 +240,8 @@ pub fn find_komorebi() -> Option<KomorebiProcess> {
         true,
         ProcessRefreshKind::nothing()
             .with_cmd(UpdateKind::Always)
-            .with_environ(UpdateKind::Always),
+            .with_environ(UpdateKind::Always)
+            .with_exe(UpdateKind::Always),
     );
 
     let process = system
@@ -259,7 +262,15 @@ pub fn find_komorebi() -> Option<KomorebiProcess> {
             &strings(process.cmd()),
             &strings(process.environ()),
         ),
+        exe: process.exe().map(std::path::Path::to_path_buf),
     })
+}
+
+/// Ask a komorebi process which version it is.
+fn komorebi_version_of(
+    komorebi: &KomorebiProcess,
+) -> Option<crate::sources::komorebi_version::KomorebiVersion> {
+    crate::sources::komorebi_version::query(komorebi.exe.as_deref()?, Some(komorebi.pid))
 }
 
 /// Whether `pid` is still the komorebi daemon.
@@ -671,6 +682,12 @@ impl<'a> Recording<'a> {
             log_level: komorebi_process
                 .as_ref()
                 .map(|komorebi| komorebi.level.clone()),
+            versions: komorebi_process
+                .as_ref()
+                .and_then(komorebi_version_of)
+                .into_iter()
+                .collect(),
+            subscriber: None,
             observed_levels: Vec::new(),
             data_dir: data_dir.display().to_string(),
         };
@@ -800,7 +817,10 @@ impl<'a> Recording<'a> {
             None
         } else {
             match EventRecorder::start(&session.dir, Some(discovery_tx)) {
-                Ok(recorder) => Some(recorder),
+                Ok(recorder) => {
+                    manifest.komorebi.subscriber = Some(recorder.subscriber_name().to_string());
+                    Some(recorder)
+                }
                 Err(error) => {
                     apps.warnings
                         .push(format!("komorebi events are not being recorded: {error:#}"));
@@ -1032,6 +1052,10 @@ impl<'a> Recording<'a> {
 
                 if let Some(warning) = komorebi_log::level_warning(&komorebi.level.level) {
                     self.warn_once(warning);
+                }
+
+                if let Some(version) = komorebi_version_of(&komorebi) {
+                    self.manifest.komorebi.versions.push(version);
                 }
 
                 self.manifest.komorebi.running = true;
@@ -1454,6 +1478,7 @@ mod tests {
     fn a_vanished_komorebi_is_reported_once_and_then_searched_for() {
         // a pid that is certainly not komorebi stands in for a komorebi that has exited
         let gone = KomorebiProcess {
+            exe: None,
             pid: i32::MAX,
             level: komorebi_log::DetectedLevel {
                 level: "info".into(),

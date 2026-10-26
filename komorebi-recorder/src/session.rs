@@ -9,6 +9,7 @@ use crate::clock::Timebase;
 use crate::sources::komorebi_events::EventSummary;
 use crate::sources::komorebi_log::DetectedLevel;
 use crate::sources::komorebi_log::LogSegment;
+use crate::sources::komorebi_version::KomorebiVersion;
 use crate::sources::managed_apps::AppRecord;
 use crate::sources::oslog::StreamInfo;
 use chrono::DateTime;
@@ -63,6 +64,14 @@ pub struct KomorebiInfo {
     #[serde(default)]
     pub pids: Vec<i32>,
     pub log_level: Option<DetectedLevel>,
+    /// Which komorebi each of `pids` was, as its binary reported: what a log line means depends on
+    /// the source it was built from.
+    #[serde(default)]
+    pub versions: Vec<KomorebiVersion>,
+    /// The name this recorder registered as with komorebi; komorebi's DEBUG log names it when it
+    /// pushes each notification, which ties an event to its handler exactly.
+    #[serde(default)]
+    pub subscriber: Option<String>,
     /// Levels that actually appear in the recorded slice of komorebi's log.
     pub observed_levels: Vec<String>,
     pub data_dir: String,

@@ -44,7 +44,7 @@ pub struct LogData {
 
 /// Which handler produced which event, and what kind of event it was.
 pub struct Pairing {
-    /// The name the recorder subscribed as, if it could be found in the log.
+    /// The name the recorder subscribed as to komorebi.
     pub subscriber: Option<String>,
     /// One per event, in event order.
     pub pairs: Vec<Pair>,
@@ -169,7 +169,14 @@ impl Analysis {
         self.pairing.get_or_init(|| {
             let log = self.log();
             let events = self.events();
-            let subscriber = blocks::infer_subscriber(&log.blocks, events);
+            // the recorder wrote its own name into the manifest; older sessions are worked out from
+            // which of komorebi's "pushed notification" lines line up with the events
+            let subscriber = self
+                .manifest
+                .komorebi
+                .subscriber
+                .clone()
+                .or_else(|| blocks::infer_subscriber(&log.blocks, events));
             Pairing {
                 pairs: blocks::pair(events, &log.blocks, subscriber.as_deref()),
                 classes: classify::classify(events),
