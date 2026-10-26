@@ -1,4 +1,5 @@
 pub mod capture;
+pub mod cli;
 pub mod clock;
 pub mod frames;
 pub mod incidents;

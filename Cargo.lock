@@ -3181,6 +3181,7 @@ dependencies = [
  "clap",
  "color-eyre",
  "crossbeam-channel",
+ "ctrlc",
  "dispatch2",
  "komorebi-client",
  "libc",
