@@ -7,6 +7,7 @@ pub mod incidents;
 pub mod recorder;
 pub mod recovery;
 pub mod report;
+pub mod selftest;
 pub mod session;
 pub mod sources;
 pub mod system_state;
