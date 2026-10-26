@@ -3183,6 +3183,7 @@ dependencies = [
  "crossbeam-channel",
  "ctrlc",
  "dispatch2",
+ "eframe",
  "komorebi-client",
  "libc",
  "objc2 0.6.4",

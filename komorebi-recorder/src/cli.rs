@@ -35,7 +35,8 @@ use std::time::Duration;
     long_about = "Record the screen together with komorebi's log, komorebi's subscriber events and \
                   the macOS unified log (per process), all on one clock, into a session directory. \
                   Then ask what was happening at any second of the video, or where in the video any \
-                  log line or event is."
+                  log line or event is.\n\n\
+                  Run with no subcommand to open the recorder window."
 )]
 pub struct Opts {
     #[command(subcommand)]
@@ -44,6 +45,8 @@ pub struct Opts {
 
 #[derive(Subcommand)]
 pub enum Command {
+    /// Open the recorder window with Record / Stop buttons (the default)
+    Gui(RecordArgs),
     /// Record without a window; Ctrl-C (or --duration) stops and finalizes the session
     Record(RecordArgs),
     /// List the displays that can be recorded
@@ -300,6 +303,7 @@ fn limit(value: usize) -> Option<usize> {
 
 pub fn run(command: Command) -> eyre::Result<()> {
     match command {
+        Command::Gui(args) => crate::app::run(args),
         Command::Record(args) => record(&args),
         Command::Displays => displays(),
         Command::At(args) => at(&args),

@@ -14,6 +14,7 @@ color-eyre = { workspace = true }
 crossbeam-channel = { workspace = true }
 ctrlc = { version = "3", features = ["termination"] }
 dispatch2 = "0.3"
+eframe = { workspace = true }
 libc = "0.2"
 objc2 = { version = "0.6", default-features = false, features = ["std"] }
 objc2-av-foundation = { version = "0.3", default-features = false, features = [
