@@ -5,3 +5,4 @@ pub mod session;
 pub mod sources;
 pub mod system_state;
 pub mod timecode;
+pub mod timeline;
