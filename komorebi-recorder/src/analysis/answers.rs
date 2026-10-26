@@ -62,7 +62,7 @@ pub struct StateData {
     pub violations: Vec<Violation>,
 }
 
-#[derive(Debug, Serialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Serialize, JsonSchema)]
 pub struct ChangeView {
     pub text: String,
     #[serde(flatten)]

@@ -269,3 +269,88 @@ pub(super) fn code(args: &CodeArgs) -> eyre::Result<()> {
     print!("{}", report::code_text(&data));
     Ok(())
 }
+
+#[derive(Args, Debug)]
+pub struct TraceArgs {
+    /// Session directory
+    pub session: PathBuf,
+    /// The event: `event:<seq>` or just the number
+    pub event: String,
+    /// Machine-readable JSON output
+    #[arg(long)]
+    pub json: bool,
+}
+
+pub(super) fn trace(args: &TraceArgs) -> eyre::Result<()> {
+    let analysis = Analysis::open(&args.session)?;
+    let item: crate::analysis::ids::ItemRef = if args.event.chars().all(|c| c.is_ascii_digit()) {
+        format!("event:{}", args.event).parse()?
+    } else {
+        args.event.parse()?
+    };
+    let crate::analysis::ids::ItemRef::Event(seq) = item else {
+        return Err(envelope::usage(format!(
+            "'{}': trace explains an event, e.g. event:12",
+            args.event
+        )));
+    };
+
+    let data = analysis.trace(seq)?;
+    if args.json {
+        let mut warnings = analysis.warnings();
+        let skew = crate::analysis::catalog::skew(&analysis.manifest.komorebi.versions);
+        warnings.extend(skew.warning);
+        return print_json(
+            &Envelope::ok(crate::analysis::trace::SCHEMA_TRACE, data).warnings(warnings),
+        );
+    }
+
+    let skew = crate::analysis::catalog::skew(&analysis.manifest.komorebi.versions);
+    if let Some(warning) = skew.warning {
+        eprintln!("WARNING: {warning}");
+    }
+    print!("{}", report::trace_text(&data));
+    Ok(())
+}
+
+#[derive(Args, Debug)]
+pub struct WindowArgs {
+    /// Session directory
+    pub session: PathBuf,
+    /// A window id, or text in the application name or title
+    pub query: String,
+    /// Most entries to print (0 for all)
+    #[arg(long, default_value_t = 100)]
+    pub limit: usize,
+    /// Continue after this event sequence number
+    #[arg(long, value_name = "SEQ")]
+    pub cursor: Option<u64>,
+    /// Machine-readable JSON output
+    #[arg(long)]
+    pub json: bool,
+}
+
+pub(super) fn window(args: &WindowArgs) -> eyre::Result<()> {
+    let analysis = Analysis::open(&args.session)?;
+    let limit = (args.limit != 0).then_some(args.limit);
+    let data = analysis.window_history(&args.query, args.cursor, limit)?;
+    let truncated = data.matching > data.entries.len();
+    let next_cursor = truncated
+        .then(|| data.entries.last().map(|entry| entry.seq.to_string()))
+        .flatten();
+
+    if args.json {
+        let mut envelope = Envelope::ok(crate::analysis::history::SCHEMA_WINDOW, data)
+            .warnings(analysis.warnings());
+        if next_cursor.is_some() {
+            envelope = envelope.truncated(next_cursor);
+        }
+        return print_json(&envelope);
+    }
+
+    print!("{}", report::history_text(&data));
+    if let Some(cursor) = next_cursor {
+        println!("continue with --cursor {cursor}");
+    }
+    Ok(())
+}

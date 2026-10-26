@@ -17,12 +17,14 @@ pub mod envelope;
 pub mod events;
 pub mod facade;
 pub mod guard;
+pub mod history;
 pub mod ids;
 pub mod invariants;
 pub mod logparse;
 pub mod lookup;
 pub mod state;
 pub mod timespec;
+pub mod trace;
 pub mod views;
 
 pub use facade::Analysis;

@@ -24,6 +24,8 @@ pub use investigate::CodeArgs;
 pub use investigate::DiffArgs;
 pub use investigate::EventsArgs;
 pub use investigate::StateArgs;
+pub use investigate::TraceArgs;
+pub use investigate::WindowArgs;
 pub use query::AtArgs;
 pub use query::FilterArgs;
 pub use query::FramesArgs;
@@ -72,6 +74,10 @@ pub enum Command {
     Diff(DiffArgs),
     /// komorebi's events, classified, with the handler that ran for each
     Events(EventsArgs),
+    /// One window's life through the recording: where it was, when it moved or was hidden
+    Window(WindowArgs),
+    /// One event end to end: what its handler logged, what changed, and who changed it
+    Trace(TraceArgs),
     /// Which line of komorebi's source wrote a line of its log, with the code around it
     Code(CodeArgs),
     /// Mark where a bug starts and ends, add notes, or record an agent's finding
@@ -130,6 +136,8 @@ impl Command {
             Self::Diff(args) => args.json,
             Self::Events(args) => args.json,
             Self::Code(args) => args.json,
+            Self::Trace(args) => args.json,
+            Self::Window(args) => args.json,
             Self::Annotate(args) => args.json(),
             Self::Annotations(args) => args.json,
             _ => false,
@@ -172,6 +180,8 @@ pub fn run(command: Command) -> eyre::Result<()> {
         Command::Diff(args) => investigate::diff_command(&args),
         Command::Events(args) => investigate::events(&args),
         Command::Code(args) => investigate::code(&args),
+        Command::Trace(args) => investigate::trace(&args),
+        Command::Window(args) => investigate::window(&args),
         Command::Annotate(args) => annotate::annotate(&args),
         Command::Annotations(args) => annotate::list(&args),
         Command::Reindex(args) => reindex(&args),

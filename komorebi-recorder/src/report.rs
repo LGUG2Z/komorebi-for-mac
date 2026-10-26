@@ -5,10 +5,13 @@ use crate::analysis::answers::DiffData;
 use crate::analysis::answers::EventsData;
 use crate::analysis::answers::StateData;
 use crate::analysis::code::CodeData;
+use crate::analysis::history::HistoryData;
 use crate::analysis::invariants::Severity;
 use crate::analysis::invariants::Violation;
 use crate::analysis::state::Container;
 use crate::analysis::state::Window;
+use crate::analysis::trace::TraceData;
+use crate::analysis::trace::TraceLine;
 use crate::annotations::AnnotationView;
 use crate::annotations::Kind;
 use crate::timecode;
@@ -615,6 +618,173 @@ pub fn code_text(data: &CodeData) -> String {
             statement.target,
             statement.template
         );
+    }
+
+    out
+}
+
+fn trace_line_text(out: &mut String, line: &TraceLine) {
+    let time = line.video_s.map_or_else(String::new, |seconds| {
+        format!(" {}", timecode::format(seconds))
+    });
+    let _ = writeln!(
+        out,
+        "  log:{:<6}{time} {:<5} {}{}",
+        line.line,
+        line.level.as_deref().unwrap_or(""),
+        if line.spans.is_empty() {
+            String::new()
+        } else {
+            format!("[{}] ", line.spans)
+        },
+        line.message
+    );
+    if let Some(source) = &line.source {
+        let _ = writeln!(
+            out,
+            "          from {} in {}{}",
+            source.location,
+            source.function,
+            if line.changes_state_silently {
+                "  [changes state without a notification]"
+            } else {
+                ""
+            }
+        );
+    }
+}
+
+/// Render the answer to `trace`.
+#[must_use]
+pub fn trace_text(data: &TraceData) -> String {
+    let mut out = String::new();
+    let event = &data.event;
+    let _ = writeln!(
+        out,
+        "event #{}  received {}  {}\n  {} ({})",
+        event.seq,
+        timecode::format(event.video_s),
+        event.summary,
+        format!("{:?}", event.class).to_lowercase(),
+        event.reason
+    );
+    if let Some(handler) = &event.handler {
+        let _ = writeln!(
+            out,
+            "  handler logged {} line(s) from {}, began {}{}",
+            handler.lines,
+            timecode::format(handler.started_video_s),
+            handler.handler_ms.map_or_else(String::new, |ms| format!(
+                "{ms:.0} ms before it was received"
+            )),
+            if handler.errors + handler.warnings > 0 {
+                format!(
+                    ", {} error(s), {} warning(s)",
+                    handler.errors, handler.warnings
+                )
+            } else {
+                String::new()
+            }
+        );
+    }
+
+    if !data.handler.is_empty() {
+        let _ = writeln!(out, "\nwhat the handler logged:");
+        for line in &data.handler {
+            trace_line_text(&mut out, line);
+        }
+    }
+    if !data.ambient.is_empty() {
+        let _ = writeln!(out, "\nlogged by other threads meanwhile:");
+        for line in &data.ambient {
+            trace_line_text(&mut out, line);
+        }
+    }
+
+    if data.changes.is_empty() {
+        let _ = writeln!(out, "\nthe state did not change");
+    } else {
+        let _ = writeln!(out, "\nwhat changed, and who did it:");
+        for traced in &data.changes {
+            let attribution = &traced.attribution;
+            let _ = writeln!(
+                out,
+                "  {}\n      -> {} ({}): {}",
+                traced.change.text, attribution.actor, attribution.confidence, attribution.reason
+            );
+            if !attribution.evidence.is_empty() {
+                let lines: Vec<String> = attribution
+                    .evidence
+                    .iter()
+                    .map(|line| format!("log:{line}"))
+                    .collect();
+                let _ = writeln!(out, "         evidence: {}", lines.join(", "));
+            }
+        }
+    }
+
+    if !data.violations_appeared.is_empty() {
+        let _ = writeln!(out, "\nwrong after this event, and not before:");
+        violation_lines(&mut out, &data.violations_appeared);
+    }
+    if !data.violations_resolved.is_empty() {
+        let _ = writeln!(out, "\nwrong before this event, and not after:");
+        violation_lines(&mut out, &data.violations_resolved);
+    }
+    if !data.notes.is_empty() {
+        let _ = writeln!(out, "\nnotes:");
+        for note in &data.notes {
+            let _ = writeln!(out, "  - {note}");
+        }
+    }
+
+    out
+}
+
+/// Render the answer to `window`.
+#[must_use]
+pub fn history_text(data: &HistoryData) -> String {
+    let mut out = String::new();
+    let names: Vec<String> = data
+        .windows
+        .iter()
+        .map(|window| format!("{} \"{}\" (window {})", window.exe, window.title, window.id))
+        .collect();
+    let _ = writeln!(out, "'{}' matched: {}", data.query, names.join("; "));
+
+    for entry in &data.entries {
+        let place = entry
+            .location
+            .as_ref()
+            .map_or_else(|| "gone".to_string(), |location| location.describe());
+        let _ = writeln!(
+            out,
+            "#{:<5} {}  window {}  {}\n         after: {}  {}{}",
+            entry.seq,
+            timecode::format(entry.video_s),
+            entry.window_id,
+            entry.event,
+            place,
+            rect_text(&entry.rect),
+            if entry.hidden {
+                "  (parked off screen)"
+            } else {
+                ""
+            },
+        );
+        for change in &entry.changes {
+            let _ = writeln!(out, "         - {change}");
+        }
+        if entry.changes.is_empty() && entry.about_window {
+            let _ = writeln!(
+                out,
+                "         - the event was about this window; nothing about it changed"
+            );
+        }
+    }
+
+    if data.matching > data.entries.len() {
+        let _ = writeln!(out, "... {} more", data.matching - data.entries.len());
     }
 
     out
