@@ -5,6 +5,7 @@ members = [
   "komorebi",
   "komorebi-bar",
   "komorebi-client",
+  "komorebi-recorder",
   "komorebic",
   "version",
 ]

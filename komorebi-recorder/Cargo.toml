@@ -1,0 +1,10 @@
+[package]
+name = "komorebi-recorder"
+version = "0.1.1"
+description = "Synchronized screen, log and trace capture for komorebi bug reproduction"
+edition = "2024"
+
+[dependencies]
+color-eyre = { workspace = true }
+libc = "0.2"
+serde = { workspace = true }

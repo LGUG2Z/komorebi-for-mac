@@ -3173,6 +3173,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "komorebi-recorder"
+version = "0.1.1"
+dependencies = [
+ "color-eyre",
+ "libc",
+ "serde",
+]
+
+[[package]]
 name = "komorebi-themes"
 version = "0.1.41"
 source = "git+https://github.com/LGUG2Z/komorebi?rev=24c0ce0b1df1b5d7d62c682a7e28b32980293883#24c0ce0b1df1b5d7d62c682a7e28b32980293883"
