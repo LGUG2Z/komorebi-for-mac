@@ -1,4 +1,5 @@
-//! The recorder window: Record / Stop, live counters and warnings.
+//! The recorder window: Record / Stop, marking where a bug starts and ends, live counters and
+//! warnings.
 //!
 //! The window itself is excluded from the screen capture (the capture filter excludes this whole
 //! application), so the controls never appear in the video.
@@ -10,6 +11,7 @@
 use crate::capture::DisplayDescriptor;
 use crate::capture::sck;
 use crate::cli::RecordArgs;
+use crate::marker::Marker;
 use crate::recorder;
 use crate::recorder::Live;
 use crate::recorder::Phase;
@@ -66,6 +68,11 @@ struct RecorderApp {
     closing: bool,
     predicate: String,
     show_streams: bool,
+    /// Marks bug regions in the session being recorded; created with the first mark.
+    marker: Option<Marker>,
+    /// What the user is typing about the region they have open.
+    note: String,
+    mark_error: Option<String>,
 }
 
 impl RecorderApp {
@@ -81,6 +88,9 @@ impl RecorderApp {
             last: None,
             closing: false,
             show_streams: false,
+            marker: None,
+            note: String::new(),
+            mark_error: None,
         };
 
         app.refresh_displays();
@@ -137,6 +147,9 @@ impl RecorderApp {
         let options = args.to_options();
         self.live.reset();
         self.last = None;
+        self.marker = None;
+        self.note.clear();
+        self.mark_error = None;
 
         let live = self.live.clone();
         match std::thread::Builder::new()
@@ -148,6 +161,42 @@ impl RecorderApp {
         }
     }
 
+    /// The Mark button: open a bug region now, or close the one that is open.
+    fn toggle_mark(&mut self) {
+        let Some(dir) = self.live.snapshot().session_dir else {
+            return;
+        };
+
+        self.mark(dir);
+    }
+
+    fn mark(&mut self, dir: PathBuf) {
+        let marker = self.marker.get_or_insert_with(|| Marker::new(dir));
+        let outcome = if marker.is_open() {
+            let ended = marker.end(&self.note);
+            if ended.is_ok() {
+                self.note.clear();
+            }
+            ended
+        } else {
+            marker.start().map(|_| ())
+        };
+
+        self.mark_error = outcome
+            .err()
+            .map(|error| format!("could not mark: {error:#}"));
+    }
+
+    /// Recording is over (or stopping): a region still open stays open-ended, with its note.
+    fn finish_marking(&mut self) {
+        if let Some(marker) = &mut self.marker
+            && let Err(error) = marker.finish(&self.note)
+        {
+            self.mark_error = Some(format!("could not save the note: {error:#}"));
+        }
+        self.note.clear();
+    }
+
     fn poll(&mut self, context: &egui::Context) {
         if !self.recording() && self.displays_refreshed.elapsed() >= DISPLAY_REFRESH {
             self.refresh_displays();
@@ -156,6 +205,7 @@ impl RecorderApp {
         if self.worker.as_ref().is_some_and(JoinHandle::is_finished)
             && let Some(worker) = self.worker.take()
         {
+            self.finish_marking();
             self.last = Some(match worker.join() {
                 Ok(Ok(dir)) => Ok(dir),
                 Ok(Err(error)) => Err(format!("{error:#}")),
@@ -170,12 +220,68 @@ impl RecorderApp {
         {
             // finish and index the session before exiting rather than leaving it half-written
             context.send_viewport_cmd(egui::ViewportCommand::CancelClose);
+            self.finish_marking();
             self.live.request_stop();
             self.closing = true;
         }
 
         if (self.closing || quit_signalled) && !self.recording() {
             context.send_viewport_cmd(egui::ViewportCommand::Close);
+        }
+    }
+}
+
+impl RecorderApp {
+    /// Mark where a bug starts and ends. Everything but the click is optional: the region can be
+    /// described later in the viewer or with `annotate`.
+    fn mark_ui(&mut self, ui: &mut egui::Ui, snapshot: &recorder::LiveSnapshot) {
+        ui.add_space(4.0);
+        let marking = self.marker.as_ref().is_some_and(Marker::is_open);
+        let ready = snapshot.phase == Phase::Recording && !self.live.stop_requested();
+
+        ui.horizontal(|ui| {
+            let label = if marking {
+                "Mark bug end"
+            } else {
+                "Mark bug start"
+            };
+            let button = egui::Button::new(label).min_size([130.0, 28.0].into());
+            let button = if marking {
+                button.fill(egui::Color32::from_rgb(150, 40, 40))
+            } else {
+                button
+            };
+            if ui
+                .add_enabled(ready, button)
+                .on_hover_text(
+                    "Click when the bug starts, and again when it ends. \
+                     The region is saved for whoever investigates the recording.",
+                )
+                .clicked()
+            {
+                self.toggle_mark();
+            }
+
+            let marked = self.marker.as_ref().map_or(0, Marker::marked);
+            ui.label(match (marking, marked) {
+                (true, _) => "marking... describe it, then end it".to_string(),
+                (false, 0) => "no bug marked yet".to_string(),
+                (false, 1) => "1 bug region marked".to_string(),
+                (false, count) => format!("{count} bug regions marked"),
+            });
+        });
+
+        if marking {
+            ui.add(
+                egui::TextEdit::multiline(&mut self.note)
+                    .hint_text("What is going wrong? (optional, can be added later)")
+                    .desired_rows(2)
+                    .desired_width(f32::INFINITY),
+            );
+        }
+
+        if let Some(error) = &self.mark_error {
+            ui.colored_label(egui::Color32::LIGHT_RED, error);
         }
     }
 }
@@ -245,6 +351,7 @@ impl eframe::App for RecorderApp {
                     )
                     .clicked()
                 {
+                    self.finish_marking();
                     self.live.request_stop();
                 }
 
@@ -256,6 +363,10 @@ impl eframe::App for RecorderApp {
                 };
                 ui.label(egui::RichText::new(state).size(18.0).monospace());
             });
+
+            if recording {
+                self.mark_ui(ui, &snapshot);
+            }
 
             ui.separator();
 
@@ -387,5 +498,87 @@ impl eframe::App for RecorderApp {
                 None => {}
             }
         });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::annotations;
+
+    fn temp(name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "komorebi-recorder-app-{name}-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).expect("dir");
+        dir
+    }
+
+    #[test]
+    fn the_mark_button_opens_then_closes_a_region_carrying_the_note() {
+        let dir = temp("mark");
+        let mut app = RecorderApp::new(RecordArgs::default());
+
+        app.mark(dir.clone());
+        assert!(app.marker.as_ref().expect("marker").is_open());
+
+        app.note = "the dock moved my windows".to_string();
+        app.mark(dir.clone());
+
+        let loaded = annotations::load(&dir).expect("load");
+        assert_eq!(loaded.annotations.len(), 1);
+        let region = &loaded.annotations[0];
+        assert!(!region.open_ended());
+        assert_eq!(region.text, "the dock moved my windows");
+        assert!(
+            app.note.is_empty(),
+            "the note box is cleared for the next region"
+        );
+        assert!(app.mark_error.is_none());
+    }
+
+    #[test]
+    fn stopping_with_a_region_open_keeps_it_open_ended_with_its_note() {
+        let dir = temp("stop-open");
+        let mut app = RecorderApp::new(RecordArgs::default());
+
+        app.mark(dir.clone());
+        app.note = "still broken".to_string();
+        app.finish_marking();
+
+        let loaded = annotations::load(&dir).expect("load");
+        assert!(loaded.annotations[0].open_ended());
+        assert_eq!(loaded.annotations[0].text, "still broken");
+    }
+
+    #[test]
+    fn a_mark_that_cannot_be_saved_says_so_instead_of_failing_silently() {
+        let mut app = RecorderApp::new(RecordArgs::default());
+        app.mark(PathBuf::from("/nonexistent/session/dir"));
+        assert!(
+            app.mark_error
+                .as_deref()
+                .is_some_and(|text| text.contains("could not mark"))
+        );
+    }
+
+    #[test]
+    fn the_mark_controls_draw_with_and_without_an_open_region() {
+        let dir = temp("draw");
+        let mut app = RecorderApp::new(RecordArgs::default());
+        let snapshot = recorder::LiveSnapshot::default();
+        let context = egui::Context::default();
+
+        let frame = |app: &mut RecorderApp| {
+            let _ = context.run(egui::RawInput::default(), |context| {
+                egui::CentralPanel::default().show(context, |ui| app.mark_ui(ui, &snapshot));
+            });
+        };
+
+        frame(&mut app);
+        app.mark(dir);
+        frame(&mut app);
     }
 }

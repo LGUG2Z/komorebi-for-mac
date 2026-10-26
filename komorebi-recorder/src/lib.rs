@@ -7,6 +7,7 @@ pub mod clock;
 pub mod frames;
 pub mod incidents;
 pub mod lock;
+pub mod marker;
 pub mod recorder;
 pub mod recovery;
 pub mod report;
