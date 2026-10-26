@@ -3194,6 +3194,7 @@ dependencies = [
  "objc2-foundation 0.3.2",
  "objc2-screen-capture-kit",
  "parking_lot",
+ "schemars 1.2.1",
  "serde",
  "serde_json_lenient",
  "sysinfo",

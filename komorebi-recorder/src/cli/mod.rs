@@ -6,6 +6,8 @@
 mod query;
 mod record;
 
+use crate::analysis::envelope::unusable;
+use crate::analysis::envelope::with_hint;
 use crate::session::Session;
 use clap::Args;
 use clap::Parser;
@@ -94,6 +96,42 @@ pub(crate) fn limit(value: usize) -> Option<usize> {
     (value != 0).then_some(value)
 }
 
+impl Command {
+    /// Whether this command was asked for JSON, which also decides how a failure is reported.
+    #[must_use]
+    pub fn wants_json(&self) -> bool {
+        match self {
+            Self::At(args) => args.filter.json,
+            Self::Range(args) => args.filter.json,
+            Self::Summary(args) => args.json,
+            Self::Locate(args) => args.json,
+            Self::Frames(args) => args.json,
+            _ => false,
+        }
+    }
+}
+
+/// Run `command` and turn its outcome into the process exit status: 0, or the code that says what
+/// kind of failure it was (see [`crate::analysis::envelope::ExitKind`]). With `--json` a failure
+/// is also printed as an envelope so that a caller parsing stdout still gets an answer.
+pub fn execute(command: Command) -> std::process::ExitCode {
+    let json = command.wants_json();
+    match run(command) {
+        Ok(()) => std::process::ExitCode::SUCCESS,
+        Err(error) => {
+            let kind = crate::analysis::envelope::exit_kind(&error);
+            if json {
+                let envelope = crate::analysis::envelope::Envelope::failed(&error);
+                if let Ok(text) = serde_json::to_string_pretty(&envelope) {
+                    println!("{text}");
+                }
+            }
+            eprintln!("Error: {error:?}");
+            std::process::ExitCode::from(kind.code())
+        }
+    }
+}
+
 pub fn run(command: Command) -> eyre::Result<()> {
     match command {
         Command::Gui(args) => crate::app::run(args),
@@ -115,12 +153,18 @@ pub(crate) fn load(session: &std::path::Path) -> eyre::Result<(Session, crate::s
     let manifest = session.manifest()?;
 
     if manifest.status == crate::session::STATUS_RECORDING {
-        eyre::bail!(
-            "{} is still being recorded, or the recorder was killed or crashed before finishing it; \
-             if it is no longer running, recover it with `komorebi-recorder reindex {}`",
-            session.dir.display(),
-            session.dir.display()
-        );
+        let dir = session.dir.display();
+        return Err(match crate::lock::recorder(&session.dir) {
+            crate::lock::Recorder::Running(_) => unusable(format!(
+                "{dir} is still being recorded; stop the recording first"
+            )),
+            crate::lock::Recorder::NotRunning | crate::lock::Recorder::Unknown => with_hint(
+                unusable(format!(
+                    "{dir} was left unfinished: its recorder was killed or crashed"
+                )),
+                format!("recover it with `komorebi-recorder reindex {dir}`"),
+            ),
+        });
     }
 
     Ok((session, manifest))

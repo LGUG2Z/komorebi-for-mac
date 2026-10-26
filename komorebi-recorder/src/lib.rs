@@ -1,9 +1,11 @@
+pub mod analysis;
 pub mod app;
 pub mod capture;
 pub mod cli;
 pub mod clock;
 pub mod frames;
 pub mod incidents;
+pub mod lock;
 pub mod recorder;
 pub mod recovery;
 pub mod report;

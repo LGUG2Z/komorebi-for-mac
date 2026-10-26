@@ -31,6 +31,7 @@ use crate::clock::JumpDetector;
 use crate::incidents::Draft;
 use crate::incidents::IncidentLog;
 use crate::incidents::kind;
+use crate::lock::RecorderLock;
 use crate::session::KomorebiInfo;
 use crate::session::Manifest;
 use crate::session::Moment;
@@ -586,6 +587,8 @@ struct Recording<'a> {
     options: &'a RecordOptions,
     live: &'a Live,
     session: Session,
+    /// Held for the whole recording so other commands can tell it is alive; see [`crate::lock`].
+    _lock: Option<RecorderLock>,
     manifest: Manifest,
     anchors: Vec<Anchor>,
     data_dir: PathBuf,
@@ -638,6 +641,8 @@ impl<'a> Recording<'a> {
 
         let session = Session::create(options.out.clone(), Utc::now())?;
         live.update(|snapshot| snapshot.session_dir = Some(session.dir.clone()));
+        // best effort: failing to lock must not stop a recording
+        let lock = RecorderLock::acquire(&session.dir).ok();
 
         let first_anchor = Anchor::sample();
         let start = Moment {
@@ -855,6 +860,7 @@ impl<'a> Recording<'a> {
             options,
             live,
             session,
+            _lock: lock,
             manifest,
             anchors: vec![first_anchor],
             data_dir,
