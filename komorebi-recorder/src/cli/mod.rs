@@ -4,6 +4,7 @@
 //! (reading a session back).
 
 mod annotate;
+mod investigate;
 mod query;
 mod record;
 
@@ -19,6 +20,9 @@ use std::path::PathBuf;
 
 pub use annotate::AnnotateArgs;
 pub use annotate::AnnotationsArgs;
+pub use investigate::DiffArgs;
+pub use investigate::EventsArgs;
+pub use investigate::StateArgs;
 pub use query::AtArgs;
 pub use query::FilterArgs;
 pub use query::FramesArgs;
@@ -61,6 +65,12 @@ pub enum Command {
     Locate(LocateArgs),
     /// Extract PNG frames at video timecodes (needs ffmpeg)
     Frames(FramesArgs),
+    /// The state komorebi was in at a moment: monitors, workspaces, windows, focus, and anything wrong
+    State(StateArgs),
+    /// What changed between two moments, in terms a person would use
+    Diff(DiffArgs),
+    /// komorebi's events, classified, with the handler that ran for each
+    Events(EventsArgs),
     /// Mark where a bug starts and ends, add notes, or record an agent's finding
     Annotate(AnnotateArgs),
     /// List a session's bug regions, notes and findings
@@ -113,6 +123,9 @@ impl Command {
             Self::Summary(args) => args.json,
             Self::Locate(args) => args.json,
             Self::Frames(args) => args.json,
+            Self::State(args) => args.json,
+            Self::Diff(args) => args.json,
+            Self::Events(args) => args.json,
             Self::Annotate(args) => args.json(),
             Self::Annotations(args) => args.json,
             _ => false,
@@ -151,6 +164,9 @@ pub fn run(command: Command) -> eyre::Result<()> {
         Command::Summary(args) => query::summary(&args),
         Command::Locate(args) => query::locate(&args),
         Command::Frames(args) => query::frames_command(&args),
+        Command::State(args) => investigate::state(&args),
+        Command::Diff(args) => investigate::diff_command(&args),
+        Command::Events(args) => investigate::events(&args),
         Command::Annotate(args) => annotate::annotate(&args),
         Command::Annotations(args) => annotate::list(&args),
         Command::Reindex(args) => reindex(&args),

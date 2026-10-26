@@ -133,6 +133,7 @@ impl SessionBuilder {
             ],
         );
         manifest.stop = Some(stop);
+        manifest.status = crate::session::STATUS_COMPLETE.to_string();
         manifest.video_t0_mach_ns = Some(T0_MACH_NS);
         manifest.video_end_mach_ns = Some(mach_ns(self.length_s));
         manifest.events.events = self.events.len() as u64;
@@ -211,25 +212,97 @@ pub fn log_text(lines: &[(f64, &str, &str)]) -> String {
         .collect()
 }
 
-/// A minimal komorebi `State` with one monitor, one workspace and the given windows (hwnd, title).
+/// A komorebi window as it appears in a `State`: `rect` is `[left, top, width, height]`.
 #[must_use]
-pub fn state_with_windows(windows: &[(u64, &str)]) -> Value {
-    let containers: Vec<Value> = windows
+pub fn window(id: u64, exe: &str, rect: Option<[i64; 4]>) -> Value {
+    let mut value = serde_json::json!({
+        "id": id,
+        "details": {"title": format!("window {id}"), "exe": exe},
+    });
+    if let Some([left, top, width, height]) = rect {
+        // komorebi's `right` and `bottom` are a width and a height
+        value["rect"] =
+            serde_json::json!({"left": left, "top": top, "right": width, "bottom": height});
+    }
+    value
+}
+
+#[must_use]
+pub fn container(id: &str, windows: Vec<Value>) -> Value {
+    serde_json::json!({"id": id, "windows": {"elements": windows, "focused": 0}})
+}
+
+/// A tiling workspace; `layout` is the rects of komorebi's last layout pass, one per container.
+#[must_use]
+pub fn workspace(name: &str, containers: Vec<Value>, focused: usize, layout: &[[i64; 4]]) -> Value {
+    let rects: Vec<Value> = layout
         .iter()
-        .map(|(hwnd, title)| {
-            serde_json::json!({
-                "id": format!("c{hwnd}"),
-                "windows": {"elements": [{"id": hwnd, "title": title, "exe": "app", "pid": 100 + hwnd}], "focused": 0},
-            })
+        .map(|[left, top, width, height]| {
+            serde_json::json!({"left": left, "top": top, "right": width, "bottom": height})
         })
         .collect();
     serde_json::json!({
-        "monitors": {"elements": [{
-            "id": 1,
-            "workspaces": {"elements": [{
-                "name": "one",
-                "containers": {"elements": containers, "focused": 0},
-            }], "focused": 0},
-        }], "focused": 0},
+        "name": name,
+        "layer": "Tiling",
+        "tile": true,
+        "layout": {"Default": "Columns"},
+        "latest_layout": rects,
+        "containers": {"elements": containers, "focused": focused},
+        "floating_windows": {"elements": [], "focused": 0},
     })
+}
+
+/// A monitor of display `id` at `[left, top, width, height]`, hiding windows bottom-left.
+#[must_use]
+pub fn monitor(id: u64, size: [i64; 4], workspaces: Vec<Value>, focused_workspace: usize) -> Value {
+    let [left, top, width, height] = size;
+    let rect = serde_json::json!({"left": left, "top": top, "right": width, "bottom": height});
+    serde_json::json!({
+        "id": id,
+        "device": format!("display {id}"),
+        "size": rect,
+        "work_area_size": rect,
+        "window_hiding_position": "BottomLeft",
+        "workspaces": {"elements": workspaces, "focused": focused_workspace},
+    })
+}
+
+/// A `State` of these monitors with the given one focused.
+#[must_use]
+pub fn state(monitors: Vec<Value>, focused_monitor: usize) -> Value {
+    serde_json::json!({
+        "monitors": {"elements": monitors, "focused": focused_monitor},
+        "is_paused": false,
+    })
+}
+
+/// A minimal `State`: one 1000x800 monitor, one workspace, one container per `(window id, exe)`,
+/// each window in the place the layout says (columns of equal width).
+#[must_use]
+pub fn state_with_windows(windows: &[(u64, &str)]) -> Value {
+    let count = windows.len().max(1) as i64;
+    let width = 1000 / count;
+    let layout: Vec<[i64; 4]> = (0..count)
+        .map(|index| [index * width, 0, width, 800])
+        .collect();
+    let containers = windows
+        .iter()
+        .enumerate()
+        .map(|(index, (id, exe))| {
+            container(
+                &format!("c{id}"),
+                vec![window(*id, exe, Some(layout[index]))],
+            )
+        })
+        .collect();
+
+    state(
+        vec![monitor(
+            1,
+            [0, 0, 1000, 800],
+            vec![workspace("one", containers, 0, &layout)],
+            0,
+        )],
+        0,
+    )
 }

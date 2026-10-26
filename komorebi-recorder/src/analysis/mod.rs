@@ -6,12 +6,21 @@
 //! is named ([`timespec`], [`ids`]), the guard that keeps file access inside the session
 //! ([`guard`]) and the budget that keeps an answer from growing without bound ([`budget`]).
 
+pub mod answers;
 pub mod blocks;
 pub mod budget;
+pub mod classify;
+pub mod diff;
 pub mod envelope;
 pub mod events;
+pub mod facade;
 pub mod guard;
 pub mod ids;
+pub mod invariants;
 pub mod logparse;
 pub mod lookup;
+pub mod state;
 pub mod timespec;
+pub mod views;
+
+pub use facade::Analysis;

@@ -1,6 +1,13 @@
 //! Human-readable rendering of query results. Everything here is a pure function of its inputs so
 //! the output format is unit-testable; `--json` bypasses this module entirely.
 
+use crate::analysis::answers::DiffData;
+use crate::analysis::answers::EventsData;
+use crate::analysis::answers::StateData;
+use crate::analysis::invariants::Severity;
+use crate::analysis::invariants::Violation;
+use crate::analysis::state::Container;
+use crate::analysis::state::Window;
 use crate::annotations::AnnotationView;
 use crate::annotations::Kind;
 use crate::timecode;
@@ -258,6 +265,265 @@ pub fn annotation_text(view: &AnnotationView) -> String {
     if !view.refs.is_empty() {
         let refs: Vec<String> = view.refs.iter().map(ToString::to_string).collect();
         let _ = writeln!(out, "  evidence: {}", refs.join(", "));
+    }
+
+    out
+}
+
+fn rect_text(rect: &Option<crate::analysis::state::Rect>) -> String {
+    rect.as_ref()
+        .map_or_else(|| "rect unknown".to_string(), |rect| rect.describe())
+}
+
+fn window_line(window: &Window, marker: &str) -> String {
+    format!(
+        "{marker} window {} {} \"{}\"  {}",
+        window.id,
+        window.exe,
+        window.title,
+        rect_text(&window.rect)
+    )
+}
+
+fn container_lines(out: &mut String, index: usize, container: &Container, focused: bool) {
+    for (tab, window) in container.windows.iter().enumerate() {
+        let marker = if tab == 0 {
+            format!("{index:>3}{}", if focused { "*" } else { " " })
+        } else {
+            "    ".to_string()
+        };
+        let front = if container.windows.len() > 1 && tab == container.focused {
+            " (front tab)"
+        } else {
+            ""
+        };
+        let _ = writeln!(out, "      {}{front}", window_line(window, &marker));
+    }
+}
+
+fn violation_lines(out: &mut String, violations: &[Violation]) {
+    for violation in violations {
+        let severity = match violation.severity {
+            Severity::Error => "error",
+            Severity::Warn => "warn ",
+            Severity::Info => "info ",
+        };
+        let _ = writeln!(
+            out,
+            "  {severity} {}: {}",
+            violation.kind, violation.message
+        );
+    }
+}
+
+/// Render the answer to `state`.
+#[must_use]
+pub fn state_text(data: &StateData) -> String {
+    let mut out = String::new();
+    let age = data.origin.age_ms.map_or_else(String::new, |age| {
+        if age < 1000.0 {
+            format!(", {age:.0} ms before")
+        } else {
+            format!(", {:.1} s before", age / 1000.0)
+        }
+    });
+    let source = match (data.origin.source.as_str(), data.origin.seq) {
+        ("event", Some(seq)) => format!("as of event #{seq}{age}"),
+        _ => format!("the state when recording began{age}"),
+    };
+    let _ = writeln!(out, "state at {}  ({source})", data.at.timecode);
+    if data.origin.age_ms.is_some_and(|age| age > 5000.0) {
+        let _ = writeln!(
+            out,
+            "note: nothing was reported for a while, and komorebi can change state without a \
+             notification, so this may be out of date"
+        );
+    }
+
+    if let Some(focus) = &data.focus {
+        let _ = writeln!(
+            out,
+            "focus: window {} on monitor {} workspace {}",
+            focus
+                .window_id
+                .map_or_else(|| "(none)".to_string(), |id| id.to_string()),
+            focus.monitor_id,
+            focus.workspace
+        );
+    }
+    if data.paused {
+        let _ = writeln!(out, "komorebi is PAUSED");
+    }
+
+    for monitor in &data.monitors {
+        let _ = writeln!(
+            out,
+            "\nmonitor {} \"{}\"  {}",
+            monitor.id,
+            monitor.device,
+            monitor.size.describe()
+        );
+
+        for (index, workspace) in monitor.workspaces.iter().enumerate() {
+            let showing = data.workspaces.iter().any(|summary| {
+                summary.monitor_id == monitor.id
+                    && summary.name == workspace.name
+                    && summary.showing
+            });
+            let _ = writeln!(
+                out,
+                "  workspace {}{}  {}{}",
+                workspace.name,
+                if showing { " [showing]" } else { "" },
+                workspace.layout,
+                if workspace.layer == "Floating" {
+                    "  [floating layer]"
+                } else {
+                    ""
+                },
+            );
+            let _ = index;
+
+            for (container_index, container) in workspace.containers.iter().enumerate() {
+                container_lines(
+                    &mut out,
+                    container_index,
+                    container,
+                    showing && container_index == workspace.focused,
+                );
+            }
+            if let Some(monocle) = &workspace.monocle {
+                let _ = writeln!(out, "      monocle:");
+                container_lines(&mut out, 0, monocle, true);
+            }
+            if let Some(window) = &workspace.maximized {
+                let _ = writeln!(out, "{}", window_line(window, "      maximized"));
+            }
+            for window in &workspace.floating {
+                let _ = writeln!(out, "{}", window_line(window, "      floating"));
+            }
+        }
+    }
+
+    let hidden: Vec<String> = data
+        .workspaces
+        .iter()
+        .filter(|summary| {
+            !summary.showing
+                && !data.monitors.iter().any(|monitor| {
+                    monitor.id == summary.monitor_id
+                        && monitor
+                            .workspaces
+                            .iter()
+                            .any(|workspace| workspace.name == summary.name)
+                })
+        })
+        .map(|summary| format!("{} ({})", summary.name, summary.windows))
+        .collect();
+    if !hidden.is_empty() {
+        let _ = writeln!(
+            out,
+            "\nnot showing (windows): {}  (--all to list them)",
+            hidden.join(", ")
+        );
+    }
+
+    for found in &data.matches {
+        let _ = writeln!(
+            out,
+            "\nwindow {} {} \"{}\"\n  where:    {}\n  really at: {}{}",
+            found.window.id,
+            found.window.exe,
+            found.window.title,
+            found.location.describe(),
+            rect_text(&found.window.rect),
+            if found.hidden_position {
+                "  (parked off screen)"
+            } else {
+                ""
+            },
+        );
+        if let Some(layout) = &found.layout_rect {
+            let _ = writeln!(out, "  layout says: {}", layout.describe());
+        }
+    }
+
+    if data.violations.is_empty() {
+        let _ = writeln!(out, "\nnothing looks wrong in this state");
+    } else {
+        let _ = writeln!(out, "\nwrong in this state:");
+        violation_lines(&mut out, &data.violations);
+    }
+
+    out
+}
+
+/// Render the answer to `diff`.
+#[must_use]
+pub fn diff_text(data: &DiffData) -> String {
+    let mut out = String::new();
+    let _ = writeln!(out, "from {}  to {}", data.from.timecode, data.to.timecode);
+    if data.changes.is_empty() {
+        let _ = writeln!(out, "no difference between the two states");
+    }
+    for change in &data.changes {
+        let _ = writeln!(out, "  {}", change.text);
+    }
+    if !data.violations_appeared.is_empty() {
+        let _ = writeln!(out, "\nwrong now, and not before:");
+        violation_lines(&mut out, &data.violations_appeared);
+    }
+    if !data.violations_resolved.is_empty() {
+        let _ = writeln!(out, "\nwrong before, and not now:");
+        violation_lines(&mut out, &data.violations_resolved);
+    }
+    out
+}
+
+/// Render the answer to `events`.
+#[must_use]
+pub fn events_text(data: &EventsData, verbose: bool) -> String {
+    let mut out = String::new();
+    let _ = writeln!(
+        out,
+        "{} of {} events{}",
+        data.matching,
+        data.total,
+        data.subscriber
+            .as_ref()
+            .map_or_else(String::new, |name| format!(
+                " (komorebi logged them as {name})"
+            ))
+    );
+
+    for event in &data.events {
+        let handler = event.handler.as_ref().map_or_else(String::new, |handler| {
+            let ms = handler
+                .handler_ms
+                .map_or_else(String::new, |ms| format!(" {ms:.0} ms"));
+            let problems = if handler.errors + handler.warnings > 0 {
+                format!(" {}E/{}W", handler.errors, handler.warnings)
+            } else {
+                String::new()
+            };
+            format!("  handler{ms}{problems}")
+        });
+        let state = match event.state_changed {
+            Some(true) => "  state changed",
+            Some(false) => "  state unchanged",
+            None => "",
+        };
+        let _ = writeln!(
+            out,
+            "#{:<5} {}  {:<9}  {}{handler}{state}",
+            event.seq,
+            timecode::format(event.video_s),
+            format!("{:?}", event.class).to_lowercase(),
+            event.summary,
+        );
+        if verbose {
+            let _ = writeln!(out, "         {}", event.reason);
+        }
     }
 
     out

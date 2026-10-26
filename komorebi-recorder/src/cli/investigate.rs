@@ -1,0 +1,195 @@
+//! `state`, `diff` and `events`: what komorebi believed, what changed, and what happened.
+
+use super::print_json;
+use crate::analysis::Analysis;
+use crate::analysis::answers::EventQuery;
+use crate::analysis::answers::SCHEMA_DIFF;
+use crate::analysis::answers::SCHEMA_EVENTS;
+use crate::analysis::answers::SCHEMA_STATE;
+use crate::analysis::answers::StateQuery;
+use crate::analysis::classify::Class;
+use crate::analysis::envelope;
+use crate::analysis::envelope::Envelope;
+use crate::report;
+use clap::Args;
+use clap::ValueEnum;
+use color_eyre::eyre;
+use std::path::PathBuf;
+
+#[derive(Args, Debug)]
+pub struct StateArgs {
+    /// Session directory
+    pub session: PathBuf,
+    /// The moment: 12.5, 1:02.5, wall:<RFC 3339>, event:<seq>, bug:<id>.end, optionally +3s.
+    /// `event:<seq>` is the state before that event ran, `event:<seq>.end` after it
+    #[arg(long, value_name = "TIME")]
+    pub at: String,
+    /// Only windows with this id, or whose application or title contains this text
+    #[arg(long, value_name = "ID|TEXT")]
+    pub window: Option<String>,
+    /// Only this monitor (display id)
+    #[arg(long, value_name = "ID")]
+    pub monitor: Option<u64>,
+    /// Show workspaces that are not showing too
+    #[arg(long)]
+    pub all: bool,
+    /// Machine-readable JSON output
+    #[arg(long)]
+    pub json: bool,
+}
+
+#[derive(Args, Debug)]
+pub struct DiffArgs {
+    /// Session directory
+    pub session: PathBuf,
+    /// The earlier moment (see `state --at`)
+    pub from: String,
+    /// The later moment
+    pub to: String,
+    /// Machine-readable JSON output
+    #[arg(long)]
+    pub json: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub enum ClassArg {
+    Command,
+    Drag,
+    Focus,
+    Lifecycle,
+    Echo,
+    Manual,
+    Monitor,
+    Lock,
+    Other,
+}
+
+impl From<ClassArg> for Class {
+    fn from(class: ClassArg) -> Self {
+        match class {
+            ClassArg::Command => Self::Command,
+            ClassArg::Drag => Self::Drag,
+            ClassArg::Focus => Self::Focus,
+            ClassArg::Lifecycle => Self::Lifecycle,
+            ClassArg::Echo => Self::Echo,
+            ClassArg::Manual => Self::Manual,
+            ClassArg::Monitor => Self::Monitor,
+            ClassArg::Lock => Self::Lock,
+            ClassArg::Other => Self::Other,
+        }
+    }
+}
+
+#[derive(Args, Debug)]
+pub struct EventsArgs {
+    /// Session directory
+    pub session: PathBuf,
+    /// Only events received at or after this moment
+    #[arg(long, value_name = "TIME")]
+    pub from: Option<String>,
+    /// Only events received at or before this moment
+    #[arg(long, value_name = "TIME")]
+    pub to: Option<String>,
+    /// Only these classes (repeatable)
+    #[arg(long = "class", value_enum)]
+    pub classes: Vec<ClassArg>,
+    /// Leave out echoes of komorebi's own moves
+    #[arg(long)]
+    pub hide_echo: bool,
+    /// Only events whose name contains this text, e.g. MoveEnd or FocusWorkspace
+    #[arg(long)]
+    pub name: Option<String>,
+    /// Only events about this process id
+    #[arg(long)]
+    pub pid: Option<i32>,
+    /// Only events about this window id
+    #[arg(long)]
+    pub window: Option<u32>,
+    /// Most events to print (0 for all)
+    #[arg(long, default_value_t = 50)]
+    pub limit: usize,
+    /// Continue after this event sequence number (from a truncated answer's next_cursor)
+    #[arg(long, value_name = "SEQ")]
+    pub cursor: Option<u64>,
+    /// Say why each event was classified as it was
+    #[arg(long)]
+    pub verbose: bool,
+    /// Machine-readable JSON output
+    #[arg(long)]
+    pub json: bool,
+}
+
+pub(super) fn state(args: &StateArgs) -> eyre::Result<()> {
+    let analysis = Analysis::open(&args.session)?;
+    let at = analysis.resolve(&args.at)?;
+    let data = analysis.state_answer(
+        at.mach_ns,
+        &StateQuery {
+            window: args.window.clone(),
+            monitor: args.monitor,
+            all: args.all,
+        },
+    )?;
+
+    if args.json {
+        return print_json(&Envelope::ok(SCHEMA_STATE, data).warnings(analysis.warnings()));
+    }
+
+    print!("{}", report::state_text(&data));
+    Ok(())
+}
+
+pub(super) fn diff_command(args: &DiffArgs) -> eyre::Result<()> {
+    let analysis = Analysis::open(&args.session)?;
+    let from = analysis.resolve(&args.from)?;
+    let to = analysis.resolve(&args.to)?;
+    if to.mach_ns < from.mach_ns {
+        return Err(envelope::usage(format!(
+            "{} is before {}: give the earlier moment first",
+            args.to, args.from
+        )));
+    }
+
+    let data = analysis.diff_answer(from.mach_ns, to.mach_ns)?;
+    if args.json {
+        return print_json(&Envelope::ok(SCHEMA_DIFF, data).warnings(analysis.warnings()));
+    }
+
+    print!("{}", report::diff_text(&data));
+    Ok(())
+}
+
+pub(super) fn events(args: &EventsArgs) -> eyre::Result<()> {
+    let analysis = Analysis::open(&args.session)?;
+    let moment = |text: &Option<String>| -> eyre::Result<Option<u64>> {
+        text.as_deref()
+            .map(|text| analysis.resolve(text).map(|resolved| resolved.mach_ns))
+            .transpose()
+    };
+
+    let answer = analysis.events_answer(&EventQuery {
+        from_mach_ns: moment(&args.from)?,
+        to_mach_ns: moment(&args.to)?,
+        classes: args.classes.iter().copied().map(Class::from).collect(),
+        hide_echo: args.hide_echo,
+        name: args.name.clone(),
+        pid: args.pid,
+        window: args.window,
+        limit: (args.limit != 0).then_some(args.limit),
+        after_seq: args.cursor,
+    });
+
+    if args.json {
+        let mut envelope = Envelope::ok(SCHEMA_EVENTS, answer.data).warnings(analysis.warnings());
+        if answer.next_cursor.is_some() {
+            envelope = envelope.truncated(answer.next_cursor);
+        }
+        return print_json(&envelope);
+    }
+
+    print!("{}", report::events_text(&answer.data, args.verbose));
+    if let Some(cursor) = &answer.next_cursor {
+        println!("... more; continue with --cursor {cursor}");
+    }
+    Ok(())
+}
