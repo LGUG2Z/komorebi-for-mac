@@ -4,6 +4,7 @@
 use crate::analysis::answers::DiffData;
 use crate::analysis::answers::EventsData;
 use crate::analysis::answers::StateData;
+use crate::analysis::code::CodeData;
 use crate::analysis::invariants::Severity;
 use crate::analysis::invariants::Violation;
 use crate::analysis::state::Container;
@@ -524,6 +525,96 @@ pub fn events_text(data: &EventsData, verbose: bool) -> String {
         if verbose {
             let _ = writeln!(out, "         {}", event.reason);
         }
+    }
+
+    out
+}
+
+/// Render the answer to `code`.
+#[must_use]
+pub fn code_text(data: &CodeData) -> String {
+    let mut out = String::new();
+    if let Some(warning) = &data.skew.warning {
+        let _ = writeln!(out, "WARNING: {warning}\n");
+    }
+
+    for line in &data.lines {
+        let time = line.video_s.map_or_else(String::new, |seconds| {
+            format!("  {}", timecode::format(seconds))
+        });
+        let _ = writeln!(
+            out,
+            "log:{}{time}  {}  {}\n  {}",
+            line.line,
+            line.level.as_deref().unwrap_or(""),
+            line.target.as_deref().unwrap_or(""),
+            line.message,
+        );
+
+        match &line.source {
+            Some(source) => {
+                let note = match source.confidence {
+                    crate::analysis::catalog::Confidence::Exact => "exact".to_string(),
+                    crate::analysis::catalog::Confidence::Likely => "likely".to_string(),
+                    crate::analysis::catalog::Confidence::Ambiguous => format!(
+                        "ambiguous: {} other statement(s) read the same",
+                        source.alternatives.len()
+                    ),
+                    crate::analysis::catalog::Confidence::Generic => {
+                        "generic: the statement only prints a value, so this says little"
+                            .to_string()
+                    }
+                };
+                let _ = writeln!(
+                    out,
+                    "  -> {}  in {}  ({note})",
+                    source.statement.location(),
+                    source.statement.qualified_function()
+                );
+                for other in &source.alternatives {
+                    let _ = writeln!(
+                        out,
+                        "     or {}  in {}",
+                        other.location(),
+                        other.qualified_function()
+                    );
+                }
+            }
+            None => {
+                let _ = writeln!(out, "  -> no statement in the indexed source writes this");
+            }
+        }
+
+        if let Some(snippet) = &line.snippet {
+            for (number, text) in &snippet.lines {
+                let marker = if *number == snippet.line { ">" } else { " " };
+                let _ = writeln!(out, "     {number:>5} {marker} {text}");
+            }
+        }
+        if let Some(role) = &line.role {
+            let _ = writeln!(
+                out,
+                "  role: {role}{}",
+                if line.changes_state_silently {
+                    "  [CHANGES STATE WITHOUT A NOTIFICATION]"
+                } else {
+                    ""
+                }
+            );
+        }
+        out.push('\n');
+    }
+
+    for statement in &data.statements {
+        let _ = writeln!(
+            out,
+            "{}  {}  in {}\n  {} {}",
+            statement.location(),
+            statement.level,
+            statement.qualified_function(),
+            statement.target,
+            statement.template
+        );
     }
 
     out

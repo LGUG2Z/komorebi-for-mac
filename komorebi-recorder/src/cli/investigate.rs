@@ -8,6 +8,7 @@ use crate::analysis::answers::SCHEMA_EVENTS;
 use crate::analysis::answers::SCHEMA_STATE;
 use crate::analysis::answers::StateQuery;
 use crate::analysis::classify::Class;
+use crate::analysis::code::SCHEMA_CODE;
 use crate::analysis::envelope;
 use crate::analysis::envelope::Envelope;
 use crate::report;
@@ -191,5 +192,80 @@ pub(super) fn events(args: &EventsArgs) -> eyre::Result<()> {
     if let Some(cursor) = &answer.next_cursor {
         println!("... more; continue with --cursor {cursor}");
     }
+    Ok(())
+}
+
+#[derive(Args, Debug)]
+pub struct CodeArgs {
+    /// Session directory
+    pub session: PathBuf,
+    /// What to explain: `log:<line>` (a line of komorebi's log) or `event:<seq>` (everything the
+    /// handler of that event logged)
+    pub refs: Vec<String>,
+    /// Instead, find statements in komorebi's source whose message contains this text
+    #[arg(long, value_name = "TEXT")]
+    pub grep: Option<String>,
+    /// Lines of source to show either side of each statement
+    #[arg(long, default_value_t = 3)]
+    pub context: usize,
+    /// komorebi's repository, to show source from [default: $KOMOREBI_SOURCE or the one this
+    /// recorder was built from]
+    #[arg(long, value_name = "DIR")]
+    pub code_root: Option<PathBuf>,
+    /// Machine-readable JSON output
+    #[arg(long)]
+    pub json: bool,
+}
+
+pub(super) fn code(args: &CodeArgs) -> eyre::Result<()> {
+    let analysis = Analysis::open(&args.session)?;
+    let root = args
+        .code_root
+        .clone()
+        .or_else(crate::annotations::default_code_root);
+
+    let data = if let Some(text) = &args.grep {
+        analysis.code_search(text)
+    } else {
+        if args.refs.is_empty() {
+            return Err(envelope::usage(
+                "say what to explain: log:<line>, event:<seq>, or --grep <text>",
+            ));
+        }
+
+        let mut combined: Option<crate::analysis::code::CodeData> = None;
+        for text in &args.refs {
+            let item: crate::analysis::ids::ItemRef = text.parse()?;
+            let part = match item {
+                crate::analysis::ids::ItemRef::Log(line) => {
+                    analysis.code_for_lines(text, &[line], args.context, root.as_deref())?
+                }
+                crate::analysis::ids::ItemRef::Event(seq) => {
+                    analysis.code_for_event(seq, args.context, root.as_deref())?
+                }
+                _ => {
+                    return Err(envelope::usage(format!(
+                        "'{text}': only log:<line> and event:<seq> have source code"
+                    )));
+                }
+            };
+            match &mut combined {
+                Some(all) => {
+                    all.about = format!("{} {text}", all.about);
+                    all.lines.extend(part.lines);
+                }
+                None => combined = Some(part),
+            }
+        }
+        combined.ok_or_else(|| envelope::usage("nothing to explain"))?
+    };
+
+    if args.json {
+        let mut warnings = analysis.warnings();
+        warnings.extend(data.skew.warning.clone());
+        return print_json(&Envelope::ok(SCHEMA_CODE, data).warnings(warnings));
+    }
+
+    print!("{}", report::code_text(&data));
     Ok(())
 }

@@ -9,7 +9,9 @@
 pub mod answers;
 pub mod blocks;
 pub mod budget;
+pub mod catalog;
 pub mod classify;
+pub mod code;
 pub mod diff;
 pub mod envelope;
 pub mod events;

@@ -80,3 +80,7 @@ schemars = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 sysinfo = { workspace = true }
+
+[build-dependencies]
+proc-macro2 = { version = "1", features = ["span-locations"] }
+syn = { version = "2", features = ["full", "visit"] }

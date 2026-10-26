@@ -20,6 +20,7 @@ use std::path::PathBuf;
 
 pub use annotate::AnnotateArgs;
 pub use annotate::AnnotationsArgs;
+pub use investigate::CodeArgs;
 pub use investigate::DiffArgs;
 pub use investigate::EventsArgs;
 pub use investigate::StateArgs;
@@ -71,6 +72,8 @@ pub enum Command {
     Diff(DiffArgs),
     /// komorebi's events, classified, with the handler that ran for each
     Events(EventsArgs),
+    /// Which line of komorebi's source wrote a line of its log, with the code around it
+    Code(CodeArgs),
     /// Mark where a bug starts and ends, add notes, or record an agent's finding
     Annotate(AnnotateArgs),
     /// List a session's bug regions, notes and findings
@@ -126,6 +129,7 @@ impl Command {
             Self::State(args) => args.json,
             Self::Diff(args) => args.json,
             Self::Events(args) => args.json,
+            Self::Code(args) => args.json,
             Self::Annotate(args) => args.json(),
             Self::Annotations(args) => args.json,
             _ => false,
@@ -167,6 +171,7 @@ pub fn run(command: Command) -> eyre::Result<()> {
         Command::State(args) => investigate::state(&args),
         Command::Diff(args) => investigate::diff_command(&args),
         Command::Events(args) => investigate::events(&args),
+        Command::Code(args) => investigate::code(&args),
         Command::Annotate(args) => annotate::annotate(&args),
         Command::Annotations(args) => annotate::list(&args),
         Command::Reindex(args) => reindex(&args),

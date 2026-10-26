@@ -48,6 +48,7 @@ pub struct SessionBuilder {
     events: Vec<PendingEvent>,
     log: Vec<(f64, String, String)>,
     incidents: Vec<Incident>,
+    komorebi_commit: Option<String>,
 }
 
 impl SessionBuilder {
@@ -66,7 +67,15 @@ impl SessionBuilder {
             events: Vec::new(),
             log: Vec::new(),
             incidents: Vec::new(),
+            komorebi_commit: None,
         }
+    }
+
+    /// Say the recorded komorebi was built from this commit.
+    #[must_use]
+    pub fn komorebi_commit(mut self, commit: &str) -> Self {
+        self.komorebi_commit = Some(commit.to_string());
+        self
     }
 
     #[must_use]
@@ -137,6 +146,14 @@ impl SessionBuilder {
         manifest.video_t0_mach_ns = Some(T0_MACH_NS);
         manifest.video_end_mach_ns = Some(mach_ns(self.length_s));
         manifest.events.events = self.events.len() as u64;
+        if let Some(commit) = &self.komorebi_commit {
+            manifest.komorebi.versions = vec![crate::sources::komorebi_version::KomorebiVersion {
+                pid: Some(1),
+                version: "0.1.0".to_string(),
+                branch: Some("master".to_string()),
+                commit: Some(commit.clone()),
+            }];
+        }
 
         self.events.sort_by(|a, b| a.video_s.total_cmp(&b.video_s));
         let mut state_id = 0_u64;
