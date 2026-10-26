@@ -1,6 +1,8 @@
 pub mod capture;
 pub mod clock;
+pub mod frames;
 pub mod incidents;
+pub mod report;
 pub mod session;
 pub mod sources;
 pub mod system_state;
