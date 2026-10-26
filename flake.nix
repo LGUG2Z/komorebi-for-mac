@@ -94,6 +94,7 @@
           komorebi = extractBinary "komorebi";
           komorebic = extractBinary "komorebic";
           komorebi-bar = extractBinary "komorebi-bar";
+          komorebi-recorder = extractBinary "komorebi-recorder";
         };
 
       mkPkgs =
@@ -172,7 +173,7 @@
           };
 
           packages = {
-            inherit (build) komorebi komorebic komorebi-bar;
+            inherit (build) komorebi komorebic komorebi-bar komorebi-recorder;
             komorebi-full = build.fullBuild;
             default = build.fullBuild;
           };
@@ -189,6 +190,10 @@
             komorebi-bar = {
               type = "app";
               program = "${build.komorebi-bar}/bin/komorebi-bar";
+            };
+            komorebi-recorder = {
+              type = "app";
+              program = "${build.komorebi-recorder}/bin/komorebi-recorder";
             };
             default = {
               type = "app";
@@ -210,6 +215,9 @@
               pkgs.cargo-deny
               pkgs.cargo-nextest
               pkgs.cargo-outdated
+              # `komorebi-recorder frames` and `selftest` extract frames with ffmpeg; it is never
+              # used for capture and is not bundled into the packaged binary
+              pkgs.ffmpeg-headless
               pkgs.jq
               pkgs.just
               pkgs.prettier
@@ -237,7 +245,7 @@
             };
           in
           {
-            inherit (build) komorebi komorebic komorebi-bar;
+            inherit (build) komorebi komorebic komorebi-bar komorebi-recorder;
             komorebi-full = build.fullBuild;
           };
 
@@ -250,7 +258,7 @@
             };
           in
           {
-            inherit (build) komorebi komorebic komorebi-bar;
+            inherit (build) komorebi komorebic komorebi-bar komorebi-recorder;
             komorebi-full = build.fullBuild;
           };
 

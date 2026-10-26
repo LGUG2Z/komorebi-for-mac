@@ -27,7 +27,7 @@ install-target-with-jsonschema target:
     cargo install --path {{ target }} --locked
 
 install:
-    just install-targets komorebic komorebi komorebi-bar
+    just install-targets komorebic komorebi komorebi-bar komorebi-recorder
 
 install-with-jsonschema:
     just install-targets-with-jsonschema komorebic komorebic-no-console komorebi komorebi-bar komorebi-gui komorebi-shortcuts
@@ -39,10 +39,14 @@ build-target target:
     cargo build --package {{ target }} --locked --release --no-default-features
 
 build:
-    just build-targets komorebic komorebi komorebi-bar
+    just build-targets komorebic komorebi komorebi-bar komorebi-recorder
 
 run target:
     cargo run --bin {{ target }} --locked
+
+# record a bug repro: screen + komorebi log/events + OS trace, then query it with `komorebi-recorder at`
+record *args:
+    cargo run --bin komorebi-recorder --locked -- {{ args }}
 
 error target $RUST_LOG="komorebi=error":
     just run {{ target }}

@@ -17,6 +17,7 @@ class KomorebiForMacNightly < Formula
     system "codesign", "--force", "-s", "-", "#{bin}/komorebi"
     system "codesign", "--force", "-s", "-", "#{bin}/komorebic"
     system "codesign", "--force", "-s", "-", "#{bin}/komorebi-bar"
+    system "codesign", "--force", "-s", "-", "#{bin}/komorebi-recorder"
   end
 
   def caveats
