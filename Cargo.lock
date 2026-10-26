@@ -3178,6 +3178,8 @@ version = "0.1.1"
 dependencies = [
  "chrono",
  "color-eyre",
+ "crossbeam-channel",
+ "komorebi-client",
  "libc",
  "objc2-core-foundation",
  "objc2-core-graphics",
