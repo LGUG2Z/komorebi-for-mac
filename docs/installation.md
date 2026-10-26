@@ -115,6 +115,7 @@ Clone the git repository, enter the directory, and build the following binaries:
 cargo +stable install --path komorebi --locked --target-dir ~/.cargo/bin
 cargo +stable install --path komorebic --locked --target-dir ~/.cargo/bin
 cargo +stable install --path komorebi-bar --locked --target-dir ~/.cargo/bin
+cargo +stable install --path komorebi-recorder --locked --target-dir ~/.cargo/bin # optional, see "Recording a Bug Repro"
 ```
 
 If the binaries have been built and added to your `$PATH` correctly, you should
@@ -135,6 +136,7 @@ Finally, you can run the following commands to clean up files created by the
 rm -rf ~/.cargo/bin/komorebi
 rm -rf ~/.cargo/bin/komorebic
 rm -rf ~/.cargo/bin/komorebi-bar
+rm -rf ~/.cargo/bin/komorebi-recorder
 rm -rf ~/.config/komorebi
 rm -rf "~/Library/Application Support/komorebi"
 ```

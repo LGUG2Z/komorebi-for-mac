@@ -173,7 +173,12 @@
           };
 
           packages = {
-            inherit (build) komorebi komorebic komorebi-bar komorebi-recorder;
+            inherit (build)
+              komorebi
+              komorebic
+              komorebi-bar
+              komorebi-recorder
+              ;
             komorebi-full = build.fullBuild;
             default = build.fullBuild;
           };
@@ -245,7 +250,12 @@
             };
           in
           {
-            inherit (build) komorebi komorebic komorebi-bar komorebi-recorder;
+            inherit (build)
+              komorebi
+              komorebic
+              komorebi-bar
+              komorebi-recorder
+              ;
             komorebi-full = build.fullBuild;
           };
 
@@ -258,7 +268,12 @@
             };
           in
           {
-            inherit (build) komorebi komorebic komorebi-bar komorebi-recorder;
+            inherit (build)
+              komorebi
+              komorebic
+              komorebi-bar
+              komorebi-recorder
+              ;
             komorebi-full = build.fullBuild;
           };
 
