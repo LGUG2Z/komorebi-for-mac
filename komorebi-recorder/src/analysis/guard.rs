@@ -12,6 +12,16 @@ use std::path::Component;
 use std::path::Path;
 use std::path::PathBuf;
 
+/// Whether `relative` is a non-empty relative path made only of ordinary names: no `..`, no `.`,
+/// no root or drive prefix.
+#[must_use]
+pub fn is_plain_relative(relative: &str) -> bool {
+    !relative.is_empty()
+        && Path::new(relative)
+            .components()
+            .all(|component| matches!(component, Component::Normal(_)))
+}
+
 /// A session directory known to be one, with its real (symlink-free) location.
 #[derive(Debug, Clone)]
 pub struct SessionPath {
@@ -43,11 +53,7 @@ impl SessionPath {
     /// exists, must really be inside the session once symlinks are followed.
     pub fn resolve(&self, relative: &str) -> eyre::Result<PathBuf> {
         let path = Path::new(relative);
-        let plain = !relative.is_empty()
-            && path
-                .components()
-                .all(|component| matches!(component, Component::Normal(_)));
-        if !plain {
+        if !is_plain_relative(relative) {
             return Err(envelope::usage(format!(
                 "'{relative}' is not a path inside the session"
             )));

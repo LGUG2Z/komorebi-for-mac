@@ -1,6 +1,8 @@
 //! Human-readable rendering of query results. Everything here is a pure function of its inputs so
 //! the output format is unit-testable; `--json` bypasses this module entirely.
 
+use crate::annotations::AnnotationView;
+use crate::annotations::Kind;
 use crate::timecode;
 use crate::timeline::Bucket;
 use crate::timeline::Located;
@@ -189,6 +191,73 @@ pub fn locate_text(located: &Located) -> String {
             out,
             "  display {display}: no video at this moment (unplugged, asleep or its stream had stopped; see the recorder source)"
         );
+    }
+
+    out
+}
+
+/// Render one annotation: for a bug, the region and, verbatim, what the user said is wrong.
+#[must_use]
+pub fn annotation_text(view: &AnnotationView) -> String {
+    let mut out = String::new();
+    let displays = if view.displays.is_empty() {
+        "any display".to_string()
+    } else {
+        format!(
+            "display {}",
+            view.displays
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>()
+                .join(", ")
+        )
+    };
+
+    let _ = writeln!(
+        out,
+        "{} {}  {} -> {} ({:.3}s)  {displays}  by {}",
+        view.kind,
+        view.id,
+        timecode::format(view.start_video_s),
+        timecode::format(view.end_video_s),
+        view.end_video_s - view.start_video_s,
+        view.author
+    );
+
+    let indent = |text: &str| text.lines().collect::<Vec<_>>().join("\n    ");
+    if !view.title.is_empty() {
+        let _ = writeln!(out, "  title: {}", view.title);
+    }
+    if !view.text.trim().is_empty() {
+        let label = match view.kind {
+            Kind::Bug => "what goes wrong",
+            Kind::Note => "note",
+            Kind::Finding => "finding",
+        };
+        let _ = writeln!(out, "  {label}:\n    {}", indent(&view.text));
+    }
+    if let Some(expected) = &view.expected {
+        let _ = writeln!(out, "  expected:\n    {}", indent(expected));
+    }
+    if view.open_ended {
+        let _ = writeln!(
+            out,
+            "  open-ended: no end was set, so it runs to the end of the recording"
+        );
+    }
+    if view.needs_description {
+        let _ = writeln!(
+            out,
+            "  needs a description: add one with `annotate <session> edit {} --text ...`",
+            view.id
+        );
+    }
+    if let Some(about) = &view.about {
+        let _ = writeln!(out, "  about: {about}");
+    }
+    if !view.refs.is_empty() {
+        let refs: Vec<String> = view.refs.iter().map(ToString::to_string).collect();
+        let _ = writeln!(out, "  evidence: {}", refs.join(", "));
     }
 
     out

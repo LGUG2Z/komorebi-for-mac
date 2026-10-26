@@ -1,4 +1,5 @@
 pub mod analysis;
+pub mod annotations;
 pub mod app;
 pub mod capture;
 pub mod cli;
@@ -13,5 +14,7 @@ pub mod selftest;
 pub mod session;
 pub mod sources;
 pub mod system_state;
+#[doc(hidden)]
+pub mod testkit;
 pub mod timecode;
 pub mod timeline;

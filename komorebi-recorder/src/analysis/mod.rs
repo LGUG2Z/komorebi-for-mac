@@ -10,4 +10,5 @@ pub mod budget;
 pub mod envelope;
 pub mod guard;
 pub mod ids;
+pub mod lookup;
 pub mod timespec;

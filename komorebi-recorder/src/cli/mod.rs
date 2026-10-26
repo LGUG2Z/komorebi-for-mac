@@ -3,6 +3,7 @@
 //! Each family of commands lives next to its arguments: [`record`] (recording), [`query`]
 //! (reading a session back).
 
+mod annotate;
 mod query;
 mod record;
 
@@ -16,6 +17,8 @@ use color_eyre::eyre;
 use serde::Serialize;
 use std::path::PathBuf;
 
+pub use annotate::AnnotateArgs;
+pub use annotate::AnnotationsArgs;
 pub use query::AtArgs;
 pub use query::FilterArgs;
 pub use query::FramesArgs;
@@ -58,6 +61,10 @@ pub enum Command {
     Locate(LocateArgs),
     /// Extract PNG frames at video timecodes (needs ffmpeg)
     Frames(FramesArgs),
+    /// Mark where a bug starts and ends, add notes, or record an agent's finding
+    Annotate(AnnotateArgs),
+    /// List a session's bug regions, notes and findings
+    Annotations(AnnotationsArgs),
     /// Rebuild a session's timeline from its raw files, recovering it first if the recorder died
     Reindex(ReindexArgs),
     /// Check the video-to-clock alignment against a rendered on-screen clock
@@ -106,6 +113,8 @@ impl Command {
             Self::Summary(args) => args.json,
             Self::Locate(args) => args.json,
             Self::Frames(args) => args.json,
+            Self::Annotate(args) => args.json(),
+            Self::Annotations(args) => args.json,
             _ => false,
         }
     }
@@ -142,6 +151,8 @@ pub fn run(command: Command) -> eyre::Result<()> {
         Command::Summary(args) => query::summary(&args),
         Command::Locate(args) => query::locate(&args),
         Command::Frames(args) => query::frames_command(&args),
+        Command::Annotate(args) => annotate::annotate(&args),
+        Command::Annotations(args) => annotate::list(&args),
         Command::Reindex(args) => reindex(&args),
         Command::Selftest(args) => crate::selftest::run(&args),
         Command::SelftestClock => crate::selftest::run_clock(),
