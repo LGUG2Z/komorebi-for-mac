@@ -14,6 +14,8 @@ use crate::session::STATUS_RECORDING;
 use crate::session::STATUS_RECOVERED;
 use crate::session::Session;
 use crate::sources::komorebi_events::EventRow;
+use crate::timeline;
+use crate::timeline::BuildStats;
 use color_eyre::eyre;
 use std::path::Path;
 
@@ -72,6 +74,24 @@ pub fn read_frame_log_until(path: &Path, until_pts_mach_ns: u64) -> FrameLog {
 
 /// One frame at the capture frame rate cap, used to give the last recovered frame a duration.
 const FRAME_NS: u64 = 33_333_333;
+
+/// What [`reindex_session`] did.
+#[derive(Debug)]
+pub struct Reindexed {
+    /// Notes describing a recovery, empty if the session had been finished properly.
+    pub recovered: Vec<String>,
+    pub stats: BuildStats,
+}
+
+/// Close out `session` if its recorder died, then rebuild its timeline and README from the raw
+/// files. This is everything `komorebi-recorder reindex` does, shared so that other commands can
+/// bring a session up to date the same way.
+pub fn reindex_session(session: &Session) -> eyre::Result<Reindexed> {
+    let recovered = recover(session)?;
+    let stats = timeline::build(session)?;
+    session.write_readme(&session.manifest()?)?;
+    Ok(Reindexed { recovered, stats })
+}
 
 /// Recover `session` if it was left unfinished, asking AVFoundation how long each video file
 /// really is. Returns notes describing what was done (empty if the session was already complete).
