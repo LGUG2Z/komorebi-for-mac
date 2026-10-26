@@ -1,7 +1,8 @@
 //! Screen capture. The macOS implementation lives in [`sck`]; everything here is the plain-data
 //! description of what was captured, plus the two traits ([`CaptureBackend`], [`RunningCapture`])
-//! that keep everything that decides *what* to record free of Objective-C. That separation is
-//! what makes display hotplug, sleep and wake testable without unplugging monitors.
+//! that let [`manager::DisplayManager`] handle displays coming and going without knowing anything
+//! about Objective-C. That separation is what makes display hotplug, sleep and wake testable
+//! without unplugging monitors.
 
 use color_eyre::eyre;
 use parking_lot::Mutex;
@@ -12,6 +13,7 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
 
+pub mod manager;
 pub mod sck;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, clap::ValueEnum)]
