@@ -10,6 +10,7 @@ use komorebi::HOME_DIR;
 use komorebi::border_manager;
 use komorebi::core::pathext::replace_env_in_path;
 use komorebi::display_reconfiguration_listener::DisplayReconfigurationListener;
+use komorebi::input_event_listener;
 use komorebi::input_event_listener::InputEventListener;
 use komorebi::monitor_reconciliator;
 use komorebi::notification_center_listener::NotificationCenterListener;
@@ -41,11 +42,16 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
 use std::sync::mpsc;
+use std::time::Duration;
+use std::time::Instant;
 use sysinfo::Process;
 use sysinfo::ProcessesToUpdate;
 use tracing_appender::non_blocking::WorkerGuard;
 use tracing_subscriber::EnvFilter;
 use tracing_subscriber::layer::SubscriberExt;
+
+/// How often the event tap is looked at when the system has not said that it turned it off
+const TAP_CHECK_INTERVAL: Duration = Duration::from_secs(5);
 
 fn check_permissions() -> eyre::Result<()> {
     unsafe {
@@ -226,7 +232,8 @@ fn main() -> eyre::Result<()> {
     let _display_reconfiguration_listener = DisplayReconfigurationListener::init();
 
     let run_loop = CFRunLoop::current().ok_or_eyre("couldn't get CFRunLoop::current")?;
-    let _input_listener = InputEventListener::init(&run_loop);
+    let mut input_listener = InputEventListener::init(&run_loop);
+    let mut last_tap_check = Instant::now();
 
     #[cfg(feature = "deadlock_detection")]
     detect_deadlocks();
@@ -271,7 +278,7 @@ fn main() -> eyre::Result<()> {
 
     wm.lock().retile_all(false)?;
 
-    border_manager::listen_for_notifications(wm.clone(), CoreFoundationRunLoop(run_loop));
+    border_manager::listen_for_notifications(wm.clone(), CoreFoundationRunLoop(run_loop.clone()));
     theme_manager::listen_for_notifications();
     monitor_reconciliator::listen_for_notifications(wm.clone())?;
     reaper::listen_for_notifications(wm.clone());
@@ -306,6 +313,18 @@ fn main() -> eyre::Result<()> {
         if quit_thread.load(Ordering::Relaxed) {
             tracing::info!("stopping CFRunLoop");
             break;
+        }
+
+        // the tap is looked after when the system says that it turned it off, and every so often
+        // regardless, since there is nobody to say when it is lost across sleep
+        if input_event_listener::take_disabled() || last_tap_check.elapsed() >= TAP_CHECK_INTERVAL {
+            last_tap_check = Instant::now();
+
+            match input_listener.as_mut() {
+                Some(listener) => listener.ensure_enabled(&run_loop),
+                // there may be permission now that there was not
+                None => input_listener = InputEventListener::init(&run_loop),
+            }
         }
 
         autoreleasepool(|_| {
