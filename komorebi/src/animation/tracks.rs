@@ -31,6 +31,10 @@ const NEXT_VERIFY_DELAY: Duration = Duration::from_millis(100);
 /// being animated.
 const STALE_AFTER: Duration = Duration::from_secs(3);
 
+/// How many windows are remembered as having had their journey cut short, before the oldest news is
+/// let go, as nothing guarantees that anybody will ever ask
+const MAX_UNFINISHED: usize = 1024;
+
 /// A window that cannot be written to this many times in a row is given up on
 const MAX_WRITE_FAILURES: u8 = 5;
 
@@ -283,7 +287,7 @@ pub struct Tracks<H> {
     /// The same, by process: apps do not always report a move on the window we moved, as with the
     /// tabs of a native tabbed window, which all move together but report as whichever is showing
     recent_processes: HashMap<i32, Recent>,
-    /// Windows that were animated with somewhere to go afterwards, and stopped before they got there
+    /// Windows whose journey ended before they had settled, which is to say they were cut short
     unfinished: HashSet<WindowId>,
     /// Where each window was last put, and when
     known: HashMap<WindowId, (Rect, Instant)>,
@@ -437,9 +441,8 @@ impl<H: Clone> Tracks<H> {
     pub fn remove_track(&mut self, window_id: WindowId) -> Option<(i32, Rect)> {
         let track = self.tracks.remove(&window_id)?;
 
-        if track.after.is_some() {
-            self.unfinished.insert(window_id);
-        }
+        // however it ended, it ended before the window had settled
+        self.mark_unfinished(window_id);
 
         // whatever was on its way to the window may or may not have got there
         self.known.remove(&window_id);
@@ -488,11 +491,22 @@ impl<H: Clone> Tracks<H> {
         })
     }
 
-    /// Whether a window was stopped before it got to where it was going to be sent afterwards
+    /// Whether a window's journey was cut short, which is to say it ended in any way other than the
+    /// window being found where it was sent
     ///
-    /// This is only reported once.
+    /// A journey is cut short by a window being grabbed, taken over, given up on, or not being
+    /// where it was sent when it was looked at, as well as by one that was to go on to somewhere
+    /// else afterwards never getting there. This is only reported once.
     pub fn take_unfinished(&mut self, window_id: WindowId) -> bool {
         self.unfinished.remove(&window_id)
+    }
+
+    fn mark_unfinished(&mut self, window_id: WindowId) {
+        if self.unfinished.len() >= MAX_UNFINISHED {
+            self.unfinished.clear();
+        }
+
+        self.unfinished.insert(window_id);
     }
 
     /// Which retarget a window is currently being animated for
@@ -514,10 +528,7 @@ impl<H: Clone> Tracks<H> {
 
         for (window_id, track) in self.tracks.drain() {
             self.known.remove(&window_id);
-
-            if track.after.is_some() {
-                self.unfinished.insert(window_id);
-            }
+            self.unfinished.insert(window_id);
 
             drained.push((window_id, track.pid));
         }
@@ -781,7 +792,9 @@ impl<H: Clone> Tracks<H> {
             VerifyOutcome::Settled => {
                 let Some(after) = track.after.take() else {
                     let target = track.target;
-                    let pid = self.remove(window_id);
+
+                    // this is how a journey is meant to end, so it is not cut short
+                    let pid = self.tracks.remove(&window_id).map(|track| track.pid);
 
                     // it is where it was sent, which is worth remembering for the next time
                     self.known.insert(window_id, (target, now));
@@ -1337,6 +1350,147 @@ mod tests {
 
         assert!(tracks.take_unfinished(A));
         assert!(!tracks.take_unfinished(A));
+    }
+
+    #[test]
+    fn any_journey_that_is_cut_short_is_reported_once_whether_or_not_it_had_somewhere_to_go_next() {
+        let now = Instant::now();
+        let mut tracks = tracks(now);
+
+        // a slide out of view, with nowhere to go afterwards
+        tracks.insert(
+            A,
+            "a",
+            1,
+            rect(100, 100, 800, 600),
+            rect(-780, 100, 800, 600),
+            quick(),
+            now,
+        );
+        tracks.tick(now + FRAME);
+        tracks.remove(A);
+
+        assert!(tracks.take_unfinished(A));
+        assert!(!tracks.take_unfinished(A));
+    }
+
+    #[test]
+    fn a_journey_cut_short_while_it_was_being_verified_is_reported() {
+        let now = Instant::now();
+        let mut tracks = tracks(now);
+
+        tracks.insert(
+            A,
+            "a",
+            1,
+            rect(0, 0, 800, 600),
+            rect(300, 0, 800, 600),
+            quick(),
+            now,
+        );
+        let at = run_to_target(&mut tracks, A, now) + FIRST_VERIFY_DELAY;
+        assert_eq!(verifies(&tracks.tick(at)).len(), 1);
+
+        // it got there, but has not been looked at yet when somebody grabs it
+        tracks.remove(A);
+
+        assert!(tracks.take_unfinished(A));
+    }
+
+    #[test]
+    fn a_journey_that_ends_with_the_window_where_it_was_sent_is_not_cut_short() {
+        let now = Instant::now();
+        let mut tracks = tracks(now);
+
+        tracks.insert(
+            A,
+            "a",
+            1,
+            rect(0, 0, 800, 600),
+            rect(300, 0, 800, 600),
+            quick(),
+            now,
+        );
+        let at = run_to_target(&mut tracks, A, now) + FIRST_VERIFY_DELAY;
+        let verification = verifies(&tracks.tick(at)).remove(0);
+        tracks.verify_done(A, verification.generation, VerifyOutcome::Settled, at);
+
+        assert!(tracks.is_empty());
+        assert!(!tracks.take_unfinished(A));
+    }
+
+    #[test]
+    fn a_journey_that_never_gets_where_it_was_sent_is_cut_short() {
+        let now = Instant::now();
+        let mut tracks = tracks(now);
+
+        tracks.insert(
+            A,
+            "a",
+            1,
+            rect(0, 0, 800, 600),
+            rect(300, 0, 800, 600),
+            quick(),
+            now,
+        );
+        let mut at = run_to_target(&mut tracks, A, now);
+
+        // the app keeps leaving the window where it likes
+        while !tracks.is_empty() {
+            at += Duration::from_millis(120);
+            for verification in verifies(&tracks.tick(at)) {
+                tracks.verify_done(A, verification.generation, VerifyOutcome::Reissued, at);
+            }
+        }
+
+        assert!(tracks.take_unfinished(A));
+    }
+
+    #[test]
+    fn a_window_that_stops_answering_has_its_journey_cut_short() {
+        let now = Instant::now();
+        let mut tracks = tracks(now);
+
+        tracks.insert(
+            A,
+            "a",
+            1,
+            rect(0, 0, 800, 600),
+            rect(1000, 0, 800, 600),
+            quick(),
+            now,
+        );
+        let write = writes(&tracks.tick(now + FRAME)).remove(0);
+        tracks.write_done(
+            A,
+            1,
+            write.frame,
+            WriteOutcome::Failed { gone: true },
+            now + FRAME,
+        );
+
+        assert!(tracks.take_unfinished(A));
+    }
+
+    #[test]
+    fn nobody_has_to_ask_for_the_news_to_be_kept_within_bounds() {
+        let now = Instant::now();
+        let mut tracks = tracks(now);
+
+        for window_id in 0..(MAX_UNFINISHED as u32 * 3) {
+            tracks.insert(
+                window_id,
+                "a",
+                1,
+                rect(0, 0, 800, 600),
+                rect(300, 0, 800, 600),
+                quick(),
+                now,
+            );
+            tracks.remove(window_id);
+        }
+
+        assert!(tracks.unfinished.len() <= MAX_UNFINISHED);
     }
 
     #[test]
