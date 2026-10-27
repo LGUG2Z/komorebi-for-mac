@@ -163,9 +163,11 @@ impl Workspace {
 
                         window.set_position(&target)
                     }
-                    Visibility::OffLeft => window.hide_scrolling(WindowHidingPosition::BottomLeft),
+                    Visibility::OffLeft => {
+                        window.hide_scrolling(WindowHidingPosition::BottomLeft, screen)
+                    }
                     Visibility::OffRight => {
-                        window.hide_scrolling(WindowHidingPosition::BottomRight)
+                        window.hide_scrolling(WindowHidingPosition::BottomRight, screen)
                     }
                 };
 

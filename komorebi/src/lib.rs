@@ -394,3 +394,57 @@ pub fn is_visible_on_another_display(frame: CGRect, screen_frame: CGRect) -> boo
         .filter(|bounds| bounds.origin != screen_frame.origin || bounds.size != screen_frame.size)
         .any(|bounds| core_graphics::CoreGraphicsApi::contains_rect(frame, bounds))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn rect(x: f64, y: f64, width: f64, height: f64) -> CGRect {
+        CGRect::new(CGPoint::new(x, y), CGSize::new(width, height))
+    }
+
+    const SCREEN: fn() -> CGRect = || rect(0.0, 0.0, 3840.0, 2160.0);
+
+    #[test]
+    fn the_edge_sliver_of_a_window_that_overhangs_the_left_edge() {
+        // Slack in a column that is partly past the left edge: its corner is on no display, but
+        // where it rests only depends on the display that it belongs to
+        let frame = rect(-570.0, 60.0, 1840.0, 2000.0);
+        let edge = scrolling_edge_sliver(SCREEN(), frame, WindowHidingPosition::BottomLeft);
+
+        assert_eq!(edge.origin.x, -1835.0);
+        assert_eq!(edge.origin.y, 60.0);
+        assert_eq!(edge.size, frame.size);
+    }
+
+    #[test]
+    fn the_edge_sliver_of_a_window_that_overhangs_the_right_edge() {
+        let frame = rect(2500.0, 60.0, 1875.0, 2000.0);
+        let edge = scrolling_edge_sliver(SCREEN(), frame, WindowHidingPosition::BottomRight);
+
+        assert_eq!(edge.origin.x, 3835.0);
+        assert_eq!(edge.origin.y, 60.0);
+        assert_eq!(edge.size, frame.size);
+    }
+
+    #[test]
+    fn a_window_above_the_screen_rests_at_the_same_height() {
+        let frame = rect(-300.0, -100.0, 1275.0, 900.0);
+        let edge = scrolling_edge_sliver(SCREEN(), frame, WindowHidingPosition::BottomLeft);
+
+        assert_eq!(edge.origin.x, -1270.0);
+        assert_eq!(edge.origin.y, -100.0);
+    }
+
+    #[test]
+    fn the_edge_sliver_is_found_on_a_display_that_is_not_at_the_origin() {
+        let screen = rect(-1920.0, 0.0, 1920.0, 1080.0);
+        let frame = rect(-2000.0, 40.0, 800.0, 600.0);
+
+        let left = scrolling_edge_sliver(screen, frame, WindowHidingPosition::BottomLeft);
+        assert_eq!(left.origin.x, -1920.0 - 795.0);
+
+        let right = scrolling_edge_sliver(screen, frame, WindowHidingPosition::BottomRight);
+        assert_eq!(right.origin.x, -5.0);
+    }
+}

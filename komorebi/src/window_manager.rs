@@ -1360,7 +1360,7 @@ impl WindowManager {
         workspace.new_monocle_container()?;
 
         for container in workspace.containers_mut() {
-            container.hide(hiding_position, None)?;
+            container.hide(hiding_position, None, None)?;
         }
 
         Ok(())
@@ -1396,7 +1396,7 @@ impl WindowManager {
             .cycle_monocle_container(direction)?;
 
         for container in self.focused_workspace_mut()?.containers_mut() {
-            container.hide(hiding_position, None)?;
+            container.hide(hiding_position, None, None)?;
         }
 
         self.update_focused_workspace(true, true)

@@ -99,12 +99,23 @@ use strum::Display;
 use strum::EnumString;
 use tracing::instrument;
 
+/// Where a window that has scrolled out of view was parked
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct Parked {
+    /// The side of the display that it left by
+    position: WindowHidingPosition,
+    /// The display that it was parked on, which is the display of the monitor that owns the window,
+    /// and which is not something to work out again from where the window is, since a window that
+    /// is parked past the edge of a display is not on any display
+    screen: CGRect,
+}
+
 lazy_static::lazy_static! {
     /// The windows that have scrolled out of view and been parked, and where they were parked
     ///
     /// A window in here is known to be out of the way without having to ask it, and is brought
     /// back in from the edge it left by rather than from the corner it was parked in.
-    static ref PARKED_WINDOWS: parking_lot::Mutex<HashMap<u32, WindowHidingPosition>> =
+    static ref PARKED_WINDOWS: parking_lot::Mutex<HashMap<u32, Parked>> =
         parking_lot::Mutex::new(HashMap::new());
 }
 
@@ -409,10 +420,29 @@ impl Window {
         )
     }
 
+    /// Hide the window in the corner of the display that it is on
+    ///
+    /// Prefer [`Window::hide_on`] when the display is known, since a window that hangs over the
+    /// edge of a display is not always on the display that the lookup by position finds.
     #[tracing::instrument(skip_all)]
     pub fn hide(
         &mut self,
         hiding_position: WindowHidingPosition,
+    ) -> Result<(), AccessibilityError> {
+        self.hide_on(hiding_position, None)
+    }
+
+    /// Hide the window in the corner of `screen`, the bounds of the display that it belongs to
+    ///
+    /// The display is the display of the monitor that has the window, and it has to come from
+    /// there for a window that overhangs the left edge of its display, where it is not on any
+    /// display, or one that overhangs the edge shared with another display, where it is on two. If
+    /// it is not given it is looked up from where the window is.
+    #[tracing::instrument(skip_all)]
+    pub fn hide_on(
+        &mut self,
+        hiding_position: WindowHidingPosition,
+        screen: Option<CGRect>,
     ) -> Result<(), AccessibilityError> {
         // a window that is on its way somewhere is restored to where it was going, not to wherever
         // it happened to be when it was hidden
@@ -424,24 +454,36 @@ impl Window {
         let mut window_restore_positions = WINDOW_RESTORE_POSITIONS.lock();
         if let Entry::Vacant(entry) = window_restore_positions.entry(self.id) {
             entry.insert(rect);
-            drop(window_restore_positions);
         }
+        drop(window_restore_positions);
 
-        if let Some(monitor_size) = CoreGraphicsApi::display_bounds_for_window_rect(rect) {
-            // I don't love this, but it's basically what Aerospace does in lieu of an actual "Hide" API
-            let hidden_rect = hidden_frame(hiding_position, monitor_size, rect.size);
-
-            tracing::debug!(
-                "hiding {} and setting restore point to {},{}",
+        let Some(monitor_size) =
+            screen.or_else(|| CoreGraphicsApi::display_bounds_for_window_rect(rect))
+        else {
+            // there is a restore point for a window that was not hidden, which is harmless, but
+            // a window that is left where it is when it should not be is not
+            tracing::warn!(
+                "not hiding {}: there is no display to hide it on",
                 self.title()
                     .unwrap_or_else(|| String::from("<NO TITLE FOUND>")),
-                rect.origin.x,
-                rect.origin.y,
             );
 
-            self.set_point(hidden_rect.origin, true)?;
-            self.set_size(hidden_rect.size, true)?;
-        }
+            return Ok(());
+        };
+
+        // I don't love this, but it's basically what Aerospace does in lieu of an actual "Hide" API
+        let hidden_rect = hidden_frame(hiding_position, monitor_size, rect.size);
+
+        tracing::debug!(
+            "hiding {} and setting restore point to {},{}",
+            self.title()
+                .unwrap_or_else(|| String::from("<NO TITLE FOUND>")),
+            rect.origin.x,
+            rect.origin.y,
+        );
+
+        self.set_point(hidden_rect.origin, true)?;
+        self.set_size(hidden_rect.size, true)?;
 
         Ok(())
     }
@@ -452,12 +494,17 @@ impl Window {
     /// screen. It keeps its size and its height up the screen, so bringing it back is a matter of
     /// moving it. With animations on it slides there.
     ///
+    /// `screen` is the bounds of the display of the monitor that has the window. A window that is
+    /// partly past the left edge of the screen is on no display, so this is not something to find
+    /// out from where the window is.
+    ///
     /// Where a neighbouring display would show the window at the edge, it is hidden in the corner
     /// of the screen instead, as with [`Window::hide`].
     #[tracing::instrument(skip_all)]
     pub fn hide_scrolling(
         &mut self,
         hiding_position: WindowHidingPosition,
+        screen: Option<CGRect>,
     ) -> Result<(), AccessibilityError> {
         // nothing to do for a window that is already out of the way on this side, which keeps
         // every layout update from sending it on the same trip again
@@ -470,7 +517,40 @@ impl Window {
             parked_at = None;
         }
 
-        if parked_at == Some(hiding_position) {
+        let parked_on = |screen| {
+            Some(Parked {
+                position: hiding_position,
+                screen,
+            })
+        };
+
+        if let Some(screen) = screen
+            && parked_at == parked_on(screen)
+        {
+            return Ok(());
+        }
+
+        let rect = match animator::target(self.id) {
+            Some(target) => CGRect::from(target),
+            None => MacosApi::window_rect(&self.element)?,
+        };
+
+        let Some(screen) = screen.or_else(|| CoreGraphicsApi::display_bounds_for_window_rect(rect))
+        else {
+            tracing::warn!(
+                "window {} cannot be parked: there is no display to park it on",
+                self.id
+            );
+
+            return self.hide(hiding_position);
+        };
+
+        let parked = Parked {
+            position: hiding_position,
+            screen,
+        };
+
+        if parked_at == Some(parked) {
             return Ok(());
         }
 
@@ -481,24 +561,27 @@ impl Window {
             None => animation::motion_for(AnimationPrefix::Movement),
         };
 
-        let rect = match animator::target(self.id) {
-            Some(target) => CGRect::from(target),
-            None => MacosApi::window_rect(&self.element)?,
-        };
-
-        let Some(screen) = CoreGraphicsApi::display_bounds_for_window_rect(rect) else {
-            return self.hide(hiding_position);
-        };
-
         let edge = scrolling_edge_sliver(screen, rect, hiding_position);
 
         // resting at the edge next to a neighbouring display would be seen there
         if is_visible_on_another_display(edge, screen) {
-            self.hide(hiding_position)?;
-            PARKED_WINDOWS.lock().insert(self.id, hiding_position);
+            tracing::trace!(
+                "window {} is parked in the corner of its display, since the edge is next to                  another display",
+                self.id
+            );
+
+            self.hide_on(hiding_position, Some(screen))?;
+            PARKED_WINDOWS.lock().insert(self.id, parked);
 
             return Ok(());
         }
+
+        tracing::trace!(
+            "window {} is parked at the {hiding_position} edge of its display, at {},{}",
+            self.id,
+            edge.origin.x,
+            edge.origin.y,
+        );
 
         if let Entry::Vacant(entry) = WINDOW_RESTORE_POSITIONS.lock().entry(self.id) {
             entry.insert(rect);
@@ -527,7 +610,7 @@ impl Window {
             None => self.set_point(edge.origin, true)?,
         }
 
-        PARKED_WINDOWS.lock().insert(self.id, hiding_position);
+        PARKED_WINDOWS.lock().insert(self.id, parked);
 
         Ok(())
     }
@@ -669,9 +752,15 @@ impl Window {
 
     /// Bring a parked window back to the edge of the screen it left by, ready to slide in from there
     ///
-    /// Without this it would fly in from the corner it was parked in.
+    /// Without this it would fly in from the corner it was parked in. The display is the one that
+    /// it was parked on, and not the one at its target, since a target that overhangs the left
+    /// edge of the screen is on no display.
     fn slide_in_from_edge(&self, target: &Rect) {
-        let Some(hiding_position) = PARKED_WINDOWS.lock().remove(&self.id) else {
+        let Some(Parked {
+            position: hiding_position,
+            screen,
+        }) = PARKED_WINDOWS.lock().remove(&self.id)
+        else {
             return;
         };
 
@@ -683,14 +772,9 @@ impl Window {
             return;
         };
 
-        let target = CGRect::from(*target);
-        let Some(screen) = CoreGraphicsApi::display_bounds_for_window_rect(target) else {
-            return;
-        };
-
         // the corner it was parked in is out of sight, so it comes back at the height it is going to
         let mut level = current;
-        level.origin.y = target.origin.y;
+        level.origin.y = target.top as CGFloat;
 
         let edge = scrolling_edge_sliver(screen, level, hiding_position);
 

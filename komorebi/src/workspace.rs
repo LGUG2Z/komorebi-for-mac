@@ -13,6 +13,7 @@ use crate::core::ScrollingLayoutOptions;
 use crate::core::SocketMessage;
 use crate::core::WindowContainerBehaviour;
 use crate::core::WindowHidingPosition;
+use crate::core_graphics::CoreGraphicsApi;
 use crate::lockable_sequence::LockableSequence;
 use crate::macos_api::MacosApi;
 use crate::ring::Ring;
@@ -29,6 +30,7 @@ use komorebi_layouts::scrolling::model::ScrollingSpace;
 use komorebi_themes::Base16ColourPalette;
 use komorebi_themes::KomorebiTheme;
 use komorebi_themes::KomorebiThemeCustom;
+use objc2_core_foundation::CGRect;
 use serde::Deserialize;
 use serde::Serialize;
 use std::collections::HashMap;
@@ -883,6 +885,12 @@ impl Workspace {
     pub fn hide(&mut self, omit: Option<u32>) -> eyre::Result<()> {
         let window_hiding_position = self.globals.window_hiding_position;
 
+        // windows are hidden on the display of the monitor that has them, and not on the display
+        // that they are found on, because a window that hangs over the left edge of its display is
+        // on no display, and could not be hidden at all
+        let screen =
+            CoreGraphicsApi::display_bounds_for_window_rect(CGRect::from(self.globals.work_area));
+
         for window in self.floating_windows_mut().iter_mut().rev() {
             let mut should_hide = omit.is_none();
 
@@ -901,7 +909,7 @@ impl Workspace {
         }
 
         for container in self.containers_mut() {
-            container.hide(window_hiding_position, omit)?;
+            container.hide(window_hiding_position, omit, screen)?;
         }
 
         // if let Some(window) = self.maximized_window() {
@@ -909,7 +917,7 @@ impl Workspace {
         // }
 
         if let Some(container) = &mut self.monocle_container {
-            container.hide(window_hiding_position, omit)?;
+            container.hide(window_hiding_position, omit, screen)?;
         }
 
         Ok(())

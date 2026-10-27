@@ -5,6 +5,7 @@ use crate::ring::Ring;
 use crate::window::Window;
 use color_eyre::eyre;
 use nanoid::nanoid;
+use objc2_core_foundation::CGRect;
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -150,10 +151,14 @@ impl Container {
         window
     }
 
+    /// Hide the windows of the container, other than `omit`, on `screen`, the bounds of the display
+    /// of the monitor that has the container, or on whichever display they are found on if that is
+    /// not given
     pub fn hide(
         &mut self,
         hiding_position: WindowHidingPosition,
         omit: Option<u32>,
+        screen: Option<CGRect>,
     ) -> eyre::Result<()> {
         for window in self.windows_mut().iter_mut().rev() {
             let mut should_hide = omit.is_none();
@@ -166,7 +171,7 @@ impl Container {
             }
 
             // a window that has gone away must not leave the ones after it in view
-            if should_hide && let Err(error) = window.hide(hiding_position) {
+            if should_hide && let Err(error) = window.hide_on(hiding_position, screen) {
                 tracing::warn!("failed to hide window {}: {error}", window.id);
             }
         }
