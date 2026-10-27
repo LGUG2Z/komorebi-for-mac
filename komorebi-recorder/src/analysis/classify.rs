@@ -46,6 +46,17 @@ const ECHO_WINDOW_NS: u64 = 1_500_000_000;
 
 const GEOMETRY_EVENTS: [&str; 4] = ["MoveStart", "MoveEnd", "ResizeStart", "ResizeEnd"];
 
+/// Whether a window-manager event was made up by komorebi itself rather than reported by macOS.
+fn is_synthesized(event: &EventRecord) -> bool {
+    event
+        .info
+        .notification
+        .as_deref()
+        .is_some_and(|notification| {
+            !notification.starts_with("AX") && !notification.starts_with("NS")
+        })
+}
+
 /// Commands that ask komorebi something or register a listener rather than change anything.
 fn is_bookkeeping(name: &str) -> bool {
     matches!(
@@ -81,6 +92,12 @@ fn class_of(event: &EventRecord) -> Classification {
                     "Show" | "Destroy" | "Minimize" | "Restore" | "Manage" | "Unmanage" => {
                         (Class::Lifecycle, "a window or application changed")
                     }
+                    // komorebi's own mouse listener reports a button release as a move or resize
+                    // end whose notification is not one of macOS's (AX..., NS...)
+                    name if GEOMETRY_EVENTS.contains(&name) && is_synthesized(event) => (
+                        Class::Manual,
+                        "komorebi's mouse listener saw a button release after a click or drag; nothing was reported moved",
+                    ),
                     name if GEOMETRY_EVENTS.contains(&name) => (
                         Class::Drag,
                         "a window was moved or resized by something other than komorebi",
@@ -107,6 +124,23 @@ pub fn classify(events: &[EventRecord]) -> Vec<Classification> {
 
     for index in 0..events.len() {
         let event = &events[index];
+
+        // a release that did change the layout was a real drag
+        if classes[index].class == Class::Manual
+            && GEOMETRY_EVENTS.contains(&event.info.name.as_str())
+            && index > 0
+            && event.state_id.is_some()
+            && events[index - 1].state_id.is_some()
+            && event.state_id != events[index - 1].state_id
+        {
+            classes[index] = Classification {
+                class: Class::Drag,
+                reason: "the end of a mouse drag or resize, and the layout changed because of it"
+                    .to_string(),
+            };
+            continue;
+        }
+
         if classes[index].class != Class::Drag {
             continue;
         }
@@ -230,6 +264,33 @@ mod tests {
                 Class::Lock
             ]
         );
+    }
+
+    fn synthesized_move_end(seq: u64, at_ms: u64, state: u64) -> EventRecord {
+        event(
+            seq,
+            at_ms,
+            Some(state),
+            json!({"type": "MoveEnd", "content": [{"type": "Manual", "content": "MoveEnd"}, 10, 7]}),
+        )
+    }
+
+    #[test]
+    fn a_button_release_komorebi_made_up_is_not_an_echo_of_a_move() {
+        // seen on a real recording: a click, then komorebi's mouse listener reports MoveEnd and
+        // ResizeEnd with the notification "MoveEnd" rather than one of macOS's
+        let events = vec![command(1, 0, 1), synthesized_move_end(2, 100, 1)];
+        let found = classify(&events);
+        assert_eq!(found[1].class, Class::Manual);
+        assert!(
+            found[1].reason.contains("mouse listener"),
+            "{}",
+            found[1].reason
+        );
+
+        // but one after which the layout really changed is a drag that ended
+        let dragged = vec![command(1, 0, 1), synthesized_move_end(2, 100, 2)];
+        assert_eq!(classify(&dragged)[1].class, Class::Drag);
     }
 
     #[test]
