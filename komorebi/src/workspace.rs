@@ -1439,17 +1439,22 @@ impl Workspace {
                             layout.add_padding(border_width);
 
                             for window in container.windows_mut() {
-                                let current_rect =
-                                    MacosApi::window_rect(&window.element).unwrap_or_default();
-                                let current_percentage = work_area
-                                    .percentage_within_horizontal_bounds(&Rect::from(current_rect));
                                 let proposed_percentage =
                                     work_area.percentage_within_horizontal_bounds(layout);
 
-                                let percentage_override = proposed_percentage == 0.0
-                                    && current_percentage > 0.1
-                                    && current_percentage < 100.0
-                                    && resize_dimensions_is_empty;
+                                // where the window is now only matters when the layout would put it
+                                // entirely out of view, and finding out means asking the app
+                                let percentage_override =
+                                    proposed_percentage == 0.0 && resize_dimensions_is_empty && {
+                                        let current_rect = MacosApi::window_rect(&window.element)
+                                            .unwrap_or_default();
+                                        let current_percentage = work_area
+                                            .percentage_within_horizontal_bounds(&Rect::from(
+                                                current_rect,
+                                            ));
+
+                                        current_percentage > 0.1 && current_percentage < 100.0
+                                    };
 
                                 if is_scrolling && proposed_percentage < 0.1 && !percentage_override
                                 {
