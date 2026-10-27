@@ -72,6 +72,10 @@ the focused column, by half of the [resize delta](../cli/resize-delta.md) for ea
 changes the width by the whole delta. Dragging an edge with the mouse does the same. Columns are as tall as the screen,
 so resizing a height does nothing.
 
+[`komorebic retile`](../cli/retile.md) puts every column back to the width that
+[`scrolling-layout-columns`](../cli/scrolling-layout-columns.md) gives, on the focused workspace of each monitor. The
+focused column stays where it is on screen, unless it has to scroll to stay in view.
+
 ## Windows that are out of view
 
 A window that scrolls out of view comes to rest at the edge of the screen that it left by, with 5 pixels of it still on

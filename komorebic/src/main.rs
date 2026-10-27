@@ -1004,6 +1004,9 @@ enum SubCommand {
     /// Promote the window in the specified direction
     PromoteWindow(PromoteWindow),
     /// Force the retiling of all managed windows
+    ///
+    /// Every column of a workspace in the Scrolling layout goes back to the width that
+    /// scrolling-layout-columns gives.
     Retile,
     // /// Set the monitor index preference for a monitor identified using its size
     // #[clap(arg_required_else_help = true)]

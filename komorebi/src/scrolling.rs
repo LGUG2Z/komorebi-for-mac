@@ -182,6 +182,16 @@ impl Workspace {
         Ok(())
     }
 
+    /// Put every column back to the width that the `columns` option gives, which forgets every
+    /// width that was set by resizing, by a preset, or by taking the full width.
+    ///
+    /// The focused column stays where it is on screen unless it has to scroll to stay in view.
+    pub(crate) fn reset_scrolling_widths(&mut self) {
+        if let Some(space) = self.scrolling.as_mut() {
+            space.reset_widths();
+        }
+    }
+
     /// Make the focused column wider or narrower. Only the horizontal edges mean anything, since
     /// a column is as tall as the viewport.
     ///
@@ -499,6 +509,47 @@ mod tests {
         let mut workspace = workspace(3, 2);
 
         workspace.resize_scrolling_column(OperationDirection::Right, Sizing::Increase, 100);
+
+        assert!(workspace.scrolling.is_none());
+    }
+
+    #[test]
+    fn resetting_the_widths_puts_every_column_back_to_what_the_columns_option_gives() {
+        let mut workspace = workspace(3, 4);
+        workspace.layout_scrolling(&AREA, 0);
+
+        workspace.resize_scrolling_column(OperationDirection::Left, Sizing::Increase, 200);
+        workspace.focus_container(1);
+        workspace.resize_scrolling_column(OperationDirection::Right, Sizing::Decrease, 100);
+        let resized = widths(&workspace.layout_scrolling(&AREA, 0));
+        assert_ne!(resized, [400; 4]);
+
+        workspace.reset_scrolling_widths();
+
+        assert_eq!(widths(&workspace.layout_scrolling(&AREA, 0)), [400; 4]);
+    }
+
+    #[test]
+    fn resetting_the_widths_keeps_the_focused_column_where_it_is() {
+        let mut workspace = workspace(3, 6);
+        workspace.focus_container(3);
+        workspace.layout_scrolling(&AREA, 0);
+        workspace.focus_container(1);
+        workspace.resize_scrolling_column(OperationDirection::Left, Sizing::Increase, 200);
+        workspace.focus_container(3);
+        let before = workspace.layout_scrolling(&AREA, 0)[3].rect.left;
+
+        workspace.reset_scrolling_widths();
+
+        assert_eq!(workspace.layout_scrolling(&AREA, 0)[3].rect.left, before);
+        assert_eq!(workspace.focused_container_idx(), 3);
+    }
+
+    #[test]
+    fn resetting_the_widths_before_there_is_a_layout_does_nothing() {
+        let mut workspace = workspace(3, 2);
+
+        workspace.reset_scrolling_widths();
 
         assert!(workspace.scrolling.is_none());
     }
