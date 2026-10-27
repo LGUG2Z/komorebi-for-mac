@@ -36,7 +36,10 @@
               path: type:
               (craneLib.filterCargoSources path type)
               || (pkgs.lib.hasInfix "/docs/" path)
-              || (builtins.match ".*/docs/.*" path != null);
+              || (builtins.match ".*/docs/.*" path != null)
+              # komorebi-recorder embeds the investigation guide, and its tests read fixtures
+              || (pkgs.lib.hasSuffix "/komorebi-recorder/src/guide.md" path)
+              || (pkgs.lib.hasInfix "/komorebi-recorder/tests/fixtures/" path);
           };
 
           commonArgs = {

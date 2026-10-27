@@ -362,7 +362,11 @@ fn main() {
             repo.join(".git/HEAD").display()
         );
     }
-    let commit = git(&repo, &["rev-parse", "HEAD"]).unwrap_or_default();
+    // a build outside a git checkout (nix) is told the commit instead
+    println!("cargo:rerun-if-env-changed=COMMIT_HASH");
+    let commit = git(&repo, &["rev-parse", "HEAD"])
+        .or_else(|| env::var("COMMIT_HASH").ok().filter(|hash| !hash.is_empty()))
+        .unwrap_or_default();
     let dirty = !commit.is_empty()
         && git(
             &repo,
