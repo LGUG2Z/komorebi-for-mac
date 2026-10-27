@@ -66,6 +66,11 @@ pub struct Open {
     pub deleted: Vec<crate::annotations::AnnotationView>,
     /// Where a drag on the timeline began, if one is going.
     pub drag: Option<super::lanes::Drag>,
+    /// When the picture changed, found in the background after opening.
+    pub changes: Option<crate::analysis::changes::ChangesData>,
+    pub changes_result: Option<Receiver<eyre::Result<crate::analysis::changes::ChangesData>>>,
+    /// Set to stop the background scan when this session is closed.
+    changes_cancel: Arc<std::sync::atomic::AtomicBool>,
     /// A bug region whose edge is being dragged: its id and where its start and end would be.
     pub edge_preview: Option<(String, f64, f64)>,
 }
@@ -152,7 +157,7 @@ impl ViewerApp {
         let focus = loaded.displays.first().map(|display| display.id);
         let duration = loaded.duration_s;
         let start = loaded.bugs().next().map(|bug| bug.start_video_s);
-        let open = Open {
+        let mut open = Open {
             view: View::whole(duration),
             selection: None,
             selected_event: None,
@@ -175,8 +180,12 @@ impl ViewerApp {
             playback,
             loaded,
             drag: None,
+            changes: None,
+            changes_result: None,
+            changes_cancel: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             edge_preview: None,
         };
+        open.scan_for_changes();
 
         // start where the user said the bug begins
         if let Some(start) = start {
@@ -327,6 +336,13 @@ fn start_screen(
         }
     });
     chosen
+}
+
+impl Drop for Open {
+    fn drop(&mut self) {
+        self.changes_cancel
+            .store(true, std::sync::atomic::Ordering::Relaxed);
+    }
 }
 
 impl Open {
@@ -552,8 +568,54 @@ impl Open {
         }
     }
 
+    /// Start looking for where the picture changed, off the UI thread.
+    pub fn scan_for_changes(&mut self) {
+        if self.loaded.displays.is_empty() {
+            return;
+        }
+
+        let (sender, receiver) = crossbeam_channel::bounded(1);
+        let analysis = self.loaded.analysis.clone();
+        let displays: Vec<u32> = self
+            .loaded
+            .displays
+            .iter()
+            .map(|display| display.id)
+            .collect();
+        let duration = self.loaded.duration_s;
+        let cancel = self.changes_cancel.clone();
+        std::thread::spawn(move || {
+            let outcome = SessionPath::new(&analysis.session.dir).and_then(|guard| {
+                let video = crate::analysis::video::SessionVideo::new(&analysis.manifest, &guard);
+                analysis.changes_until(&video, &displays, 0.0, duration, 1.0, Some(&cancel))
+            });
+            let _ = sender.send(outcome);
+        });
+        self.changes_result = Some(receiver);
+    }
+
+    /// Take the result of the background scan when it arrives.
+    fn poll_changes(&mut self) {
+        let Some(receiver) = &self.changes_result else {
+            return;
+        };
+        let Ok(outcome) = receiver.try_recv() else {
+            return;
+        };
+
+        self.changes_result = None;
+        match outcome {
+            Ok(data) => self.changes = Some(data),
+            Err(error) => self.say(format!("could not look for screen changes: {error:#}")),
+        }
+    }
+
     /// Draw the open session.
     pub fn ui(&mut self, ctx: &egui::Context) {
+        self.poll_changes();
+        if self.changes_result.is_some() {
+            ctx.request_repaint_after(Duration::from_millis(250));
+        }
         self.keys(ctx);
 
         let playing = self.playback.is_playing();
@@ -761,6 +823,31 @@ mod tests {
             "display 1's picture never arrived"
         );
         assert_eq!(open(&mut app).focus, Some(1));
+    }
+
+    #[test]
+    fn screen_changes_are_found_in_the_background_and_shown() {
+        if !testkit::ffmpeg_available() {
+            eprintln!("skipped: ffmpeg is not available to make a test video");
+            return;
+        }
+
+        let (session, _) = SessionBuilder::new("viewer-changes")
+            .video_showing(1, 0.0, 90, 30, |frame| if frame < 30 { frame } else { 29 })
+            .build();
+        let mut app = ViewerApp::new(prefs_dir("changes"));
+        app.open_now(&session.dir).expect("open");
+        let ctx = egui::Context::default();
+
+        let deadline = Instant::now() + Duration::from_secs(10);
+        while open(&mut app).changes.is_none() && Instant::now() < deadline {
+            frame(&mut app, &ctx, vec![]);
+            std::thread::sleep(Duration::from_millis(30));
+        }
+        let changes = open(&mut app).changes.clone().expect("the scan finished");
+        assert_eq!(changes.spans.len(), 1, "{changes:#?}");
+        assert!(changes.spans[0].end_video_s < 1.1);
+        frame(&mut app, &ctx, vec![]);
     }
 
     #[test]

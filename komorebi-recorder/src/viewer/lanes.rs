@@ -20,6 +20,7 @@ const EVENTS: f32 = 38.0;
 const LOG: f32 = 16.0;
 const MACHINE: f32 = 16.0;
 const FINDINGS: f32 = 16.0;
+const SCREEN: f32 = 16.0;
 const VIDEO: f32 = 12.0;
 const GAP: f32 = 2.0;
 
@@ -49,6 +50,8 @@ enum Lane {
     Log,
     Machine,
     Findings,
+    /// When the picture changed.
+    Screen,
     Video(usize),
 }
 
@@ -65,6 +68,7 @@ impl Layout {
             (Lane::Log, LOG),
             (Lane::Machine, MACHINE),
             (Lane::Findings, FINDINGS),
+            (Lane::Screen, SCREEN),
         ];
         heights.extend((0..displays).map(|index| (Lane::Video(index), VIDEO)));
 
@@ -265,6 +269,7 @@ impl Open {
                 Lane::Log => "log".to_string(),
                 Lane::Machine => "machine".to_string(),
                 Lane::Findings => "findings".to_string(),
+                Lane::Screen => "screen".to_string(),
                 Lane::Video(display) => format!("video {}", self.loaded.displays[*display].id),
             };
             painter.text(
@@ -548,6 +553,37 @@ impl Open {
             );
         }
 
+        // when the picture changed, once the scan has found it
+        let screen_strip = layout.rect(Lane::Screen, area);
+        if let Some(changes) = &self.changes {
+            for span in &changes.spans {
+                let (x0, x1) = (
+                    view.x(span.start_video_s, left, width).max(left),
+                    view.x(span.end_video_s, left, width).min(area.right()),
+                );
+                if x1 < left || x0 > area.right() {
+                    continue;
+                }
+                let strength = (span.peak_share * 40.0).clamp(0.25, 1.0) as f32;
+                painter.rect_filled(
+                    Rect::from_min_max(
+                        Pos2::new(x0, screen_strip.top() + 3.0),
+                        Pos2::new(x1.max(x0 + 2.0), screen_strip.bottom() - 3.0),
+                    ),
+                    1.0,
+                    Color32::from_rgba_unmultiplied(120, 200, 190, (90.0 + 150.0 * strength) as u8),
+                );
+            }
+        } else if self.changes_result.is_some() {
+            painter.text(
+                Pos2::new(left + 6.0, screen_strip.center().y),
+                egui::Align2::LEFT_CENTER,
+                "looking for changes in the picture…",
+                egui::FontId::proportional(10.0),
+                theme::TEXT_DIM,
+            );
+        }
+
         // the playhead
         let x = view.x(position, left, width);
         if x >= left - 1.0 && x <= area.right() + 1.0 {
@@ -811,6 +847,21 @@ impl Open {
                             bug.text
                         )
                     }),
+                Some(Lane::Screen) => self.changes.as_ref().and_then(|changes| {
+                    changes
+                        .spans
+                        .iter()
+                        .find(|span| time >= span.start_video_s - reach && time <= span.end_video_s + reach)
+                        .map(|span| {
+                            format!(
+                                "display {}  ·  {} – {}\nthe picture changed here: up to {:.1}% of the screen",
+                                span.display,
+                                timecode::format(span.start_video_s),
+                                timecode::format(span.end_video_s),
+                                span.peak_share * 100.0
+                            )
+                        })
+                }),
                 Some(Lane::Log) => {
                     let times: Vec<f64> = self
                         .loaded

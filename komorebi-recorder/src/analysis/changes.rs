@@ -104,6 +104,20 @@ impl Analysis {
         to_s: f64,
         sensitivity: f64,
     ) -> eyre::Result<ChangesData> {
+        self.changes_until(video, displays, from_s, to_s, sensitivity, None)
+    }
+
+    /// [`Analysis::changes`], stopping early (with what it has found so far) once `cancel` is set:
+    /// for a scan that runs in the background and whose result is no longer wanted.
+    pub fn changes_until(
+        &self,
+        video: &SessionVideo,
+        displays: &[u32],
+        from_s: f64,
+        to_s: f64,
+        sensitivity: f64,
+        cancel: Option<&std::sync::atomic::AtomicBool>,
+    ) -> eyre::Result<ChangesData> {
         if sensitivity <= 0.0 {
             return Err(envelope::usage("--sensitivity must be above zero"));
         }
@@ -130,6 +144,11 @@ impl Analysis {
                 to_s,
                 Scale::Width(COMPARE_WIDTH),
                 &mut |decoded| {
+                    if cancel
+                        .is_some_and(|cancel| cancel.load(std::sync::atomic::Ordering::Relaxed))
+                    {
+                        return false;
+                    }
                     let now = luma(decoded);
                     let (width, height) = (decoded.frame.width, decoded.frame.height);
 
