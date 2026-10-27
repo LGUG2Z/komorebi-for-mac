@@ -1,6 +1,7 @@
 pub mod analysis;
 pub mod annotations;
 pub mod app;
+pub mod av;
 pub mod capture;
 pub mod cli;
 pub mod clock;

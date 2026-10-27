@@ -348,6 +348,10 @@ impl Analysis {
                     suspect.event.seq
                 ));
             }
+            if !self.manifest.displays.is_empty() {
+                commands.push(format!("komorebi-recorder sheet {dir} --bug {}", bug.id));
+                commands.push(format!("komorebi-recorder changes {dir} --bug {}", bug.id));
+            }
             for window in region
                 .findings
                 .iter()

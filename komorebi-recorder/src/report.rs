@@ -6,6 +6,7 @@ use crate::analysis::answers::EventsData;
 use crate::analysis::answers::StateData;
 use crate::analysis::brief::BriefData;
 use crate::analysis::brief::RegionBrief;
+use crate::analysis::changes::ChangesData;
 use crate::analysis::code::CodeData;
 use crate::analysis::history::HistoryData;
 use crate::analysis::invariants::Severity;
@@ -13,6 +14,7 @@ use crate::analysis::invariants::Violation;
 use crate::analysis::overview::Finding;
 use crate::analysis::overview::OverviewData;
 use crate::analysis::search::SearchData;
+use crate::analysis::sheet::SheetData;
 use crate::analysis::state::Container;
 use crate::analysis::state::Window;
 use crate::analysis::trace::TraceData;
@@ -1128,6 +1130,87 @@ pub fn search_text(data: &SearchData) -> String {
             hit.source,
             hit.reference,
             hit.text.lines().next().unwrap_or("")
+        );
+    }
+    out
+}
+
+/// Render the answer to `changes`.
+#[must_use]
+pub fn changes_text(data: &ChangesData) -> String {
+    let mut out = String::new();
+    let _ = writeln!(
+        out,
+        "{} frames compared on display(s) {} from {} to {}: {} stretch(es) of change",
+        data.frames_examined,
+        data.displays
+            .iter()
+            .map(ToString::to_string)
+            .collect::<Vec<_>>()
+            .join(", "),
+        timecode::format(data.from_video_s),
+        timecode::format(data.to_video_s),
+        data.spans.len()
+    );
+    for span in &data.spans {
+        let events = if span.events.is_empty() {
+            String::new()
+        } else {
+            format!(
+                "  events {}",
+                span.events
+                    .iter()
+                    .map(|seq| format!("#{seq}"))
+                    .collect::<Vec<_>>()
+                    .join(" ")
+            )
+        };
+        let _ = writeln!(
+            out,
+            "display {}  {} - {} ({:.2} s, {} frames)  up to {:.1}% of the screen  box {:.0}%,{:.0}% {:.0}%x{:.0}%{events}",
+            span.display,
+            timecode::format(span.start_video_s),
+            timecode::format(span.end_video_s),
+            span.end_video_s - span.start_video_s,
+            span.frames,
+            span.peak_share * 100.0,
+            span.bbox[0] * 100.0,
+            span.bbox[1] * 100.0,
+            span.bbox[2] * 100.0,
+            span.bbox[3] * 100.0,
+        );
+    }
+    for gap in &data.gaps {
+        let _ = writeln!(
+            out,
+            "display {} has no video from {} to {}",
+            gap.display,
+            timecode::format(gap.from_video_s),
+            timecode::format(gap.to_video_s)
+        );
+    }
+    out
+}
+
+/// Render the answer to `sheet`.
+#[must_use]
+pub fn sheet_text(data: &SheetData) -> String {
+    let mut out = String::new();
+    let _ = writeln!(
+        out,
+        "{}  ({}x{}, {} frames)",
+        data.path,
+        data.width,
+        data.height,
+        data.frames.len()
+    );
+    for skipped in &data.skipped {
+        let _ = writeln!(
+            out,
+            "no frame: display {} at {}: {}",
+            skipped.display,
+            timecode::format(skipped.video_s),
+            skipped.reason
         );
     }
     out

@@ -3176,6 +3176,7 @@ dependencies = [
 name = "komorebi-recorder"
 version = "0.1.1"
 dependencies = [
+ "ab_glyph",
  "block2 0.6.2",
  "chrono",
  "clap",
@@ -3184,6 +3185,7 @@ dependencies = [
  "ctrlc",
  "dispatch2",
  "eframe",
+ "epaint_default_fonts",
  "komorebi-client",
  "libc",
  "objc2 0.6.4",
@@ -3191,9 +3193,11 @@ dependencies = [
  "objc2-core-foundation",
  "objc2-core-graphics",
  "objc2-core-media",
+ "objc2-core-video",
  "objc2-foundation 0.3.2",
  "objc2-screen-capture-kit",
  "parking_lot",
+ "png 0.18.1",
  "proc-macro2",
  "regex",
  "schemars 1.2.1",
@@ -4093,6 +4097,7 @@ dependencies = [
  "bitflags 2.11.1",
  "block2 0.6.2",
  "objc2 0.6.4",
+ "objc2-core-foundation",
  "objc2-core-media",
  "objc2-foundation 0.3.2",
 ]

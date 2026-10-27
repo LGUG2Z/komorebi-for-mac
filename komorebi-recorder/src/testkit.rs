@@ -35,6 +35,15 @@ pub fn wall_us(video_s: f64) -> i64 {
     WALL_AT_MACH_ZERO_US + (mach_ns(video_s) / 1_000) as i64
 }
 
+struct PendingVideo {
+    display: u32,
+    start_s: f64,
+    frames: u32,
+    fps: u32,
+    /// Which picture each frame shows.
+    shown: Box<dyn Fn(u32) -> u32>,
+}
+
 struct PendingEvent {
     video_s: f64,
     event: Value,
@@ -49,6 +58,7 @@ pub struct SessionBuilder {
     log: Vec<(f64, String, String)>,
     incidents: Vec<Incident>,
     komorebi_commit: Option<String>,
+    videos: Vec<PendingVideo>,
 }
 
 impl SessionBuilder {
@@ -68,7 +78,36 @@ impl SessionBuilder {
             log: Vec::new(),
             incidents: Vec::new(),
             komorebi_commit: None,
+            videos: Vec::new(),
         }
+    }
+
+    /// A display's video file starting `start_s` into the recording: `frames` frames at `fps`,
+    /// each numbered (see [`write_numbered_video`]). Needs `ffmpeg`; without it no file is written
+    /// and the session has no video, so tests that need one check [`ffmpeg_available`] first.
+    #[must_use]
+    pub fn video(self, display: u32, start_s: f64, frames: u32, fps: u32) -> Self {
+        self.video_showing(display, start_s, frames, fps, |frame| frame)
+    }
+
+    /// Like [`SessionBuilder::video`] but frame `n` shows the picture numbered `shown(n)`.
+    #[must_use]
+    pub fn video_showing(
+        mut self,
+        display: u32,
+        start_s: f64,
+        frames: u32,
+        fps: u32,
+        shown: impl Fn(u32) -> u32 + 'static,
+    ) -> Self {
+        self.videos.push(PendingVideo {
+            display,
+            start_s,
+            frames,
+            fps,
+            shown: Box::new(shown),
+        });
+        self
     }
 
     /// Say the recorded komorebi was built from this commit.
@@ -208,6 +247,44 @@ impl SessionBuilder {
             .collect();
         std::fs::write(session.path(INCIDENTS_FILE), incidents).expect("incidents");
 
+        for video in &self.videos {
+            let name = crate::capture::video_file_name(video.display, 1);
+            let wrote = write_video(&session.path(&name), video.frames, video.fps, &*video.shown);
+            if !wrote {
+                continue;
+            }
+
+            let length = f64::from(video.frames) / f64::from(video.fps);
+            manifest.displays.push(crate::session::DisplayEntry {
+                result: crate::capture::DisplayResult {
+                    display: crate::capture::DisplayDescriptor {
+                        id: video.display,
+                        frame: [0.0, 0.0, 1000.0, 800.0],
+                        width_points: 1000,
+                        height_points: 800,
+                        asleep: false,
+                    },
+                    segment: 1,
+                    scale: 1.0,
+                    width_px: NUMBERED_WIDTH as usize,
+                    height_px: NUMBERED_HEIGHT as usize,
+                    codec: crate::capture::Codec::Hevc,
+                    file: name,
+                    frames_file: crate::capture::frames_file_name(video.display, 1),
+                    video_t0_mach_ns: Some(mach_ns(video.start_s)),
+                    video_end_mach_ns: Some(mach_ns(video.start_s + length)),
+                    end_reason: Some(crate::capture::EndReason::Stopped),
+                    frames: u64::from(video.frames),
+                    dropped: 0,
+                    idle_callbacks: 0,
+                    latency: crate::capture::LatencyStats::default(),
+                    error: None,
+                },
+                offset_s: video.start_s,
+                end_s: Some(video.start_s + length),
+            });
+        }
+
         session.write_manifest(&manifest).expect("manifest");
         timeline::build(&session).expect("timeline");
         (session, manifest)
@@ -322,4 +399,117 @@ pub fn state_with_windows(windows: &[(u64, &str)]) -> Value {
         )],
         0,
     )
+}
+
+/// How wide a numbered test video is, in pixels: sixteen blocks of eight, one per bit of the
+/// frame number.
+pub const NUMBERED_WIDTH: u32 = 128;
+pub const NUMBERED_HEIGHT: u32 = 64;
+
+/// Write a test video whose every frame says which frame it is: the frame number in binary as
+/// sixteen black or white blocks, which survives lossy compression. Returns `false` if there is
+/// no `ffmpeg` to make it with; tests that need a video say so and stop.
+#[must_use]
+pub fn write_numbered_video(path: &std::path::Path, frames: u32, fps: u32) -> bool {
+    write_video(path, frames, fps, |frame| frame)
+}
+
+/// Like [`write_numbered_video`], but frame `n` shows the picture of frame `shown(n)`, so a video
+/// can hold still (`shown` stays put) and change (`shown` advances).
+#[must_use]
+pub fn write_video(
+    path: &std::path::Path,
+    frames: u32,
+    fps: u32,
+    shown: impl Fn(u32) -> u32,
+) -> bool {
+    use std::io::Write;
+    use std::process::Command;
+    use std::process::Stdio;
+
+    // the encoders to try, best first: any of them gives a video the decoder must read
+    for encoder in [
+        ["-c:v", "hevc_videotoolbox", "-tag:v", "hvc1"],
+        ["-c:v", "libx264", "-tag:v", "avc1"],
+    ] {
+        let spawned = Command::new("ffmpeg")
+            .args([
+                "-y",
+                "-loglevel",
+                "error",
+                "-f",
+                "rawvideo",
+                "-pix_fmt",
+                "gray",
+            ])
+            .args([
+                "-s",
+                &format!("{NUMBERED_WIDTH}x{NUMBERED_HEIGHT}"),
+                "-r",
+                &fps.to_string(),
+                "-i",
+                "-",
+            ])
+            .args(["-g", "30", "-pix_fmt", "yuv420p"])
+            .args(encoder)
+            .arg(path)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn();
+        let Ok(mut child) = spawned else {
+            return false;
+        };
+
+        if let Some(mut stdin) = child.stdin.take() {
+            for frame in 0..frames {
+                let mut row = vec![0_u8; NUMBERED_WIDTH as usize];
+                for bit in 0..16 {
+                    let value = if shown(frame) >> (15 - bit) & 1 == 1 {
+                        255
+                    } else {
+                        0
+                    };
+                    row[bit * 8..bit * 8 + 8].fill(value);
+                }
+                for _ in 0..NUMBERED_HEIGHT {
+                    if stdin.write_all(&row).is_err() {
+                        break;
+                    }
+                }
+            }
+        }
+
+        if child.wait().is_ok_and(|status| status.success()) && path.is_file() {
+            return true;
+        }
+    }
+
+    false
+}
+
+/// Which frame a decoded frame of a numbered video is, read back from its blocks. The frame may
+/// be any size at least sixteen pixels wide: each block is sampled at its middle.
+#[must_use]
+pub fn numbered_frame_index(bgra: &[u8], width: u32, height: u32) -> u32 {
+    let row = (height / 2) as usize * width as usize * 4;
+    let mut index = 0_u32;
+    for bit in 0..16_usize {
+        let x = (bit * width as usize / 16) + width as usize / 32;
+        // blue channel of a grey pixel
+        let value = bgra[row + x * 4];
+        index = index << 1 | u32::from(value >= 128);
+    }
+    index
+}
+
+/// Whether `ffmpeg` is there to make test videos with.
+#[must_use]
+pub fn ffmpeg_available() -> bool {
+    std::process::Command::new("ffmpeg")
+        .arg("-version")
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .is_ok_and(|status| status.success())
 }

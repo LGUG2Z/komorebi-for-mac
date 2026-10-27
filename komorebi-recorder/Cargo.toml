@@ -7,6 +7,7 @@ edition = "2024"
 [dependencies]
 komorebi-client = { path = "../komorebi-client", default-features = false }
 
+ab_glyph = "0.2"
 block2 = "0.6"
 chrono = { workspace = true }
 clap = { workspace = true }
@@ -15,6 +16,7 @@ crossbeam-channel = { workspace = true }
 ctrlc = { version = "3", features = ["termination"] }
 dispatch2 = "0.3"
 eframe = { workspace = true }
+epaint_default_fonts = "0.33"
 libc = "0.2"
 objc2 = { version = "0.6", default-features = false, features = ["std"] }
 objc2-av-foundation = { version = "0.3", default-features = false, features = [
@@ -22,8 +24,12 @@ objc2-av-foundation = { version = "0.3", default-features = false, features = [
   "block2",
   "objc2-core-media",
   "AVAsset",
+  "AVAssetReader",
+  "AVAssetReaderOutput",
+  "AVAssetTrack",
   "AVAssetWriter",
   "AVAssetWriterInput",
+  "objc2-core-foundation",
   "AVMediaFormat",
   "AVVideoSettings",
 ] }
@@ -53,6 +59,15 @@ objc2-core-media = { version = "0.3", default-features = false, features = [
   "CMSampleBuffer",
   "CMSync",
   "CMTime",
+  "CMTimeRange",
+] }
+objc2-core-video = { version = "0.3", default-features = false, features = [
+  "std",
+  "CVBase",
+  "CVBuffer",
+  "CVImageBuffer",
+  "CVPixelBuffer",
+  "CVReturn",
 ] }
 objc2-foundation = { version = "0.3", default-features = false, features = [
   "std",
@@ -76,6 +91,7 @@ objc2-screen-capture-kit = { version = "0.3", default-features = false, features
   "SCStream",
 ] }
 parking_lot = { workspace = true }
+png = "0.18"
 regex = "1"
 schemars = { workspace = true }
 serde = { workspace = true }
