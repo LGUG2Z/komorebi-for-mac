@@ -8,9 +8,14 @@ use std::sync::Arc;
 use std::sync::LazyLock;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::AtomicU64;
+use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::Ordering;
+use std::time::Duration;
+use step::MotionSpec;
 
 pub use engine::AnimationEngine;
 pub mod animation_manager;
+pub mod animator;
 pub mod engine;
 pub mod lerp;
 pub mod prefix;
@@ -66,6 +71,9 @@ pub const DEFAULT_ANIMATION_FPS: u64 = 60;
 pub static ANIMATION_MANAGER: LazyLock<Arc<Mutex<AnimationManager>>> =
     LazyLock::new(|| Arc::new(Mutex::new(AnimationManager::new())));
 
+/// How many operations have asked for animations to be skipped for as long as they run
+static ANIMATIONS_SUSPENDED: AtomicUsize = AtomicUsize::new(0);
+
 pub static ANIMATION_STYLE_GLOBAL: LazyLock<Arc<Mutex<AnimationStyle>>> =
     LazyLock::new(|| Arc::new(Mutex::new(DEFAULT_ANIMATION_STYLE)));
 
@@ -86,3 +94,61 @@ pub static ANIMATION_DURATION_PER_ANIMATION: LazyLock<Arc<Mutex<HashMap<Animatio
     LazyLock::new(|| Arc::new(Mutex::new(HashMap::new())));
 
 pub static ANIMATION_FPS: AtomicU64 = AtomicU64::new(DEFAULT_ANIMATION_FPS);
+
+/// Skips animations for as long as the guard is held
+///
+/// Some operations, such as stacking windows, rearrange a workspace in a way that animating would
+/// only make look wrong. Unlike turning the global setting off and on again, this puts everything
+/// back when the operation fails part of the way through, and it applies to per-animation settings
+/// too.
+pub struct SuspendedAnimations(());
+
+impl Drop for SuspendedAnimations {
+    fn drop(&mut self) {
+        ANIMATIONS_SUSPENDED.fetch_sub(1, Ordering::SeqCst);
+    }
+}
+
+pub fn suspend() -> SuspendedAnimations {
+    ANIMATIONS_SUSPENDED.fetch_add(1, Ordering::SeqCst);
+    SuspendedAnimations(())
+}
+
+/// How the windows for `prefix` should be moved, or `None` if they should simply be placed
+pub fn motion_for(prefix: AnimationPrefix) -> Option<MotionSpec> {
+    if ANIMATIONS_SUSPENDED.load(Ordering::SeqCst) > 0 {
+        return None;
+    }
+
+    let enabled = ANIMATION_ENABLED_PER_ANIMATION
+        .lock()
+        .get(&prefix)
+        .copied()
+        .unwrap_or_else(|| ANIMATION_ENABLED_GLOBAL.load(Ordering::SeqCst));
+
+    if !enabled {
+        return None;
+    }
+
+    Some(MotionSpec {
+        duration: Duration::from_millis(
+            ANIMATION_DURATION_PER_ANIMATION
+                .lock()
+                .get(&prefix)
+                .copied()
+                .unwrap_or_else(|| ANIMATION_DURATION_GLOBAL.load(Ordering::SeqCst)),
+        ),
+        style: ANIMATION_STYLE_PER_ANIMATION
+            .lock()
+            .get(&prefix)
+            .copied()
+            .unwrap_or_else(|| *ANIMATION_STYLE_GLOBAL.lock()),
+    })
+}
+
+/// How long one frame takes, given the configured frames per second
+pub fn frame_period() -> Duration {
+    let fps = ANIMATION_FPS.load(Ordering::Relaxed).clamp(1, 240);
+
+    Duration::from_secs_f64(1.0 / fps as f64)
+}
