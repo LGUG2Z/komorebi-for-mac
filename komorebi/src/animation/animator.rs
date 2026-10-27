@@ -39,6 +39,7 @@ use crate::accessibility::attribute_constants::kAXSizeAttribute;
 use crate::accessibility::enhanced_ui;
 use crate::accessibility::enhanced_ui::EnhancedUiGuard;
 use crate::accessibility::error::AccessibilityError;
+use crate::arrival;
 use crate::border_manager;
 use crate::core::Rect;
 use crate::macos_api::MacosApi;
@@ -877,6 +878,22 @@ fn perform_write(window_id: WindowId, write: &Merged) -> WriteOutcome {
 /// How far (in pixels) a window may be from where it was sent without being sent there again
 const SETTLE_TOLERANCE: u32 = 2;
 
+/// Compare where a window turned out to be with where it was sent, and say what it turned out to be
+///
+/// Whether the position and the size are right is returned. Whether the window took the width it
+/// was given is said to [`arrival`], every time and whatever the answer, as it forgets a window that
+/// has taken its size since it last refused.
+fn compare(window_id: WindowId, actual: Rect, target: Rect) -> (bool, bool) {
+    arrival::report(window_id, target, actual);
+
+    let position_is_right = actual.left.abs_diff(target.left) <= SETTLE_TOLERANCE
+        && actual.top.abs_diff(target.top) <= SETTLE_TOLERANCE;
+    let size_is_right = actual.right.abs_diff(target.right) <= SETTLE_TOLERANCE
+        && actual.bottom.abs_diff(target.bottom) <= SETTLE_TOLERANCE;
+
+    (position_is_right, size_is_right)
+}
+
 fn perform_verify(verify: &Verify<WindowHandle>) -> VerifyOutcome {
     let window_id = verify.window_id;
     let element = &verify.handle.element;
@@ -891,10 +908,7 @@ fn perform_verify(verify: &Verify<WindowHandle>) -> VerifyOutcome {
         }
     };
 
-    let position_is_right = actual.left.abs_diff(target.left) <= SETTLE_TOLERANCE
-        && actual.top.abs_diff(target.top) <= SETTLE_TOLERANCE;
-    let size_is_right = actual.right.abs_diff(target.right) <= SETTLE_TOLERANCE
-        && actual.bottom.abs_diff(target.bottom) <= SETTLE_TOLERANCE;
+    let (position_is_right, size_is_right) = compare(window_id, actual, target);
 
     if position_is_right && size_is_right {
         // the animation may have been cut short by a slow app, so make sure the border ends up
@@ -926,6 +940,14 @@ fn perform_verify(verify: &Verify<WindowHandle>) -> VerifyOutcome {
                 }
             );
             border_manager::follow(window_id, target);
+
+            // there is no verification after the last attempt, so look for the last time at what
+            // came of it, as that is the last word on where the window ended up
+            if verify.last_attempt
+                && let Ok(rect) = MacosApi::window_rect(element)
+            {
+                compare(window_id, Rect::from(rect), target);
+            }
 
             VerifyOutcome::Reissued
         }
@@ -965,6 +987,65 @@ mod tests {
             position,
             size,
         }
+    }
+
+    fn frame(width: i32) -> Rect {
+        Rect {
+            left: 100,
+            top: 50,
+            right: width,
+            bottom: 800,
+        }
+    }
+
+    #[test]
+    fn a_window_that_would_not_get_as_narrow_is_reported_with_what_it_turned_out_to_be() {
+        // ids that nothing else in the tests uses, as what is reported is shared by all of them
+        let window_id = 4_100_000_001;
+
+        let (position_is_right, size_is_right) = compare(window_id, frame(600), frame(400));
+
+        assert!(position_is_right);
+        assert!(!size_is_right);
+
+        let arrival = arrival::take(window_id).expect("the refusal should have been reported");
+        assert_eq!(arrival.target, frame(400));
+        assert_eq!(arrival.actual, frame(600));
+    }
+
+    #[test]
+    fn a_window_that_took_its_size_is_not_a_refusal_and_is_forgotten() {
+        let window_id = 4_100_000_002;
+
+        // it refused, and then it did not
+        compare(window_id, frame(600), frame(400));
+        let (position_is_right, size_is_right) = compare(window_id, frame(401), frame(400));
+
+        assert!(position_is_right && size_is_right);
+        assert_eq!(arrival::take(window_id), None);
+    }
+
+    #[test]
+    fn a_window_that_is_narrower_than_it_was_told_to_be_is_not_a_refusal() {
+        let window_id = 4_100_000_003;
+
+        let (_, size_is_right) = compare(window_id, frame(300), frame(400));
+
+        assert!(!size_is_right);
+        assert_eq!(arrival::take(window_id), None);
+    }
+
+    #[test]
+    fn a_window_that_is_in_the_wrong_place_but_the_right_size_is_not_a_refusal() {
+        let window_id = 4_100_000_004;
+        let mut actual = frame(400);
+        actual.left += 300;
+
+        let (position_is_right, size_is_right) = compare(window_id, actual, frame(400));
+
+        assert!(!position_is_right);
+        assert!(size_is_right);
+        assert_eq!(arrival::take(window_id), None);
     }
 
     #[test]

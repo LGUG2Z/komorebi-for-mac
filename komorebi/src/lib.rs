@@ -52,6 +52,7 @@ pub mod accessibility;
 pub mod animation;
 pub mod app_kit_notification_constants;
 pub mod application;
+pub mod arrival;
 pub mod border_manager;
 pub mod container;
 pub mod core;
