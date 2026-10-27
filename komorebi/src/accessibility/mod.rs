@@ -20,6 +20,7 @@ use std::ptr::NonNull;
 
 pub mod action_constants;
 pub mod attribute_constants;
+pub mod enhanced_ui;
 pub mod error;
 pub mod notification_constants;
 pub mod private;
@@ -110,6 +111,22 @@ impl AccessibilityApi {
             match AccessibilityError::from(
                 element.perform_action(&CFString::from_static_str(action)),
             ) {
+                AccessibilityError::Api(AccessibilityApiError::Success) => Ok(()),
+                error => Err(error),
+            }
+        }
+    }
+
+    /// Stop waiting on an app that does not answer after `seconds`
+    ///
+    /// Every AX call is a synchronous round trip to the app that owns the element, and by default
+    /// an app that has hung can hold the caller for several seconds.
+    pub fn set_messaging_timeout(
+        element: &AXUIElement,
+        seconds: f32,
+    ) -> Result<(), AccessibilityError> {
+        unsafe {
+            match AccessibilityError::from(element.set_messaging_timeout(seconds)) {
                 AccessibilityError::Api(AccessibilityApiError::Success) => Ok(()),
                 error => Err(error),
             }

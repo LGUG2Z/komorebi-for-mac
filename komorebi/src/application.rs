@@ -121,6 +121,11 @@ impl Application {
         })
     }
 
+    /// The AX element of the application itself, as opposed to one of its windows
+    pub fn element(&self) -> &AccessibilityUiElement {
+        &self.element
+    }
+
     pub fn name(&self) -> Option<String> {
         AccessibilityApi::copy_attribute_value::<CFString>(&self.element, kAXTitleAttribute)
             .map(|s| s.to_string())

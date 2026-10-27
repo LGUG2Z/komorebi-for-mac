@@ -23,6 +23,14 @@ pub fn get_enhanced_user_interface(element: &AXUIElement) -> bool {
         .unwrap_or(false)
 }
 
+/// Get the current state of Enhanced User Interface for an application element
+///
+/// Returns `None` if the application has no such attribute, or did not answer.
+pub fn get_enhanced_user_interface_if_present(element: &AXUIElement) -> Option<bool> {
+    AccessibilityApi::copy_attribute_value::<CFBoolean>(element, kAXEnhancedUserInterface)
+        .map(|b| b.as_bool())
+}
+
 /// Set the Enhanced User Interface state for an element
 pub fn set_enhanced_user_interface(
     element: &AXUIElement,
