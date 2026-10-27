@@ -68,6 +68,7 @@ pub mod notification_center_listener;
 pub mod process_command;
 pub mod process_event;
 pub mod reaper;
+pub mod scrolling;
 pub mod skylight;
 pub mod splash;
 pub mod state;

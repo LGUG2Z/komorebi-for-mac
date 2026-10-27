@@ -1561,6 +1561,16 @@ impl WindowManager {
             }
             WorkspaceLayer::Tiling => {
                 match workspace.layout {
+                    Layout::Default(DefaultLayout::Scrolling) => {
+                        tracing::info!("resizing column");
+                        workspace.resize_scrolling_column(direction, sizing, delta);
+
+                        return if update {
+                            self.update_focused_workspace(false, false)
+                        } else {
+                            Ok(())
+                        };
+                    }
                     Layout::Default(layout) => {
                         tracing::info!("resizing window");
                         let len = NonZeroUsize::new(workspace.containers().len())
@@ -1589,7 +1599,7 @@ impl WindowManager {
                                 &[],
                                 workspace.focused_container_idx(),
                                 workspace.layout_options,
-                                workspace.layout_feedback(),
+                                &workspace.latest_layout,
                             );
 
                             let mut direction = direction;

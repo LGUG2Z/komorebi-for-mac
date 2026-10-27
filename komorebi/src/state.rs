@@ -129,7 +129,7 @@ impl From<&WindowManager> for State {
                             workspace_padding: workspace.workspace_padding,
                             container_padding: workspace.container_padding,
                             latest_layout: workspace.latest_layout.clone(),
-                            scrolling_viewport_layout: workspace.scrolling_viewport_layout.clone(),
+                            scrolling: workspace.scrolling.clone(),
                             resize_dimensions: workspace.resize_dimensions.clone(),
                             tile: workspace.tile,
                             work_area_offset: workspace.work_area_offset,

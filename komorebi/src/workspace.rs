@@ -25,6 +25,7 @@ use crate::window::Window;
 use crate::window::WindowDetails;
 use color_eyre::eyre;
 use color_eyre::eyre::OptionExt;
+use komorebi_layouts::scrolling::model::ScrollingSpace;
 use komorebi_themes::Base16ColourPalette;
 use komorebi_themes::KomorebiTheme;
 use komorebi_themes::KomorebiThemeCustom;
@@ -65,11 +66,11 @@ pub struct Workspace {
     pub workspace_padding: Option<i32>,
     pub container_padding: Option<i32>,
     pub latest_layout: Vec<Rect>,
-    /// The most recent layout exactly as the arrangement algorithm produced it, before it was
-    /// clamped to the work area. The Scrolling layout derives its viewport from the previous
-    /// layout, which only works if that layout still says where the off-screen columns are.
+    /// The strip of columns that the Scrolling layout lays out, which has state of its own: how
+    /// wide each column is, and which part of the strip is in view. It is made to match the
+    /// containers whenever the layout is calculated. See [`crate::scrolling`].
     #[serde(skip)]
-    pub scrolling_viewport_layout: Vec<Rect>,
+    pub(crate) scrolling: Option<ScrollingSpace<String>>,
     pub resize_dimensions: Vec<Option<Rect>>,
     pub tile: bool,
     pub work_area_offset: Option<Rect>,
@@ -127,7 +128,7 @@ impl Default for Workspace {
             work_area_offset: None,
             work_area_offset_rules: vec![],
             latest_layout: vec![],
-            scrolling_viewport_layout: vec![],
+            scrolling: None,
             layout_flip: None,
             layout_options: None,
             layout_rules: vec![],
@@ -328,7 +329,7 @@ impl Workspace {
     ///   1. Try threshold match from rules (highest matching threshold wins)
     ///   2. If a rule matches -> use it (full replacement of base)
     ///   3. Else -> use the base `layout_options`
-    fn effective_layout_options(&self) -> Option<LayoutOptions> {
+    pub(crate) fn effective_layout_options(&self) -> Option<LayoutOptions> {
         let container_count = self.containers().len();
 
         let has_workspace_overrides =
@@ -892,23 +893,8 @@ impl Workspace {
             }
         }
 
-        let mut resize_dimensions = None;
-        if matches!(self.layout, Layout::Default(DefaultLayout::Scrolling))
-            && self.resize_dimensions.iter().any(|r| r.is_some())
-        {
-            resize_dimensions = Some(self.resize_dimensions.clone());
-            self.resize_dimensions = Vec::new();
-            if let Err(error) = self.update() {
-                tracing::error!("{error}");
-            }
-        }
-
         for container in self.containers_mut() {
             container.hide(window_hiding_position, omit)?;
-        }
-
-        if let Some(resize_dimensions) = resize_dimensions {
-            self.resize_dimensions = resize_dimensions;
         }
 
         // if let Some(window) = self.maximized_window() {
@@ -1296,21 +1282,6 @@ pub(crate) fn clamp_to_work_area(layout: &mut Rect, work_area: &Rect) {
 }
 
 impl Workspace {
-    /// The previous layout, as it is handed back to the arrangement algorithm.
-    ///
-    /// The Scrolling layout works out which column was first in view from where the previous
-    /// layout put its columns, so it has to see them where the algorithm placed them. The layout
-    /// in `latest_layout` has been clamped to the work area (see [`clamp_to_work_area`]), which
-    /// pulls every off-screen column on to the left edge and makes the strip look like it has
-    /// never scrolled.
-    pub fn layout_feedback(&self) -> &[Rect] {
-        if matches!(self.layout, Layout::Default(DefaultLayout::Scrolling)) {
-            &self.scrolling_viewport_layout
-        } else {
-            &self.latest_layout
-        }
-    }
-
     /// Set how many columns the Scrolling layout shows at once, keeping every other layout option.
     pub fn set_scrolling_columns(&mut self, columns: usize) {
         let mut options = self.layout_options.unwrap_or(LayoutOptions {
@@ -1349,7 +1320,7 @@ impl Workspace {
             self.layout_options_rules.len(),
         );
 
-        let layouts = self.layout.as_boxed_arrangement().calculate(
+        Ok(self.layout.as_boxed_arrangement().calculate(
             work_area,
             NonZeroUsize::new(self.containers().len()).ok_or_eyre(
                 "there must be at least one container to calculate a workspace layout",
@@ -1359,20 +1330,16 @@ impl Workspace {
             &self.resize_dimensions,
             self.focused_container_idx(),
             effective_layout_options,
-            self.layout_feedback(),
-        );
-
-        if matches!(self.layout, Layout::Default(DefaultLayout::Scrolling)) {
-            self.scrolling_viewport_layout = layouts.clone();
-        } else {
-            // a layout from another algorithm says nothing about where Scrolling left its columns
-            self.scrolling_viewport_layout.clear();
-        }
-
-        Ok(layouts)
+            &self.latest_layout,
+        ))
     }
 
     pub fn update(&mut self) -> eyre::Result<()> {
+        // a strip of columns is only kept for as long as the workspace is laid out as one
+        if !self.is_scrolling() {
+            self.scrolling = None;
+        }
+
         // make sure we are never holding on to empty containers
         self.prune_duplicate_windows()?;
         let focused_container_idx = self.focused_container_idx();
@@ -1491,12 +1458,18 @@ impl Workspace {
                         window.set_position(&adjusted_work_area)?;
                     };
                 } else if !self.containers().is_empty() {
+                    if self.is_scrolling() {
+                        return self.arrange_scrolling(
+                            &work_area,
+                            &adjusted_work_area,
+                            container_padding,
+                            border_offset,
+                            border_width,
+                        );
+                    }
+
                     let mut layouts =
                         self.calculate_layouts(&adjusted_work_area, Some(container_padding))?;
-
-                    let is_scrolling =
-                        matches!(self.layout, Layout::Default(DefaultLayout::Scrolling));
-                    let resize_dimensions_is_empty = self.resize_dimensions.is_empty();
 
                     let containers = self.containers_mut();
 
@@ -1509,46 +1482,7 @@ impl Workspace {
                             layout.add_padding(border_width);
 
                             for window in container.windows_mut() {
-                                let proposed_percentage =
-                                    work_area.percentage_within_horizontal_bounds(layout);
-
-                                // where the window is now only matters when the layout would put it
-                                // entirely out of view, and finding out means asking the app
-                                let percentage_override =
-                                    proposed_percentage == 0.0 && resize_dimensions_is_empty && {
-                                        let current_rect = MacosApi::window_rect(&window.element)
-                                            .unwrap_or_default();
-                                        let current_percentage = work_area
-                                            .percentage_within_horizontal_bounds(&Rect::from(
-                                                current_rect,
-                                            ));
-
-                                        current_percentage > 0.1 && current_percentage < 100.0
-                                    };
-
-                                if is_scrolling && proposed_percentage < 0.1 && !percentage_override
-                                {
-                                    // for the scrolling layout we pick the hiding position based
-                                    // on the closest edge to make the animations back in to the
-                                    // scrolling viewport nicer (i.e. not all the way across the
-                                    // screen in the worst case scenario)
-                                    let scrolling_hiding_position = if layout.left < work_area.left
-                                    {
-                                        WindowHidingPosition::BottomLeft
-                                    } else {
-                                        WindowHidingPosition::BottomRight
-                                    };
-
-                                    if let Err(error) =
-                                        window.hide_scrolling(scrolling_hiding_position)
-                                    {
-                                        tracing::warn!(
-                                            "failed to set hide window for scrolling layout: {error}"
-                                        )
-                                    }
-                                } else if percentage_override {
-                                    window.center(&work_area, false)?;
-                                } else if let Err(error) = window.set_position(layout) {
+                                if let Err(error) = window.set_position(layout) {
                                     tracing::warn!("failed to set window position: {error}")
                                 }
                             }
@@ -1732,9 +1666,6 @@ impl Workspace {
             }
             Layout::Default(DefaultLayout::UltrawideVerticalStack) => {
                 self.enforce_resize_for_ultrawide();
-            }
-            Layout::Default(DefaultLayout::Scrolling) => {
-                self.enforce_resize_for_scrolling();
             }
             _ => self.enforce_no_resize(),
         }
@@ -1963,28 +1894,6 @@ impl Workspace {
         }
     }
 
-    fn enforce_resize_for_scrolling(&mut self) {
-        let resize_dimensions = &mut self.resize_dimensions;
-        match resize_dimensions.len() {
-            0 | 1 => self.enforce_no_resize(),
-            _ => {
-                let len = resize_dimensions.len();
-
-                for (i, rect) in resize_dimensions.iter_mut().enumerate() {
-                    if let Some(rect) = rect {
-                        rect.top = 0;
-                        rect.bottom = 0;
-
-                        if i == 0 {
-                            rect.left = 0;
-                        } else if i == len - 1 {
-                            rect.right = 0;
-                        }
-                    }
-                }
-            }
-        }
-    }
     fn enforce_no_resize(&mut self) {
         for rect in self.resize_dimensions.iter_mut().flatten() {
             rect.left = 0;
@@ -3013,96 +2922,5 @@ mod tests {
                 .and_then(|s| s.center_focused_column),
             Some(crate::core::ScrollingCentering::Always)
         );
-    }
-
-    fn scrolling_workspace(containers: usize, columns: usize) -> Workspace {
-        let mut workspace = Workspace {
-            layout: Layout::Default(DefaultLayout::Scrolling),
-            layout_options: Some(LayoutOptions {
-                scrolling: Some(ScrollingLayoutOptions {
-                    columns,
-                    center_focused_column: None,
-                }),
-                grid: None,
-                column_ratios: None,
-                row_ratios: None,
-            }),
-            ..Default::default()
-        };
-
-        for _ in 0..containers {
-            workspace.add_container_to_back(Container::default());
-        }
-        workspace.resize_dimensions = vec![None; containers];
-
-        workspace
-    }
-
-    /// Lay out a workspace the way `Workspace::update` does between two focus changes: ask the
-    /// layout, clamp the result to the work area, and remember it for the next pass. Returns the
-    /// layout as the arrangement algorithm produced it.
-    fn scrolling_update(workspace: &mut Workspace, work_area: &Rect) -> Vec<Rect> {
-        let layouts = workspace.calculate_layouts(work_area, Some(10)).unwrap();
-
-        let mut clamped = layouts.clone();
-        for layout in &mut clamped {
-            clamp_to_work_area(layout, work_area);
-        }
-        workspace.latest_layout = clamped;
-
-        layouts
-    }
-
-    /// The columns that lie completely inside the work area.
-    fn fully_visible(layouts: &[Rect], work_area: &Rect) -> Vec<usize> {
-        layouts
-            .iter()
-            .enumerate()
-            .filter(|(_, layout)| {
-                layout.left >= work_area.left
-                    && layout.left + layout.right <= work_area.left + work_area.right
-            })
-            .map(|(idx, _)| idx)
-            .collect()
-    }
-
-    #[test]
-    fn test_scrolling_view_stays_put_while_focus_moves_within_it() {
-        let work_area = Rect {
-            left: 0,
-            top: 0,
-            right: 1200,
-            bottom: 800,
-        };
-        let mut workspace = scrolling_workspace(6, 3);
-
-        // focusing the last column scrolls it in as the rightmost of three
-        workspace.focus_container(5);
-        let initial = scrolling_update(&mut workspace, &work_area);
-        assert_eq!(fully_visible(&initial, &work_area), vec![3, 4, 5]);
-
-        // moving focus left across columns that are already in view must not scroll the strip
-        for idx in [4, 3] {
-            workspace.focus_container(idx);
-            let layout = scrolling_update(&mut workspace, &work_area);
-            assert_eq!(layout, initial, "focusing column {idx} scrolled the view");
-        }
-
-        // leaving the view on the left scrolls just far enough to bring the column in
-        workspace.focus_container(2);
-        let scrolled = scrolling_update(&mut workspace, &work_area);
-        assert_eq!(fully_visible(&scrolled, &work_area), vec![2, 3, 4]);
-
-        // and moving right within the new view leaves it where it is
-        for idx in [3, 4] {
-            workspace.focus_container(idx);
-            let layout = scrolling_update(&mut workspace, &work_area);
-            assert_eq!(layout, scrolled, "focusing column {idx} scrolled the view");
-        }
-
-        // leaving the view on the right scrolls just far enough, too
-        workspace.focus_container(5);
-        let layout = scrolling_update(&mut workspace, &work_area);
-        assert_eq!(fully_visible(&layout, &work_area), vec![3, 4, 5]);
     }
 }
