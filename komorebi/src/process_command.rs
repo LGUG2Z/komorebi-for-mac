@@ -1508,6 +1508,14 @@ impl WindowManager {
                 self.focused_workspace_mut()?.expand_scrolling_column();
                 self.update_focused_workspace(false, false)?;
             }
+            SocketMessage::Consume(direction) => {
+                self.focused_workspace_mut()?.consume_scrolling(direction);
+                self.update_focused_workspace(false, false)?;
+            }
+            SocketMessage::Expel => {
+                self.focused_workspace_mut()?.expel_scrolling();
+                self.update_focused_workspace(false, false)?;
+            }
             SocketMessage::LayoutRatios(ref columns, ref rows) => {
                 use crate::core::validate_ratios;
 

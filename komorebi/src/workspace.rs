@@ -377,6 +377,12 @@ impl Workspace {
     }
 
     pub fn new_idx_for_direction(&self, direction: OperationDirection) -> Option<usize> {
+        // in a strip, left and right are the neighbouring columns and up and down are the tiles of
+        // the column, which the strip is the one to say
+        if self.is_scrolling() && self.scrolling.is_some() {
+            return self.scrolling_idx_for_direction(direction);
+        }
+
         let len = NonZeroUsize::new(self.containers().len())?;
 
         direction.destination(
@@ -453,6 +459,8 @@ impl Workspace {
             next
         } else if self.containers().is_empty() {
             0
+        } else if let Some(idx) = self.scrolling_insertion_idx() {
+            idx
         } else {
             self.focused_container_idx() + 1
         };
@@ -1350,11 +1358,6 @@ impl Workspace {
     }
 
     pub fn update(&mut self) -> eyre::Result<()> {
-        // a strip of columns is only kept for as long as the workspace is laid out as one
-        if !self.is_scrolling() {
-            self.scrolling = None;
-        }
-
         // make sure we are never holding on to empty containers
         self.prune_duplicate_windows()?;
         let focused_container_idx = self.focused_container_idx();

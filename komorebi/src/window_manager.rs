@@ -907,8 +907,13 @@ impl WindowManager {
             }
             Some(new_idx) => {
                 let workspace = self.focused_workspace_mut()?;
-                workspace.swap_containers(origin_container_idx, new_idx);
-                workspace.focus_container(new_idx);
+
+                // a column of the Scrolling layout moves whole, and its tiles move within it,
+                // which is not a swap of two containers
+                if !(workspace.is_scrolling() && workspace.move_scrolling(direction)) {
+                    workspace.swap_containers(origin_container_idx, new_idx);
+                    workspace.focus_container(new_idx);
+                }
             }
         }
 

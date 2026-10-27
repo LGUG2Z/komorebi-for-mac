@@ -111,6 +111,7 @@ gen_enum_subcommand_args! {
     FlipLayout: Axis,
     ChangeLayout: DefaultLayout,
     CycleLayout: CycleDirection,
+    Consume: OperationDirection,
     // WatchConfiguration: BooleanState,
     MouseFollowsFocus: BooleanState,
     Query: StateQuery,
@@ -996,6 +997,19 @@ enum SubCommand {
     /// Make the focused column of the Scrolling layout fill the room that the columns in view
     /// leave on the screen, which does nothing in any other layout
     Expand,
+    /// Take the window on one side into the focused column
+    ///
+    /// Left takes the last window of the column on the left to the top of the focused column, and
+    /// right takes the first window of the column on the right to the bottom of it. Up and down do
+    /// nothing. Only the Scrolling layout has columns of several windows, so this does nothing in
+    /// the other layouts.
+    #[clap(arg_required_else_help = true)]
+    Consume(Consume),
+    /// Take the focused window out of its column and into a column of its own
+    ///
+    /// Only the Scrolling layout has columns of several windows, so this does nothing in the other
+    /// layouts.
+    Expel,
     /// Set the layout column and row ratios for the focused workspace
     LayoutRatios(LayoutRatios),
     // /// Load a custom layout from file for the focused workspace
@@ -2385,6 +2399,12 @@ exit 1
         }
         SubCommand::Expand => {
             send_message(&SocketMessage::Expand)?;
+        }
+        SubCommand::Consume(args) => {
+            send_message(&SocketMessage::Consume(args.operation_direction))?;
+        }
+        SubCommand::Expel => {
+            send_message(&SocketMessage::Expel)?;
         }
         SubCommand::LayoutRatios(args) => {
             if args.columns.is_none() && args.rows.is_none() {

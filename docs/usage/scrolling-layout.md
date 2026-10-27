@@ -51,6 +51,33 @@ screen wide, and is not stretched to fill it.
 A lone window is a third of the screen wide, at the left edge. To have it fill the screen, or to take it out of the
 layout for a while, use [`komorebic toggle-monocle`](../cli/toggle-monocle.md).
 
+## Columns of several windows
+
+A column can hold more than one window, one above the other, sharing the height of the screen. A new window is always a
+column of its own, to the right of the column that has focus. To put windows in the same column:
+
+- [`komorebic consume right`](../cli/consume.md) takes the first window of the column on the right and puts it at the
+  bottom of the focused column.
+- [`komorebic consume left`](../cli/consume.md) takes the last window of the column on the left and puts it at the top of
+  the focused column.
+- [`komorebic expel`](../cli/expel.md) takes the focused window out of its column and puts it in a column of its own on
+  the right.
+
+These only do anything in the Scrolling layout, which is the only one with columns of several windows for now.
+
+The focused window keeps focus, and stays where it is on screen, when you do any of these.
+
+Focus and move commands know about columns:
+
+- [`focus left` and `focus right`](../cli/focus.md) go to the neighbouring column, and to the window in it that had focus
+  last. `focus up` and `focus down` go to the windows of the focused column, and stop at the ends, where they carry on
+  to another monitor as they always did.
+- [`move left` and `move right`](../cli/move.md) move the whole focused column. `move up` and `move down` move the
+  window up or down in its column.
+- A column keeps its width, and a [stack](../cli/stack.md) is still one tile showing one of its windows, as in any layout.
+
+A column that you resized, or made the full width of the screen, keeps that as windows are added to it or taken out.
+
 ## Full width and centring
 
 - [`komorebic scrolling-layout-full-width`](../cli/scrolling-layout-full-width.md) makes the focused column as wide as the
@@ -116,5 +143,10 @@ arranged above and below each other rather than side by side, none of this appli
 
 These are not done yet.
 
+- The windows of a column share its height equally. There are no commands for giving a window more of it, and no minimum
+  height.
+- Moving a window to another workspace or monitor makes it a column of its own with the default width.
+- Switching to another layout and back keeps the widths, but a column whose windows were moved past each other in the
+  other layout is made again from the order that they are in.
 - Every window has a border, including the windows resting at the edges, so you may see a thin line of one at the edge
   of the screen.

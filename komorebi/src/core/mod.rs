@@ -336,6 +336,8 @@ pub enum SocketMessage {
     ScrollingLayoutFullWidth,
     CenterFocus,
     Expand,
+    Consume(OperationDirection),
+    Expel,
     LayoutRatios(Option<Vec<f32>>, Option<Vec<f32>>),
     // ChangeLayoutCustom(#[serde_as(as = "ResolvedPathBuf")] PathBuf),
     FlipLayout(Axis),
@@ -498,6 +500,8 @@ mod tests {
             SocketMessage::ScrollingLayoutFullWidth,
             SocketMessage::CenterFocus,
             SocketMessage::Expand,
+            SocketMessage::Consume(OperationDirection::Left),
+            SocketMessage::Expel,
         ] {
             let bytes = message.as_bytes().unwrap();
             let read: SocketMessage = String::from_utf8(bytes.clone()).unwrap().parse().unwrap();

@@ -290,6 +290,172 @@ impl Workspace {
         Ok(())
     }
 
+    /// Where the container that a new window gets goes, if the strip has a say: after the last
+    /// tile of the column that has focus.
+    ///
+    /// A new window is a column of its own beside the focused one, and not a tile in the middle of
+    /// it, which is what the container after the focused one would be if the column has other
+    /// tiles below.
+    pub(crate) fn scrolling_insertion_idx(&self) -> Option<usize> {
+        if !self.is_scrolling() {
+            return None;
+        }
+
+        let space = self.scrolling.as_ref()?;
+        let focused = self.focused_container()?.id.clone();
+        let last = space.column_of(&focused)?.pop()?;
+
+        self.containers()
+            .iter()
+            .position(|container| container.id == last)
+            .map(|idx| idx + 1)
+    }
+
+    /// Where focus would go from the focused container in this direction, in the strip as it is
+    /// now, or `None` if it would not go anywhere.
+    ///
+    /// Left and right are the neighbouring columns, and focus goes to the tile that had it last
+    /// in the one it arrives at. Up and down are the tiles of the focused column, and stop at
+    /// the ends.
+    pub(crate) fn scrolling_idx_for_direction(
+        &self,
+        direction: OperationDirection,
+    ) -> Option<usize> {
+        // the strip may not have heard about everything that happened since the last layout, so
+        // this goes by a copy of it that has
+        let mut probe = self.scrolling.clone()?;
+        let ids: Vec<String> = self
+            .containers()
+            .iter()
+            .map(|container| container.id.clone())
+            .collect();
+        let focused = self
+            .focused_container()
+            .map(|container| container.id.clone());
+        probe.reconcile(&ids, focused.as_ref());
+
+        let moved = match direction {
+            OperationDirection::Left => probe.focus_left(),
+            OperationDirection::Right => probe.focus_right(),
+            OperationDirection::Up => probe.focus_up(),
+            OperationDirection::Down => probe.focus_down(),
+        };
+
+        if moved {
+            probe.active_tile_index()
+        } else {
+            None
+        }
+    }
+
+    /// Make the order of the containers the order of the tiles of the strip, and focus the tile
+    /// that the strip says has it.
+    ///
+    /// Most of what the strip does leaves the order alone. What moves a tile past another does
+    /// not, and the list of containers is what is true, so it is made to match.
+    fn apply_scrolling_order(&mut self) {
+        let Some(space) = self.scrolling.as_ref() else {
+            return;
+        };
+
+        let order = space.ids();
+        let focused = space.active_tile_index();
+
+        let containers = self.containers_mut();
+        let mut containers_in_order: Vec<_> = containers.drain(..).collect();
+        containers_in_order.sort_by_key(|container| {
+            order
+                .iter()
+                .position(|id| *id == container.id)
+                .unwrap_or(usize::MAX)
+        });
+        containers.extend(containers_in_order);
+
+        if let Some(idx) = focused {
+            self.focus_container(idx);
+        }
+    }
+
+    /// Move the focused column one place to the left or right, or the focused tile one place up
+    /// or down in its column, and tell whether anything moved.
+    ///
+    /// A column moves with all of its tiles.
+    pub(crate) fn move_scrolling(&mut self, direction: OperationDirection) -> bool {
+        let Some(id) = self.focused_scrolling_column() else {
+            return false;
+        };
+
+        let Some(space) = self.scrolling.as_mut() else {
+            return false;
+        };
+
+        let moved = match direction {
+            OperationDirection::Up => space.move_tile_up(),
+            OperationDirection::Down => space.move_tile_down(),
+            OperationDirection::Left | OperationDirection::Right => match space.position(&id) {
+                Some(at) => {
+                    let to = match direction {
+                        OperationDirection::Left => at.checked_sub(1),
+                        _ => Some(at + 1).filter(|to| *to < space.len()),
+                    };
+
+                    match to {
+                        Some(to) => {
+                            space.move_column(&id, to);
+                            true
+                        }
+                        None => false,
+                    }
+                }
+                None => false,
+            },
+        };
+
+        if moved {
+            self.apply_scrolling_order();
+        }
+
+        moved
+    }
+
+    /// Take the neighbouring tile on one side into the focused column: the first tile of the
+    /// column on the right to the bottom of it, or the last tile of the column on the left to the
+    /// top of it. Up and down mean nothing here.
+    pub(crate) fn consume_scrolling(&mut self, direction: OperationDirection) {
+        if self.focused_scrolling_column().is_none() {
+            return;
+        }
+
+        let Some(space) = self.scrolling.as_mut() else {
+            return;
+        };
+
+        let changed = match direction {
+            OperationDirection::Left => space.consume_left(),
+            OperationDirection::Right => space.consume_right(),
+            OperationDirection::Up | OperationDirection::Down => false,
+        };
+
+        if changed {
+            self.apply_scrolling_order();
+        }
+    }
+
+    /// Take the focused tile out of its column and put it in a column of its own on the right.
+    pub(crate) fn expel_scrolling(&mut self) {
+        if self.focused_scrolling_column().is_none() {
+            return;
+        }
+
+        let Some(space) = self.scrolling.as_mut() else {
+            return;
+        };
+
+        if space.expel() {
+            self.apply_scrolling_order();
+        }
+    }
+
     /// Put every column back to the width that the `columns` option gives, which forgets every
     /// width that was set by resizing, by a preset, or by taking the full width.
     ///
@@ -946,6 +1112,219 @@ mod tests {
             .and_then(|container| container.focused_window())
             .map(|window| window.id)
             .unwrap()
+    }
+
+    /// The id of the window in every container, in the order of the containers.
+    fn window_ids(workspace: &Workspace) -> Vec<u32> {
+        workspace
+            .containers()
+            .iter()
+            .filter_map(|container| container.focused_window())
+            .map(|window| window.id)
+            .collect()
+    }
+
+    /// A workspace of four windows, 0 and 1 of which are in one column, with 0 in focus.
+    fn workspace_with_a_column(first: u32) -> Workspace {
+        let mut workspace = workspace_of_windows_from(3, first, 4);
+        workspace.focus_container(0);
+        workspace.layout_scrolling(&AREA, 0);
+        workspace.consume_scrolling(OperationDirection::Right);
+        workspace.layout_scrolling(&AREA, 0);
+
+        workspace
+    }
+
+    #[test]
+    fn consuming_puts_two_windows_in_one_column_and_leaves_the_order_of_the_containers() {
+        let mut workspace = workspace_with_a_column(0);
+
+        assert_eq!(window_ids(&workspace), [0, 1, 2, 3]);
+
+        let placements = workspace.layout_scrolling(&AREA, 0);
+        assert_eq!(placements[0].rect.left, placements[1].rect.left);
+        assert_eq!(placements[0].rect.right, placements[1].rect.right);
+        assert_eq!(
+            placements[0].rect.bottom + placements[1].rect.bottom,
+            AREA.bottom
+        );
+        assert_eq!(
+            placements[1].rect.top,
+            placements[0].rect.top + placements[0].rect.bottom
+        );
+
+        // the column that was next to the one that gave up its window moved up to it
+        assert_eq!(placements[2].rect.left, placements[0].rect.left + 400);
+        assert_eq!(focused_window(&workspace), 0);
+    }
+
+    #[test]
+    fn expelling_puts_the_focused_window_in_a_column_of_its_own() {
+        let mut workspace = workspace_with_a_column(0);
+        workspace.focus_container(1);
+
+        workspace.expel_scrolling();
+
+        let placements = workspace.layout_scrolling(&AREA, 0);
+        assert_eq!(widths(&placements), [400; 4]);
+        assert!(
+            placements
+                .iter()
+                .all(|placement| placement.rect.bottom == AREA.bottom)
+        );
+        assert_eq!(focused_window(&workspace), 1);
+    }
+
+    #[test]
+    fn expelling_a_window_that_has_others_below_it_moves_its_container_in_the_list() {
+        let mut workspace = workspace_of_windows_from(3, 10, 3);
+        workspace.focus_container(0);
+        workspace.layout_scrolling(&AREA, 0);
+        workspace.consume_scrolling(OperationDirection::Right);
+        workspace.layout_scrolling(&AREA, 0);
+        workspace.consume_scrolling(OperationDirection::Right);
+        assert_eq!(window_ids(&workspace), [10, 11, 12]);
+
+        workspace.expel_scrolling();
+
+        // 10 left the column, so it is after the windows that were below it
+        assert_eq!(window_ids(&workspace), [11, 12, 10]);
+        assert_eq!(focused_window(&workspace), 10);
+        assert_eq!(workspace.focused_container_idx(), 2);
+    }
+
+    #[test]
+    fn up_and_down_are_the_windows_of_a_column_and_left_and_right_are_the_columns() {
+        let mut workspace = workspace_with_a_column(0);
+        workspace.focus_container(1);
+
+        assert_eq!(
+            workspace.scrolling_idx_for_direction(OperationDirection::Up),
+            Some(0)
+        );
+        assert_eq!(
+            workspace.scrolling_idx_for_direction(OperationDirection::Down),
+            None
+        );
+        assert_eq!(
+            workspace.scrolling_idx_for_direction(OperationDirection::Right),
+            Some(2)
+        );
+        assert_eq!(
+            workspace.scrolling_idx_for_direction(OperationDirection::Left),
+            None
+        );
+
+        // the strip hears about focus at the next layout, which is made after every change of it
+        workspace.layout_scrolling(&AREA, 0);
+        workspace.focus_container(2);
+        // and left goes to the window that had focus in the column that it arrives at
+        assert_eq!(
+            workspace.scrolling_idx_for_direction(OperationDirection::Left),
+            Some(1)
+        );
+    }
+
+    #[test]
+    fn asking_where_focus_would_go_changes_nothing() {
+        let mut workspace = workspace_with_a_column(0);
+        workspace.focus_container(1);
+        let before = workspace.layout_scrolling(&AREA, 0);
+        let strip = workspace.scrolling.clone();
+
+        workspace.scrolling_idx_for_direction(OperationDirection::Right);
+        workspace.scrolling_idx_for_direction(OperationDirection::Up);
+
+        assert_eq!(workspace.scrolling, strip);
+        assert_eq!(workspace.layout_scrolling(&AREA, 0), before);
+    }
+
+    #[test]
+    fn moving_down_swaps_the_windows_of_a_column_and_focus_stays_with_the_window() {
+        let mut workspace = workspace_with_a_column(20);
+        assert_eq!(window_ids(&workspace), [20, 21, 22, 23]);
+
+        assert!(workspace.move_scrolling(OperationDirection::Down));
+
+        assert_eq!(window_ids(&workspace), [21, 20, 22, 23]);
+        assert_eq!(focused_window(&workspace), 20);
+        assert_eq!(workspace.focused_container_idx(), 1);
+
+        assert!(
+            !workspace.move_scrolling(OperationDirection::Down),
+            "it is the last"
+        );
+    }
+
+    #[test]
+    fn moving_right_moves_the_whole_column() {
+        let mut workspace = workspace_with_a_column(30);
+
+        assert!(workspace.move_scrolling(OperationDirection::Right));
+
+        assert_eq!(window_ids(&workspace), [32, 30, 31, 33]);
+        assert_eq!(focused_window(&workspace), 30);
+
+        assert!(workspace.move_scrolling(OperationDirection::Right));
+        assert_eq!(window_ids(&workspace), [32, 33, 30, 31]);
+        assert!(
+            !workspace.move_scrolling(OperationDirection::Right),
+            "it is the last column"
+        );
+
+        assert!(workspace.move_scrolling(OperationDirection::Left));
+        assert_eq!(window_ids(&workspace), [32, 30, 31, 33]);
+    }
+
+    #[test]
+    fn a_new_window_goes_after_the_whole_column_that_has_focus() {
+        let mut workspace = workspace_with_a_column(40);
+        // the top window of the column has focus, and there is another below it
+
+        workspace
+            .new_container_for_window(&Window::from(99))
+            .unwrap();
+
+        assert_eq!(window_ids(&workspace), [40, 41, 99, 42, 43]);
+
+        // and it is a column of its own
+        let placements = workspace.layout_scrolling(&AREA, 0);
+        assert_eq!(placements[2].rect.bottom, AREA.bottom);
+        assert_eq!(placements[2].rect.left, placements[0].rect.left + 400);
+    }
+
+    #[test]
+    fn consuming_to_the_left_is_the_other_way_round() {
+        let mut workspace = workspace_of_windows_from(3, 50, 3);
+        workspace.focus_container(1);
+        workspace.layout_scrolling(&AREA, 0);
+
+        workspace.consume_scrolling(OperationDirection::Left);
+
+        let placements = workspace.layout_scrolling(&AREA, 0);
+        assert_eq!(placements[0].rect.left, placements[1].rect.left);
+        assert_eq!(window_ids(&workspace), [50, 51, 52]);
+        assert_eq!(
+            focused_window(&workspace),
+            51,
+            "focus stays with the window"
+        );
+
+        // up and down mean nothing to it
+        workspace.consume_scrolling(OperationDirection::Up);
+        assert_eq!(workspace.layout_scrolling(&AREA, 0), placements);
+    }
+
+    #[test]
+    fn nothing_here_does_anything_before_there_is_a_strip() {
+        let mut workspace = workspace_of_windows_from(3, 60, 3);
+
+        workspace.consume_scrolling(OperationDirection::Right);
+        workspace.expel_scrolling();
+        assert!(!workspace.move_scrolling(OperationDirection::Down));
+
+        assert_eq!(window_ids(&workspace), [60, 61, 62]);
+        assert!(workspace.scrolling.is_none());
     }
 
     #[test]
