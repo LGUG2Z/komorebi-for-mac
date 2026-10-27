@@ -192,6 +192,52 @@ impl Workspace {
         }
     }
 
+    /// Make the space agree with which container has focus, and give back the id of that
+    /// container, for a command that is about the focused column.
+    ///
+    /// There is nothing to do until a layout has made the space, and in a layout that is not
+    /// Scrolling.
+    fn focused_scrolling_column(&mut self) -> Option<String> {
+        if !self.is_scrolling() || self.scrolling.is_none() {
+            return None;
+        }
+
+        self.sync_scrolling_containers();
+
+        self.focused_container()
+            .map(|container| container.id.clone())
+    }
+
+    /// Make the focused column as wide as the screen, or give it back the width that it had.
+    pub(crate) fn toggle_scrolling_full_width(&mut self) {
+        if let Some(id) = self.focused_scrolling_column()
+            && let Some(space) = self.scrolling.as_mut()
+        {
+            space.toggle_full_width(&id);
+        }
+    }
+
+    /// Make the focused column as wide as it can be without scrolling anything else out of view,
+    /// which is to fill the room that the columns in view leave. Only the Scrolling layout has
+    /// columns to expand.
+    pub(crate) fn expand_scrolling_column(&mut self) {
+        if self.is_scrolling()
+            && self.focused_scrolling_column().is_some()
+            && let Some(space) = self.scrolling.as_mut()
+        {
+            space.expand_to_available_width();
+        }
+    }
+
+    /// Centre the focused column on the screen, this once.
+    pub(crate) fn center_scrolling_column(&mut self) {
+        if self.focused_scrolling_column().is_some()
+            && let Some(space) = self.scrolling.as_mut()
+        {
+            space.center_column();
+        }
+    }
+
     /// Make the focused column wider or narrower. Only the horizontal edges mean anything, since
     /// a column is as tall as the viewport.
     ///
@@ -554,6 +600,84 @@ mod tests {
         assert!(workspace.scrolling.is_none());
     }
 
+    /// A workspace with a layout, which is what makes the strip that the width commands act on.
+    fn laid_out(columns: usize, containers: usize, focus: usize) -> Workspace {
+        let mut workspace = workspace(columns, containers);
+        workspace.focus_container(focus);
+        workspace.layout_scrolling(&AREA, 0);
+        workspace
+    }
+
+    #[test]
+    fn the_full_width_is_toggled_on_and_off() {
+        let mut workspace = laid_out(3, 3, 1);
+
+        workspace.toggle_scrolling_full_width();
+        assert_eq!(widths(&workspace.layout_scrolling(&AREA, 0))[1], 1200);
+
+        workspace.toggle_scrolling_full_width();
+        assert_eq!(widths(&workspace.layout_scrolling(&AREA, 0))[1], 400);
+    }
+
+    #[test]
+    fn a_column_is_centred_once() {
+        let mut workspace = laid_out(3, 2, 0);
+        assert_eq!(workspace.layout_scrolling(&AREA, 0)[0].rect.left, AREA.left);
+
+        workspace.center_scrolling_column();
+
+        // the work area is 1200 wide and starts at 100, and the column is 400 wide
+        assert_eq!(
+            workspace.layout_scrolling(&AREA, 0)[0].rect.left,
+            AREA.left + 400
+        );
+
+        // and it is centred once, so moving on to the next column does not keep it centred
+        workspace.focus_container(1);
+        let lefts: Vec<_> = workspace
+            .layout_scrolling(&AREA, 0)
+            .iter()
+            .map(|placement| placement.rect.left)
+            .collect();
+        assert_eq!(lefts, [500, 900]);
+    }
+
+    #[test]
+    fn the_commands_are_about_the_container_that_has_focus_now() {
+        let mut workspace = laid_out(3, 3, 0);
+
+        // focus moved since the layout, and the next layout has not been made yet
+        workspace.focus_container(2);
+        workspace.toggle_scrolling_full_width();
+
+        assert_eq!(
+            widths(&workspace.layout_scrolling(&AREA, 0)),
+            [400, 400, 1200]
+        );
+    }
+
+    #[test]
+    fn the_commands_do_nothing_before_there_is_a_layout() {
+        let mut workspace = workspace(3, 3);
+
+        workspace.toggle_scrolling_full_width();
+        workspace.center_scrolling_column();
+
+        assert!(workspace.scrolling.is_none());
+    }
+
+    #[test]
+    fn the_commands_do_nothing_in_a_layout_that_is_not_scrolling() {
+        let mut workspace = laid_out(3, 3, 1);
+        let before = workspace.scrolling.clone();
+        workspace.layout = Layout::Default(DefaultLayout::BSP);
+
+        workspace.toggle_scrolling_full_width();
+        workspace.center_scrolling_column();
+
+        assert_eq!(workspace.scrolling, before);
+    }
+
     /// A workspace with a window in every container, which is how closing a window finds a container.
     fn workspace_of_windows(columns: usize, count: u32) -> Workspace {
         let mut workspace = Workspace {
@@ -674,5 +798,30 @@ mod tests {
             widths(&workspace.layout_scrolling(&AREA, 0)),
             [300, 300, 300]
         );
+    }
+
+    #[test]
+    fn expanding_fills_the_room_that_the_columns_in_view_leave() {
+        let mut workspace = workspace(3, 2);
+        workspace.layout_scrolling(&AREA, 0);
+        workspace.focus_container(1);
+        let before = workspace.layout_scrolling(&AREA, 0);
+
+        workspace.expand_scrolling_column();
+        let after = workspace.layout_scrolling(&AREA, 0);
+
+        // the focused column takes the third of the screen that was empty, and no more
+        assert_eq!(after[1].rect.right, before[1].rect.right + (AREA.right / 3));
+        assert_eq!(after[0], before[0]);
+    }
+
+    #[test]
+    fn expanding_does_nothing_where_there_are_no_columns() {
+        let mut workspace = workspace(3, 2);
+        workspace.layout = Layout::Default(DefaultLayout::BSP);
+
+        workspace.expand_scrolling_column();
+
+        assert!(workspace.scrolling.is_none());
     }
 }

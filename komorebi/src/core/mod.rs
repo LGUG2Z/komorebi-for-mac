@@ -333,6 +333,9 @@ pub enum SocketMessage {
     ChangeLayout(DefaultLayout),
     CycleLayout(CycleDirection),
     ScrollingLayoutColumns(NonZeroUsize),
+    ScrollingLayoutFullWidth,
+    CenterFocus,
+    Expand,
     LayoutRatios(Option<Vec<f32>>, Option<Vec<f32>>),
     // ChangeLayoutCustom(#[serde_as(as = "ResolvedPathBuf")] PathBuf),
     FlipLayout(Axis),
@@ -482,5 +485,24 @@ impl FromStr for SocketMessage {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         serde_json::from_str(s)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_scrolling_command_goes_over_the_socket_as_it_is() {
+        for message in [
+            SocketMessage::ScrollingLayoutFullWidth,
+            SocketMessage::CenterFocus,
+            SocketMessage::Expand,
+        ] {
+            let bytes = message.as_bytes().unwrap();
+            let read: SocketMessage = String::from_utf8(bytes.clone()).unwrap().parse().unwrap();
+
+            assert_eq!(read.as_bytes().unwrap(), bytes);
+        }
     }
 }

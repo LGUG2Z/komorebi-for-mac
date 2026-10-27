@@ -1496,6 +1496,18 @@ impl WindowManager {
                     .set_scrolling_columns(count.into());
                 self.update_focused_workspace(false, false)?;
             }
+            SocketMessage::ScrollingLayoutFullWidth => {
+                self.focused_workspace_mut()?.toggle_scrolling_full_width();
+                self.update_focused_workspace(false, false)?;
+            }
+            SocketMessage::CenterFocus => {
+                self.focused_workspace_mut()?.center_scrolling_column();
+                self.update_focused_workspace(false, false)?;
+            }
+            SocketMessage::Expand => {
+                self.focused_workspace_mut()?.expand_scrolling_column();
+                self.update_focused_workspace(false, false)?;
+            }
             SocketMessage::LayoutRatios(ref columns, ref rows) => {
                 use crate::core::validate_ratios;
 

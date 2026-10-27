@@ -51,6 +51,21 @@ screen wide, and is not stretched to fill it.
 A lone window is a third of the screen wide, at the left edge. To have it fill the screen, or to take it out of the
 layout for a while, use [`komorebic toggle-monocle`](../cli/toggle-monocle.md).
 
+## Full width and centring
+
+- [`komorebic scrolling-layout-full-width`](../cli/scrolling-layout-full-width.md) makes the focused column as wide as the
+  screen, or puts it back to the width that it had.
+- [`komorebic center-focus`](../cli/center-focus.md) scrolls the screen so that the focused column is in the middle of
+  it, once. `center_focused_column` does it every time that focus moves instead.
+- [`komorebic expand`](../cli/expand.md) makes the focused column as wide as it can be without moving another column out
+  of view: it takes up the room that the columns on the screen leave. It does nothing when there is none, and in the
+  other layouts. With `center_focused_column` set to `"Always"` it makes the column the full width of the screen, or
+  puts it back, as `scrolling-layout-full-width` does.
+
+A column that you make the full width of the screen takes the gaps into account, so that it fills the screen exactly.
+Nothing else moves to make room for a column that gets wider: the focused column keeps its left edge, and the screen
+scrolls only if the column no longer fits.
+
 ## Scrolling
 
 The row scrolls only when it has to.
@@ -95,6 +110,5 @@ These are not done yet.
 
 - A window that will not get as narrow as its column, which is what many apps do, is not noticed, so it can overlap the
   column next to it.
-- There are no commands for stepping through preset widths, or for making a column the full width of the screen.
 - Every window has a border, including the windows resting at the edges, so you may see a thin line of one at the edge
   of the screen.

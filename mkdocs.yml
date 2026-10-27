@@ -145,10 +145,13 @@ nav:
       - cli/change-layout.md
       - cli/cycle-layout.md
       - cli/scrolling-layout-columns.md
+      - cli/scrolling-layout-full-width.md
       - cli/flip-layout.md
       - cli/promote.md
       - cli/promote-swap.md
       - cli/promote-focus.md
+      - cli/center-focus.md
+      - cli/expand.md
       - cli/promote-window.md
       - cli/retile.md
       - cli/display-index-preference.md

@@ -986,6 +986,16 @@ enum SubCommand {
     /// Set how many columns fit across the Scrolling layout on the focused workspace
     #[clap(arg_required_else_help = true)]
     ScrollingLayoutColumns(ScrollingLayoutColumns),
+    /// Make the focused column of the Scrolling layout as wide as the screen, or put it back
+    ScrollingLayoutFullWidth,
+    /// Centre the user focus on the screen, once
+    ///
+    /// In the Scrolling layout the screen scrolls so that the focused column is in the middle of
+    /// it. Only the Scrolling layout scrolls, so this does nothing in the other layouts.
+    CenterFocus,
+    /// Make the focused column of the Scrolling layout fill the room that the columns in view
+    /// leave on the screen, which does nothing in any other layout
+    Expand,
     /// Set the layout column and row ratios for the focused workspace
     LayoutRatios(LayoutRatios),
     // /// Load a custom layout from file for the focused workspace
@@ -2366,6 +2376,15 @@ exit 1
         }
         SubCommand::ScrollingLayoutColumns(args) => {
             send_message(&SocketMessage::ScrollingLayoutColumns(args.count))?;
+        }
+        SubCommand::ScrollingLayoutFullWidth => {
+            send_message(&SocketMessage::ScrollingLayoutFullWidth)?;
+        }
+        SubCommand::CenterFocus => {
+            send_message(&SocketMessage::CenterFocus)?;
+        }
+        SubCommand::Expand => {
+            send_message(&SocketMessage::Expand)?;
         }
         SubCommand::LayoutRatios(args) => {
             if args.columns.is_none() && args.rows.is_none() {
