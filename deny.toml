@@ -12,6 +12,11 @@ ignore = [
   { id = "RUSTSEC-2024-0320", reason = "not using any yaml features from this library" },
   { id = "RUSTSEC-2025-0056", reason = "only used for colour palette generation" },
   { id = "RUSTSEC-2024-0449", reason = "unsafe-libyaml is only pulled in via serde_yaml, and there is no safe upgrade available" },
+  { id = "RUSTSEC-2026-0183", reason = "git2 is only used by shadow-rs at build time to read version info from our own repository" },
+  { id = "RUSTSEC-2026-0184", reason = "git2 is only used by shadow-rs at build time to read version info from our own repository" },
+  { id = "RUSTSEC-2026-0194", reason = "quick-xml is only used to parse local, trusted XML (config conversion and plist files), not untrusted input" },
+  { id = "RUSTSEC-2026-0195", reason = "quick-xml is only used to parse local, trusted XML (config conversion and plist files), not untrusted input" },
+  { id = "RUSTSEC-2026-0192", reason = "ttf-parser is only used for font parsing in egui, and there is no safe upgrade available" },
 ]
 
 [licenses]
