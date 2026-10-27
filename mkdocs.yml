@@ -62,6 +62,7 @@ nav:
           - usage/stacking-windows.md
           - usage/focusing-workspaces.md
           - usage/moving-windows-across-workspaces.md
+          - usage/animations.md
       - Komorebi Configuration:
           - Schema: https://komorebi.lgug2z.com/schema
   - CLI reference:
