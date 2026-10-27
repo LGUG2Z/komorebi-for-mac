@@ -502,7 +502,7 @@ pub fn events_text(data: &EventsData, verbose: bool) -> String {
         data.subscriber
             .as_ref()
             .map_or_else(String::new, |name| format!(
-                " (komorebi logged them as {name})"
+                " (recorded as subscriber {name})"
             ))
     );
 
@@ -576,9 +576,14 @@ pub fn code_text(data: &CodeData) -> String {
                 };
                 let _ = writeln!(
                     out,
-                    "  -> {}  in {}  ({note})",
+                    "  -> {}  in {}  ({note}){}",
                     source.statement.location(),
-                    source.statement.qualified_function()
+                    source.statement.qualified_function(),
+                    if line.file_changed {
+                        "  [this file differs from the recorded komorebi]"
+                    } else {
+                        ""
+                    }
                 );
                 for other in &source.alternatives {
                     let _ = writeln!(
@@ -648,9 +653,14 @@ fn trace_line_text(out: &mut String, line: &TraceLine) {
     if let Some(source) = &line.source {
         let _ = writeln!(
             out,
-            "          from {} in {}{}",
+            "          from {} in {}{}{}",
             source.location,
             source.function,
+            if source.file_changed {
+                "  [file differs from the recorded komorebi]"
+            } else {
+                ""
+            },
             if line.changes_state_silently {
                 "  [changes state without a notification]"
             } else {

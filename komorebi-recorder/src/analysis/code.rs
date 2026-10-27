@@ -43,6 +43,9 @@ pub struct LineSource {
     pub changes_state_silently: bool,
     /// The statement that wrote it, if one matched.
     pub source: Option<Source>,
+    /// The file the statement is in differs between the recorded komorebi and the indexed source,
+    /// so it may not be the statement that ran.
+    pub file_changed: bool,
     pub snippet: Option<Snippet>,
 }
 
@@ -81,6 +84,7 @@ impl Analysis {
         root: Option<&Path>,
     ) -> eyre::Result<CodeData> {
         let log = self.log();
+        let skew = catalog::skew(&self.manifest.komorebi.versions);
         let mut lines = Vec::new();
         for number in numbers {
             let line = usize::try_from(number.saturating_sub(1))
@@ -100,6 +104,9 @@ impl Analysis {
             };
             let role = line.target.as_deref().map(catalog::role);
 
+            let file_changed = source
+                .as_ref()
+                .is_some_and(|source| skew.file_changed(&source.statement.file));
             lines.push(LineSource {
                 line: line.number,
                 video_s: line
@@ -111,6 +118,7 @@ impl Analysis {
                 message: line.message.clone(),
                 role: role.map(|role| role.summary.to_string()),
                 changes_state_silently: role.is_some_and(|role| role.changes_state_silently),
+                file_changed,
                 snippet: source
                     .as_ref()
                     .and_then(|source| snippet(root, &source.statement, context)),
@@ -119,7 +127,7 @@ impl Analysis {
         }
 
         Ok(CodeData {
-            skew: catalog::skew(&self.manifest.komorebi.versions),
+            skew,
             about: about.to_string(),
             lines,
             statements: Vec::new(),

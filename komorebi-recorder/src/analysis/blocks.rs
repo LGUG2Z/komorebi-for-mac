@@ -596,4 +596,77 @@ mod tests {
         assert_eq!(pairs[0].block, Some(0));
         assert_eq!(pairs[1].block, None);
     }
+
+    /// Run with `--ignored` on a machine that runs komorebi: its real log must group into handler
+    /// blocks, and nearly every line must be found in the source.
+    #[test]
+    #[ignore = "reads the real komorebi log of the machine"]
+    fn the_real_log_groups_into_handlers() {
+        let dir = komorebi_client::DATA_DIR.clone();
+        let newest = std::fs::read_dir(&dir)
+            .expect("data dir")
+            .filter_map(Result::ok)
+            .filter(|entry| {
+                entry
+                    .file_name()
+                    .to_string_lossy()
+                    .starts_with(crate::sources::komorebi_log::PLAINTEXT_PREFIX)
+            })
+            .max_by_key(|entry| entry.file_name())
+            .expect("a plaintext log");
+        let bytes = std::fs::read(newest.path()).expect("read");
+        let lines = logparse::parse(&bytes);
+
+        // wall time is mach time plus a constant, so any anchors will do
+        let first = lines
+            .iter()
+            .find_map(|line| line.wall_us)
+            .expect("a timestamp");
+        let clock = ClockMap::new(vec![
+            Anchor {
+                mach_ns: 1_000_000_000,
+                wall_us: first,
+            },
+            Anchor {
+                mach_ns: 1_000_000_000 + 86_400_000_000_000,
+                wall_us: first + 86_400_000_000,
+            },
+        ]);
+        let blocks = build(&lines, &clock);
+
+        let events = blocks
+            .iter()
+            .filter(|block| block.kind == BlockKind::Event)
+            .count();
+        let commands = blocks
+            .iter()
+            .filter(|block| block.kind == BlockKind::Command)
+            .count();
+        let in_blocks: usize = blocks.iter().map(|block| block.lines.len()).sum();
+        let handler_lines = lines
+            .iter()
+            .filter(|line| matches!(line.root_span(), Some("process_event" | "process_command")))
+            .count();
+        let found = lines
+            .iter()
+            .filter(|line| !line.continuation)
+            .filter(|line| {
+                matches!((&line.target, line.level), (Some(target), Some(level))
+                    if crate::analysis::catalog::find(target, level, &line.message).is_some())
+            })
+            .count();
+        let structured = lines.iter().filter(|line| !line.continuation).count();
+
+        eprintln!(
+            "{} lines: {events} event blocks, {commands} command blocks holding {in_blocks} of {handler_lines} handler lines; \
+             {found} of {structured} lines found in the source ({}%)",
+            lines.len(),
+            found * 100 / structured.max(1)
+        );
+        assert!(events > 0);
+        assert!(
+            in_blocks * 10 >= handler_lines * 7,
+            "most handler lines are in a block"
+        );
+    }
 }

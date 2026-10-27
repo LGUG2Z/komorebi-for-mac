@@ -104,14 +104,16 @@ fn an_event_is_explained_by_everything_its_handler_logged() {
 }
 
 #[test]
-fn a_different_komorebi_commit_is_a_warning_on_every_answer() {
+fn a_commit_that_cannot_be_compared_is_a_warning_on_every_answer() {
     let dir = session(
         "code-skew",
         Some("0000000000000000000000000000000000000000"),
     );
 
     let answer = json(&["code", &dir, "log:3", "--json"]);
-    assert_eq!(answer["data"]["skew"]["verdict"], "different");
+    assert_eq!(answer["data"]["skew"]["verdict"], "unknown");
+    // nothing is vouched for when it cannot be told
+    assert_eq!(answer["data"]["lines"][0]["file_changed"], true);
     let warnings = answer["warnings"].as_array().expect("warnings");
     assert!(
         warnings.iter().any(|warning| warning
@@ -122,6 +124,70 @@ fn a_different_komorebi_commit_is_a_warning_on_every_answer() {
 
     let text = String::from_utf8_lossy(&recorder(&["code", &dir, "log:3"]).stdout).into_owned();
     assert!(text.starts_with("WARNING:"), "{text}");
+}
+
+fn git(args: &[&str]) -> Option<String> {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).parent()?;
+    let output = Command::new("git")
+        .arg("-C")
+        .arg(root)
+        .args(args)
+        .output()
+        .ok()?;
+    output
+        .status
+        .success()
+        .then(|| String::from_utf8_lossy(&output.stdout).trim().to_string())
+}
+
+/// An older komorebi: only the files that really differ from it are doubted, the rest are as good
+/// as if the commits were the same.
+#[test]
+fn only_the_files_that_changed_since_the_recorded_commit_are_doubted() {
+    let Some(history) = git(&["log", "-2", "--format=%H", "--", "komorebi/src"]) else {
+        return;
+    };
+    let Some(older) = history.lines().nth(1) else {
+        return;
+    };
+    let Some(indexed) = catalog::commit() else {
+        return;
+    };
+    let Some(changed) = git(&[
+        "diff",
+        "--name-only",
+        older,
+        indexed,
+        "--",
+        "komorebi/src",
+        "komorebi-client/src",
+    ]) else {
+        return;
+    };
+    let changed: Vec<&str> = changed.lines().collect();
+
+    let dir = session("code-older", Some(older));
+    let answer = json(&["code", &dir, "log:1", "log:2", "log:3", "--json"]);
+    let lines = answer["data"]["lines"].as_array().expect("lines");
+    assert_eq!(lines.len(), 3);
+    for line in lines {
+        let file = line["source"]["statement"]["file"].as_str().expect("file");
+        assert_eq!(
+            line["file_changed"],
+            changed.contains(&file),
+            "{file} (changed files: {changed:?})"
+        );
+    }
+
+    let verdict = answer["data"]["skew"]["verdict"].as_str().expect("verdict");
+    assert_eq!(
+        verdict,
+        if changed.is_empty() {
+            "same"
+        } else {
+            "different"
+        }
+    );
 }
 
 #[test]

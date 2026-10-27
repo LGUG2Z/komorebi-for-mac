@@ -46,8 +46,24 @@ const ECHO_WINDOW_NS: u64 = 1_500_000_000;
 
 const GEOMETRY_EVENTS: [&str; 4] = ["MoveStart", "MoveEnd", "ResizeStart", "ResizeEnd"];
 
+/// Commands that ask komorebi something or register a listener rather than change anything.
+fn is_bookkeeping(name: &str) -> bool {
+    matches!(
+        name,
+        "State"
+            | "GlobalState"
+            | "AddSubscriberSocket"
+            | "AddSubscriberSocketWithOptions"
+            | "RemoveSubscriberSocket"
+    ) || name.starts_with("Query")
+}
+
 fn class_of(event: &EventRecord) -> Classification {
     let (class, reason) = match event.info.family {
+        Family::Command if is_bookkeeping(&event.info.name) => (
+            Class::Other,
+            "a query or subscription, not a change: usually this recorder talking to komorebi",
+        ),
         Family::Command => (Class::Command, "a command sent to komorebi"),
         Family::Monitor => (Class::Monitor, "a display changed"),
         Family::Unknown => (Class::Other, "the notification could not be read"),
@@ -214,6 +230,21 @@ mod tests {
                 Class::Lock
             ]
         );
+    }
+
+    #[test]
+    fn queries_and_subscriptions_are_not_commands() {
+        let events = vec![
+            event(
+                1,
+                0,
+                Some(1),
+                json!({"type": "AddSubscriberSocketWithOptions", "content": ["x", {}]}),
+            ),
+            event(2, 10, Some(1), json!({"type": "State"})),
+            event(3, 20, Some(1), json!({"type": "QueryFocusedWorkspaceName"})),
+        ];
+        assert_eq!(classes(&events), [Class::Other, Class::Other, Class::Other]);
     }
 
     #[test]

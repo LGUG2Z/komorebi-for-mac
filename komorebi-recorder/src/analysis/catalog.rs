@@ -405,65 +405,143 @@ pub struct Skew {
     pub indexed_commit: Option<String>,
     /// Whether the source tree had uncommitted changes when indexed.
     pub indexed_dirty: bool,
-    /// `same`, `different` or `unknown`.
+    /// `same` (the source that ran and the source indexed are identical), `different` or
+    /// `unknown`.
     pub verdict: String,
+    /// The files of komorebi's source that differ between the recorded commit and the indexed
+    /// one. A log line mapped into any other file is as good as if the commits were the same.
+    pub changed_files: Vec<String>,
     /// What to say to the reader, `None` when the two agree.
     pub warning: Option<String>,
 }
 
-/// Compare the komorebi that ran (`versions`, as recorded) with the source that was indexed.
-#[must_use]
-pub fn skew(versions: &[KomorebiVersion]) -> Skew {
-    let indexed = commit().map(str::to_string);
-    let recorded = versions.iter().find_map(|version| version.commit.clone());
+impl Skew {
+    /// Whether a statement in `file` may be different from the one that ran.
+    #[must_use]
+    pub fn file_changed(&self, file: &str) -> bool {
+        self.verdict == "unknown" || self.changed_files.iter().any(|changed| changed == file)
+    }
+}
 
-    let verdict = match (&recorded, &indexed) {
-        (Some(recorded), Some(indexed)) => {
-            let same = versions
-                .iter()
-                .any(|version| version.is_commit(indexed) == Some(true));
-            let _ = recorded;
-            if same && !dirty() {
-                "same"
-            } else {
-                "different"
-            }
-        }
-        _ => "unknown",
+/// The paths whose source the catalog indexes.
+const SOURCE_PATHS: [&str; 2] = ["komorebi/src", "komorebi-client/src"];
+
+fn git(root: &std::path::Path, args: &[&str]) -> Option<String> {
+    let output = std::process::Command::new("git")
+        .arg("-C")
+        .arg(root)
+        .args(args)
+        .output()
+        .ok()?;
+    output
+        .status
+        .success()
+        .then(|| String::from_utf8_lossy(&output.stdout).trim().to_string())
+}
+
+/// The files of komorebi's source that differ between two commits, or `None` if either commit is
+/// not in the repository.
+fn changed_files(root: &std::path::Path, from: &str, to: &str) -> Option<Vec<String>> {
+    for commit in [from, to] {
+        git(root, &["cat-file", "-e", &format!("{commit}^{{commit}}")])?;
+    }
+
+    let mut args = vec!["diff", "--name-only", from, to, "--"];
+    args.extend(SOURCE_PATHS);
+    let names = git(root, &args)?;
+    Some(names.lines().map(str::to_string).collect())
+}
+
+/// Compare the komorebi that ran (`versions`, as recorded) with the source that was indexed, using
+/// the repository at `root` to say which files differ.
+#[must_use]
+pub fn skew_between(
+    versions: &[KomorebiVersion],
+    indexed: Option<&str>,
+    dirty: bool,
+    root: Option<&std::path::Path>,
+) -> Skew {
+    let recorded = versions.iter().find_map(|version| version.commit.clone());
+    let short = |commit: &str| commit[..commit.len().min(10)].to_string();
+
+    let mut skew = Skew {
+        recorded_commit: recorded.clone(),
+        indexed_commit: indexed.map(str::to_string),
+        indexed_dirty: dirty,
+        verdict: "unknown".to_string(),
+        changed_files: Vec::new(),
+        warning: None,
     };
 
-    let warning = match verdict {
-        "same" => None,
-        "different" => Some(format!(
-            "the recorded komorebi was built from {} but its source is indexed at {}{}: a log line \
-             may be attributed to code that is not what ran; check out the recorded commit and \
-             rebuild the recorder to be sure",
-            recorded
-                .as_deref()
-                .map_or("?", |commit| &commit[..commit.len().min(10)]),
-            indexed
-                .as_deref()
-                .map_or("?", |commit| &commit[..commit.len().min(10)]),
-            if dirty() {
-                " with uncommitted changes"
-            } else {
-                ""
-            },
-        )),
-        _ => Some(
+    let (Some(recorded), Some(indexed)) = (recorded, indexed) else {
+        skew.warning = Some(
             "which komorebi was recorded (or which source was indexed) is unknown, so source \
              locations may not match what ran"
                 .to_string(),
-        ),
+        );
+        return skew;
     };
 
-    Skew {
-        recorded_commit: recorded,
-        indexed_commit: indexed,
-        indexed_dirty: dirty(),
-        verdict: verdict.to_string(),
-        warning,
+    let changed = if recorded.starts_with(indexed) || indexed.starts_with(&recorded) {
+        Some(Vec::new())
+    } else {
+        root.and_then(|root| changed_files(root, &recorded, indexed))
+    };
+
+    match changed {
+        None => {
+            skew.warning = Some(format!(
+                "the recorded komorebi was built from {} but its source is indexed at {}, and the \
+                 repository cannot say how they differ (is the recorded commit fetched?): source \
+                 locations may not match what ran",
+                short(&recorded),
+                short(indexed)
+            ));
+        }
+        Some(files) if files.is_empty() && !dirty => skew.verdict = "same".to_string(),
+        Some(files) => {
+            skew.verdict = "different".to_string();
+            skew.warning = Some(format!(
+                "the recorded komorebi was built from {} and its source is indexed at {}{}: {}. \
+                 Log lines mapped into those files may not be what ran; lines in other files are \
+                 unaffected. Check out the recorded commit and rebuild the recorder to be sure",
+                short(&recorded),
+                short(indexed),
+                if dirty {
+                    " with uncommitted changes"
+                } else {
+                    ""
+                },
+                if files.is_empty() {
+                    "the working tree has uncommitted changes to it".to_string()
+                } else {
+                    format!(
+                        "{} file(s) differ ({})",
+                        files.len(),
+                        files
+                            .iter()
+                            .map(|file| file.rsplit('/').next().unwrap_or(file))
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    )
+                }
+            ));
+            skew.changed_files = files;
+        }
     }
+
+    skew
+}
+
+/// [`skew_between`] for the source this recorder was built from.
+#[must_use]
+pub fn skew(versions: &[KomorebiVersion]) -> Skew {
+    skew_between(
+        versions,
+        commit(),
+        dirty(),
+        crate::annotations::default_code_root().as_deref(),
+    )
 }
 
 #[cfg(test)]
@@ -633,26 +711,114 @@ mod tests {
         assert_eq!(role("komorebi::brand_new").summary, "komorebi internals");
     }
 
-    #[test]
-    fn skew_is_reported_unless_the_commits_agree() {
-        let indexed = commit();
-        let same = KomorebiVersion {
+    fn version(commit: &str) -> KomorebiVersion {
+        KomorebiVersion {
             pid: None,
             version: "0.1.0".to_string(),
             branch: None,
-            commit: indexed.map(str::to_string),
+            commit: Some(commit.to_string()),
+        }
+    }
+
+    fn repo() -> std::path::PathBuf {
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .expect("repo")
+            .to_path_buf()
+    }
+
+    #[test]
+    fn an_unknown_komorebi_or_source_is_unknown_not_assumed_the_same() {
+        assert_eq!(
+            skew_between(&[], Some("abc1234"), false, None).verdict,
+            "unknown"
+        );
+        assert!(
+            skew_between(&[], Some("abc1234"), false, None)
+                .warning
+                .is_some()
+        );
+        assert_eq!(
+            skew_between(&[version("abc1234")], None, false, None).verdict,
+            "unknown"
+        );
+    }
+
+    #[test]
+    fn the_same_commit_is_the_same_source() {
+        let skew = skew_between(&[version("abc1234def")], Some("abc1234def"), false, None);
+        assert_eq!(skew.verdict, "same");
+        assert!(skew.warning.is_none());
+        assert!(!skew.file_changed("komorebi/src/window.rs"));
+
+        // but not if the source had uncommitted changes when indexed
+        let dirty = skew_between(
+            &[version("abc1234def")],
+            Some("abc1234def"),
+            true,
+            Some(&repo()),
+        );
+        assert_eq!(dirty.verdict, "different");
+    }
+
+    #[test]
+    fn a_commit_the_repository_does_not_have_is_unknown() {
+        let skew = skew_between(
+            &[version("0000000000000000000000000000000000000000")],
+            commit(),
+            false,
+            Some(&repo()),
+        );
+        assert_eq!(skew.verdict, "unknown");
+        assert!(
+            skew.warning
+                .as_deref()
+                .expect("warning")
+                .contains("cannot say how they differ")
+        );
+        // when it cannot be told, nothing is vouched for
+        assert!(skew.file_changed("komorebi/src/window.rs"));
+    }
+
+    #[test]
+    fn an_older_commit_differs_in_exactly_the_files_git_says() {
+        let Some(indexed) = commit() else { return };
+        // the commit before the latest change to komorebi's source
+        let Some(history) = git(&repo(), &["log", "-2", "--format=%H", "--", "komorebi/src"])
+        else {
+            return;
         };
-        let other = KomorebiVersion {
-            commit: Some("0000000000000000000000000000000000000000".to_string()),
-            ..same.clone()
+        let Some(older) = history.lines().nth(1) else {
+            return;
         };
 
-        assert_eq!(skew(&[]).verdict, "unknown");
-        assert!(skew(&[]).warning.is_some());
-        assert_eq!(skew(&[other]).verdict, "different");
-        if indexed.is_some() && !dirty() {
-            assert_eq!(skew(&[same]).verdict, "same");
+        let skew = skew_between(&[version(older)], Some(indexed), false, Some(&repo()));
+        let expected = git(
+            &repo(),
+            &[
+                "diff",
+                "--name-only",
+                older,
+                indexed,
+                "--",
+                "komorebi/src",
+                "komorebi-client/src",
+            ],
+        )
+        .expect("git diff");
+        assert_eq!(skew.changed_files.join("\n"), expected);
+        assert_eq!(
+            skew.verdict,
+            if expected.is_empty() {
+                "same"
+            } else {
+                "different"
+            }
+        );
+        for file in expected.lines() {
+            assert!(skew.file_changed(file));
         }
+        assert!(!skew.file_changed("komorebi/src/a_file_that_never_changed.rs"));
     }
 
     fn rust_files(directory: &std::path::Path, found: &mut Vec<std::path::PathBuf>) {

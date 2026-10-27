@@ -179,7 +179,8 @@ fn the_brief_leads_with_the_users_words_and_points_at_the_event_that_broke_it() 
         .map(|event| event["class"].as_str().expect("class"))
         .collect();
     assert!(!listed.contains(&"echo"), "{listed:?}");
-    assert_eq!(data["skew"]["verdict"], "different");
+    // a commit the repository does not have cannot be compared, which is said, not assumed
+    assert_eq!(data["skew"]["verdict"], "unknown");
     assert!(
         answer["warnings"]
             .as_array()

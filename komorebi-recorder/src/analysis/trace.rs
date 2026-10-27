@@ -31,6 +31,8 @@ pub struct SourceRef {
     pub location: String,
     pub function: String,
     pub confidence: Confidence,
+    /// The file differs between the recorded komorebi and the indexed source.
+    pub file_changed: bool,
 }
 
 /// A line of komorebi's log, with where it came from in the source.
@@ -117,7 +119,7 @@ fn expected_of_handler(event: &EventView, change: &Change) -> bool {
 }
 
 impl Analysis {
-    fn trace_line(&self, line: &Line) -> TraceLine {
+    fn trace_line(&self, line: &Line, skew: &catalog::Skew) -> TraceLine {
         let source = match (&line.target, line.level) {
             (Some(target), Some(level)) => catalog::find(target, level, &line.message),
             _ => None,
@@ -137,6 +139,7 @@ impl Analysis {
                 location: source.statement.location(),
                 function: source.statement.qualified_function(),
                 confidence: source.confidence,
+                file_changed: skew.file_changed(&source.statement.file),
             }),
             changes_state_silently: role.is_some_and(|role| role.changes_state_silently),
         }
@@ -155,13 +158,14 @@ impl Analysis {
         let pair = &self.pairing().pairs[index];
         let block = pair.block.and_then(|id| log.blocks.get(id));
 
+        let skew = catalog::skew(&self.manifest.komorebi.versions);
         let handler: Vec<TraceLine> = block
             .map(|block| {
                 block
                     .lines
                     .iter()
                     .filter_map(|number| log.lines.get(usize::try_from(number - 1).ok()?))
-                    .map(|line| self.trace_line(line))
+                    .map(|line| self.trace_line(line, &skew))
                     .collect()
             })
             .unwrap_or_default();
@@ -267,7 +271,7 @@ impl Analysis {
             handler,
             ambient: ambient_lines
                 .iter()
-                .map(|line| self.trace_line(line))
+                .map(|line| self.trace_line(line, &skew))
                 .collect(),
             changes,
             violations_appeared: appeared,
