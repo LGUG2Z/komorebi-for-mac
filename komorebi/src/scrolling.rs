@@ -64,6 +64,52 @@ impl Workspace {
         );
     }
 
+    /// Make the space match the containers and the focus as they are now, for a space that is
+    /// there to be made to match.
+    ///
+    /// This is for a change that is about to be made to the containers, and that the space is
+    /// going to be told about directly. The space has to know what there is before it is told
+    /// what goes.
+    pub(crate) fn sync_scrolling_containers(&mut self) {
+        let ids: Vec<String> = self
+            .containers()
+            .iter()
+            .map(|container| container.id.clone())
+            .collect();
+        let focused = self
+            .focused_container()
+            .map(|container| container.id.clone());
+
+        if let Some(space) = self.scrolling.as_mut() {
+            space.reconcile(&ids, focused.as_ref());
+        }
+    }
+
+    /// Give focus to what the strip says should have it after the container `removed` has gone,
+    /// and tell whether the strip had anything to say.
+    ///
+    /// Focus goes back to the column that the closed one was opened next to, if nothing has
+    /// moved focus since, and otherwise to the column that takes its place on the right. Focus that
+    /// is not on the closed column stays where it is. This is not what the other layouts do, which
+    /// always move focus to the left.
+    pub(crate) fn focus_after_scrolling_removal(&mut self, removed: &str) -> bool {
+        let Some(space) = self.scrolling.as_mut() else {
+            return false;
+        };
+
+        if !space.remove_column(&removed.to_string()) {
+            return false;
+        }
+
+        // a container is a tile, and the strip says where in reading order the one that has focus
+        // is, which is the index of the container
+        if let Some(idx) = space.active_tile_index() {
+            self.focus_container(idx);
+        }
+
+        true
+    }
+
     /// Where every container goes in `work_area`, from left to right, with `container_padding`
     /// taken off every side of each.
     pub(crate) fn layout_scrolling(
@@ -195,6 +241,7 @@ mod tests {
     use super::*;
     use crate::container::Container;
     use crate::core::ScrollingLayoutOptions;
+    use crate::window::Window;
     use komorebi_layouts::scrolling::ScrollingCentering;
     use komorebi_layouts::scrolling::model::CenterFocusedColumn;
 
@@ -452,6 +499,112 @@ mod tests {
         workspace.resize_scrolling_column(OperationDirection::Right, Sizing::Increase, 100);
 
         assert!(workspace.scrolling.is_none());
+    }
+
+    /// A workspace with a window in every container, which is how closing a window finds a container.
+    fn workspace_of_windows(columns: usize, count: u32) -> Workspace {
+        let mut workspace = Workspace {
+            layout: Layout::Default(DefaultLayout::Scrolling),
+            layout_options: options(columns, None),
+            ..Default::default()
+        };
+
+        for id in 0..count {
+            workspace
+                .new_container_for_window(&Window::from(id))
+                .unwrap();
+        }
+
+        workspace
+    }
+
+    fn focused_window(workspace: &Workspace) -> u32 {
+        workspace
+            .focused_container()
+            .and_then(|container| container.focused_window())
+            .map(|window| window.id)
+            .unwrap()
+    }
+
+    #[test]
+    fn closing_a_window_that_was_just_opened_goes_back_to_the_one_before_it() {
+        let mut workspace = workspace_of_windows(3, 8);
+        workspace.focus_container(3);
+        workspace.layout_scrolling(&AREA, 0);
+        // window 5 is the last of the three that are in view, and 6 and 7 are beyond it
+        workspace.focus_container(5);
+        let before = workspace.layout_scrolling(&AREA, 0);
+
+        workspace
+            .new_container_for_window(&Window::from(100))
+            .unwrap();
+        let opened = workspace.layout_scrolling(&AREA, 0);
+        assert_ne!(opened, before, "opening it scrolled the strip");
+
+        workspace.remove_window(100).unwrap();
+
+        assert_eq!(focused_window(&workspace), 5);
+        assert_eq!(workspace.layout_scrolling(&AREA, 0), before);
+    }
+
+    #[test]
+    fn once_focus_has_moved_closing_a_window_goes_to_the_one_that_takes_its_place() {
+        let mut workspace = workspace_of_windows(3, 8);
+        workspace.focus_container(3);
+        workspace.layout_scrolling(&AREA, 0);
+        workspace.focus_container(5);
+        workspace.layout_scrolling(&AREA, 0);
+
+        workspace
+            .new_container_for_window(&Window::from(100))
+            .unwrap();
+        workspace.layout_scrolling(&AREA, 0);
+        workspace.focus_container(5);
+        workspace.layout_scrolling(&AREA, 0);
+        workspace.focus_container(6);
+        workspace.layout_scrolling(&AREA, 0);
+
+        workspace.remove_window(100).unwrap();
+
+        // window 6 was to the right of the closed window, and the other layouts would have gone left
+        assert_eq!(focused_window(&workspace), 6);
+    }
+
+    #[test]
+    fn closing_the_last_window_goes_to_the_one_before_it() {
+        let mut workspace = workspace_of_windows(3, 5);
+        workspace.layout_scrolling(&AREA, 0);
+        assert_eq!(focused_window(&workspace), 4);
+
+        workspace.remove_window(4).unwrap();
+
+        assert_eq!(focused_window(&workspace), 3);
+    }
+
+    #[test]
+    fn closing_a_window_that_does_not_have_focus_leaves_focus_where_it_is() {
+        let mut workspace = workspace_of_windows(3, 6);
+        workspace.focus_container(2);
+        workspace.layout_scrolling(&AREA, 0);
+
+        // to the right of the focused one, and then to the left of it
+        workspace.remove_window(5).unwrap();
+        assert_eq!(focused_window(&workspace), 2);
+
+        workspace.remove_window(0).unwrap();
+        assert_eq!(focused_window(&workspace), 2);
+        assert_eq!(workspace.focused_container_idx(), 1);
+    }
+
+    #[test]
+    fn before_there_is_a_strip_closing_a_window_moves_focus_left_like_the_other_layouts() {
+        let mut workspace = workspace_of_windows(3, 4);
+        workspace.focus_container(2);
+        assert!(workspace.scrolling.is_none());
+
+        workspace.remove_window(2).unwrap();
+
+        assert_eq!(focused_window(&workspace), 1);
     }
 
     #[test]

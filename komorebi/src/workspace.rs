@@ -653,6 +653,9 @@ impl Workspace {
 
         let window_hiding_position = self.globals.window_hiding_position;
 
+        // a strip of columns has to know what there is before it is told what goes
+        self.sync_scrolling_containers();
+
         let container = self
             .containers_mut()
             .get_mut(container_idx)
@@ -669,8 +672,12 @@ impl Workspace {
             .ok_or_eyre("there is no window")?;
 
         if container.windows().is_empty() {
+            let container_id = container.id.clone();
             self.remove_container_by_idx(container_idx);
-            self.focus_previous_container();
+
+            if !self.focus_after_scrolling_removal(&container_id) {
+                self.focus_previous_container();
+            }
         } else {
             container.load_focused_window(window_hiding_position)?;
             if let Some(window) = container.focused_window() {
