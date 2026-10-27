@@ -26,6 +26,29 @@ use std::thread::JoinHandle;
 use std::time::Duration;
 use std::time::Instant;
 
+/// The newest session in `recordings`: sessions are folders named for when they began, so the last
+/// by name is the latest.
+#[must_use]
+pub fn latest_session_in(recordings: &std::path::Path) -> Option<PathBuf> {
+    std::fs::read_dir(recordings)
+        .ok()?
+        .filter_map(Result::ok)
+        .map(|entry| entry.path())
+        .filter(|path| path.join(crate::session::MANIFEST_FILE).is_file())
+        .max()
+}
+
+/// Open the viewer, in its own process, on `session` if given. A separate process, so that
+/// reviewing a recording can never disturb one being made, and excluded from the video by name.
+fn open_viewer(session: Option<&std::path::Path>) -> std::io::Result<()> {
+    let mut command = std::process::Command::new(std::env::current_exe()?);
+    command.arg("view");
+    if let Some(session) = session {
+        command.arg(session);
+    }
+    command.spawn().map(|_| ())
+}
+
 /// Set by SIGINT/SIGTERM: the window finishes any recording in progress, then closes.
 static QUIT: AtomicBool = AtomicBool::new(false);
 
@@ -370,6 +393,35 @@ impl eframe::App for RecorderApp {
 
             ui.separator();
 
+            // reviewing: open a recording in the viewer, which is its own window
+            ui.horizontal(|ui| {
+                ui.label(egui::RichText::new("Review").small().weak());
+                if ui
+                    .button("Open session…")
+                    .on_hover_text("play and scrub a recording")
+                    .clicked()
+                    && let Err(error) = open_viewer(None)
+                {
+                    self.last = Some(Err(format!("could not open the viewer: {error}")));
+                }
+
+                let last = match &self.last {
+                    Some(Ok(dir)) => Some(dir.clone()),
+                    _ => latest_session_in(&crate::session::default_recordings_dir()),
+                };
+                if ui
+                    .add_enabled(last.is_some(), egui::Button::new("Open last"))
+                    .on_hover_text("the most recent recording")
+                    .clicked()
+                    && let Some(dir) = last
+                    && let Err(error) = open_viewer(Some(&dir))
+                {
+                    self.last = Some(Err(format!("could not open the viewer: {error}")));
+                }
+            });
+
+            ui.separator();
+
             if !self.permission {
                 ui.colored_label(
                     egui::Color32::YELLOW,
@@ -487,7 +539,7 @@ impl eframe::App for RecorderApp {
                         }
                     });
                     ui.label(format!(
-                        "Query it: komorebi-recorder at {} <timecode>",
+                        "Investigate it: komorebi-recorder brief {}",
                         dir.display()
                     ));
                 }
@@ -514,6 +566,24 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).expect("dir");
         dir
+    }
+
+    #[test]
+    fn the_latest_session_is_the_last_by_name_and_must_be_a_session() {
+        let recordings = temp("recordings");
+        for name in ["20261026T100000Z", "20261026T120000Z", "20261025T090000Z"] {
+            let dir = recordings.join(name);
+            std::fs::create_dir_all(&dir).expect("dir");
+            std::fs::write(dir.join(crate::session::MANIFEST_FILE), "{}").expect("manifest");
+        }
+        // a newer folder that is not a session does not count
+        std::fs::create_dir_all(recordings.join("20261027T000000Z")).expect("dir");
+
+        assert_eq!(
+            latest_session_in(&recordings),
+            Some(recordings.join("20261026T120000Z"))
+        );
+        assert_eq!(latest_session_in(&recordings.join("nothing-here")), None);
     }
 
     #[test]
