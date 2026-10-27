@@ -1512,6 +1512,11 @@ impl WindowManager {
                 self.focused_workspace_mut()?.consume_scrolling(direction);
                 self.update_focused_workspace(false, false)?;
             }
+            SocketMessage::ToggleColumnStack => {
+                self.focused_workspace_mut()?
+                    .toggle_scrolling_column_stack()?;
+                self.update_focused_workspace(false, false)?;
+            }
             SocketMessage::Expel => {
                 self.focused_workspace_mut()?.expel_scrolling();
                 self.update_focused_workspace(false, false)?;

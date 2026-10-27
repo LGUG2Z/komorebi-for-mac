@@ -63,6 +63,16 @@ column of its own, to the right of the column that has focus. To put windows in 
 - [`komorebic expel`](../cli/expel.md) takes the focused window out of its column and puts it in a column of its own on
   the right.
 
+- [`komorebic toggle-column-stack`](../cli/toggle-column-stack.md) stacks the windows of the focused column, or spreads
+  the focused stack out into a column with a window in each slot. A [stack](../cli/stack.md) is one slot that shows one
+  window at a time, and it takes the height of the column. The window that has focus keeps it. The column keeps its width,
+  but the heights that its windows were given are not remembered for when you toggle back.
+
+A stack is the stack that you have in every layout, so [`cycle-stack`](../cli/cycle-stack.md),
+[`focus-stack-window`](../cli/focus-stack-window.md) and [`stack`](../cli/stack.md) work on it as they always do.
+[`unstack`](../cli/unstack.md) takes the window that has focus off the stack and puts it in a column of its own to the
+right of the one that it was in.
+
 These only do anything in the Scrolling layout, which is the only one with columns of several windows for now.
 
 The focused window keeps focus, and stays where it is on screen, when you do any of these.

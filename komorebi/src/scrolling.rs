@@ -12,6 +12,7 @@
 //! made to match it, so that nothing that changes the list has to know the space exists.
 
 use crate::arrival;
+use crate::container::Container;
 use crate::core::DefaultLayout;
 use crate::core::Layout;
 use crate::core::LayoutOptions;
@@ -36,6 +37,30 @@ use objc2_core_foundation::CGRect;
 /// What the layout options of a workspace come to for the model.
 pub(crate) fn scrolling_options(layout_options: Option<LayoutOptions>) -> Options {
     scrolling::scrolling_options(layout_options)
+}
+
+#[cfg(test)]
+thread_local! {
+    /// The windows that were put where they are shown, which a test cannot see on a screen.
+    static SHOWN: std::cell::RefCell<Vec<u32>> = const { std::cell::RefCell::new(Vec::new()) };
+}
+
+/// Put the window that is in front of a container where it is shown, which is where it was before
+/// it was hidden as a tab at the back of a stack.
+///
+/// A test has no screen to put a window on, so it is told which windows this was done for.
+fn show(container: &mut Container) -> eyre::Result<()> {
+    #[cfg(test)]
+    SHOWN.with(|shown| {
+        shown
+            .borrow_mut()
+            .extend(container.focused_window().map(|window| window.id));
+    });
+
+    #[cfg(not(test))]
+    container.restore()?;
+
+    Ok(())
 }
 
 impl Workspace {
@@ -451,6 +476,142 @@ impl Workspace {
         if changed {
             self.apply_scrolling_order();
         }
+    }
+
+    /// Stack the windows of the focused column in one tile, or spread the stack in the focused tile
+    /// out into the tiles of a column, whichever it is, and tell whether there was anything to do.
+    ///
+    /// A column of several tiles becomes one tile that is a stack of all of their windows, in the
+    /// order that they were in, with the window that had focus still showing. A tile that is a stack
+    /// becomes a column of a tile for each of its windows, in the order of its tabs, with focus on
+    /// the window that had it. Either way the column keeps its width, but the heights that its tiles
+    /// were given are not remembered for when it is toggled back.
+    pub(crate) fn toggle_scrolling_column_stack(&mut self) -> eyre::Result<bool> {
+        let Some(id) = self.focused_scrolling_column() else {
+            return Ok(false);
+        };
+
+        let Some(column) = self
+            .scrolling
+            .as_ref()
+            .and_then(|space| space.column_of(&id))
+        else {
+            return Ok(false);
+        };
+
+        if column.len() > 1 {
+            self.stack_scrolling_column(&column)?;
+
+            return Ok(true);
+        }
+
+        self.unstack_scrolling_column()
+    }
+
+    /// Put the windows of all of the containers with these ids in the first of them, in order.
+    fn stack_scrolling_column(&mut self, column: &[String]) -> eyre::Result<()> {
+        let hiding_position = self.globals.window_hiding_position;
+
+        let focused_window = self
+            .focused_container()
+            .and_then(Container::focused_window)
+            .map(|window| window.id);
+
+        let mut windows = vec![];
+        for id in &column[1..] {
+            if let Some(idx) = self.containers().iter().position(|c| c.id == *id)
+                && let Some(container) = self.remove_container_by_idx(idx)
+            {
+                windows.extend(container.windows().iter().cloned());
+            }
+        }
+
+        let Some(idx) = self.containers().iter().position(|c| c.id == column[0]) else {
+            return Ok(());
+        };
+
+        if let Some(container) = self.containers_mut().get_mut(idx) {
+            for window in &windows {
+                container.add_window(window, hiding_position)?;
+            }
+
+            // the window that had focus is the one that is showing
+            if let Some(focused) = focused_window
+                && let Some(at) = container.idx_for_window(focused)
+            {
+                container.focus_window(at);
+            }
+
+            if !cfg!(test) {
+                container.load_focused_window(hiding_position)?;
+            }
+        }
+
+        self.focus_container(idx);
+
+        Ok(())
+    }
+
+    /// Put each of the windows of the focused container in a container of its own, in the same
+    /// column, and tell whether it had more than one.
+    fn unstack_scrolling_column(&mut self) -> eyre::Result<bool> {
+        let hiding_position = self.globals.window_hiding_position;
+        let idx = self.focused_container_idx();
+
+        let Some(container) = self.containers_mut().get_mut(idx) else {
+            return Ok(false);
+        };
+
+        if container.windows().len() < 2 {
+            return Ok(false);
+        }
+
+        let focused = container.focused_window().map(|window| window.id);
+        let first_id = container.id.clone();
+
+        let mut windows: Vec<_> = container.windows_mut().drain(..).collect();
+        let rest = windows.split_off(1);
+        container.windows_mut().extend(windows);
+        container.focus_window(0);
+
+        // the window that stays was one of the tabs, and may be the one that was out of sight, so
+        // it is put where it is shown as well, or its column is left empty until focus reaches it
+        show(container)?;
+
+        // the strip is about to be told that there are more containers than it has columns for,
+        // and so each of them is a column, until they are put in this one
+        let mut ids = vec![];
+        for (offset, window) in rest.iter().enumerate() {
+            let mut container = Container::default();
+            container.add_window(window, hiding_position)?;
+            ids.push(container.id.clone());
+
+            // it was one of the tabs that were out of sight, and has to be put where it is shown
+            show(&mut container)?;
+
+            self.insert_container_at_idx(idx + 1 + offset, container);
+        }
+
+        // inserting a container gives it focus, and the strip scrolls to bring the focused column
+        // into view, which it would do for a column that is only there until it is put in this
+        // one, and then not scroll back. Focus stays on the column that they are put in.
+        self.focus_container(idx);
+        self.sync_scrolling_containers();
+
+        if let Some(space) = self.scrolling.as_mut() {
+            space.focus(&first_id);
+            for _ in &ids {
+                space.consume_right();
+            }
+        }
+
+        // focus is on the tile that had the window that had it
+        let focused_idx = focused
+            .and_then(|focused| self.container_idx_for_window(focused))
+            .unwrap_or(idx);
+        self.focus_container(focused_idx);
+
+        Ok(true)
     }
 
     /// Take the focused tile out of its column and put it in a column of its own on the right.
@@ -1436,6 +1597,129 @@ mod tests {
         assert_eq!(widths(&to.layout_scrolling(&AREA, 0)), [400, 400]);
     }
 
+    /// The ids of the windows in every container, in order.
+    fn windows_of(workspace: &Workspace) -> Vec<Vec<u32>> {
+        workspace
+            .containers()
+            .iter()
+            .map(|container| container.windows().iter().map(|w| w.id).collect())
+            .collect()
+    }
+
+    #[test]
+    fn a_column_of_several_windows_becomes_one_stack_when_toggled() {
+        let mut workspace = workspace_with_a_column(200);
+        workspace.layout_scrolling(&AREA, 0);
+        assert_eq!(focused_window(&workspace), 200);
+
+        assert!(workspace.toggle_scrolling_column_stack().unwrap());
+
+        assert_eq!(
+            windows_of(&workspace),
+            [vec![200, 201], vec![202], vec![203]]
+        );
+        // the window that had focus is the one that shows, and not the one that was added last
+        assert_eq!(focused_window(&workspace), 200);
+
+        let placements = workspace.layout_scrolling(&AREA, 0);
+        assert_eq!(placements.len(), 3);
+        assert_eq!(widths(&placements), [400; 3]);
+        assert_eq!(placements[0].rect.bottom, AREA.bottom);
+    }
+
+    #[test]
+    fn a_stack_becomes_a_column_of_its_windows_when_toggled() {
+        let mut workspace = workspace_of_windows_from(3, 210, 2);
+        workspace.focus_container(0);
+        workspace
+            .containers_mut()
+            .front_mut()
+            .unwrap()
+            .add_window(&Window::from(212), WindowHidingPosition::default())
+            .unwrap();
+        workspace.layout_scrolling(&AREA, 0);
+        assert_eq!(windows_of(&workspace), [vec![210, 212], vec![211]]);
+
+        assert!(workspace.toggle_scrolling_column_stack().unwrap());
+
+        // the tabs are in the order of the tabs, one above the other, and the window that was
+        // showing is the one with focus
+        assert_eq!(windows_of(&workspace), [vec![210], vec![212], vec![211]]);
+        assert_eq!(focused_window(&workspace), 212);
+
+        let placements = workspace.layout_scrolling(&AREA, 0);
+        assert_eq!(placements[0].rect.left, placements[1].rect.left);
+        assert_eq!(
+            placements[0].rect.bottom + placements[1].rect.bottom,
+            AREA.bottom
+        );
+        assert_eq!(placements[2].rect.left, placements[0].rect.left + 400);
+        assert_eq!(placements[2].rect.bottom, AREA.bottom);
+    }
+
+    #[test]
+    fn unstacking_pops_the_window_that_has_focus_into_a_column_of_its_own_on_the_right() {
+        let mut workspace = workspace_with_a_column(250);
+        workspace.layout_scrolling(&AREA, 0);
+        workspace.toggle_scrolling_column_stack().unwrap();
+        workspace.layout_scrolling(&AREA, 0);
+        assert_eq!(windows_of(&workspace)[0], [250, 251]);
+
+        // what unstack does, which is the same in every layout, finds its place in the strip
+        workspace.new_container_for_focused_window().unwrap();
+
+        assert_eq!(
+            windows_of(&workspace),
+            [vec![251], vec![250], vec![252], vec![253]]
+        );
+        assert_eq!(focused_window(&workspace), 250);
+
+        // four columns of their own, the window that was popped off in the one after the stack
+        let placements = workspace.layout_scrolling(&AREA, 0);
+        assert_eq!(widths(&placements), [400; 4]);
+        assert!(placements.iter().all(|p| p.rect.bottom == AREA.bottom));
+        assert_eq!(placements[1].rect.left, placements[0].rect.left + 400);
+    }
+
+    #[test]
+    fn toggling_twice_gives_the_column_back_with_its_width() {
+        let mut workspace = workspace_with_a_column(220);
+        workspace.resize_scrolling_column(OperationDirection::Right, Sizing::Increase, 200);
+        let before = workspace.layout_scrolling(&AREA, 0);
+
+        workspace.toggle_scrolling_column_stack().unwrap();
+        workspace.layout_scrolling(&AREA, 0);
+        workspace.toggle_scrolling_column_stack().unwrap();
+
+        assert_eq!(
+            windows_of(&workspace),
+            [vec![220], vec![221], vec![222], vec![223]]
+        );
+        assert_eq!(workspace.layout_scrolling(&AREA, 0), before);
+        assert_eq!(focused_window(&workspace), 220);
+    }
+
+    #[test]
+    fn a_window_that_is_alone_in_its_tile_and_its_column_has_nothing_to_toggle() {
+        let mut workspace = laid_out(3, 3, 1);
+        let before = workspace.layout_scrolling(&AREA, 0);
+
+        assert!(!workspace.toggle_scrolling_column_stack().unwrap());
+
+        assert_eq!(workspace.layout_scrolling(&AREA, 0), before);
+    }
+
+    #[test]
+    fn toggling_does_nothing_before_there_is_a_strip_or_in_another_layout() {
+        let mut workspace = workspace_of_windows_from(3, 230, 2);
+        assert!(!workspace.toggle_scrolling_column_stack().unwrap());
+
+        let mut workspace = workspace_with_a_column(240);
+        workspace.layout = Layout::Default(DefaultLayout::BSP);
+        assert!(!workspace.toggle_scrolling_column_stack().unwrap());
+        assert_eq!(windows_of(&workspace)[0], [240]);
+    }
+
     #[test]
     fn consuming_to_the_left_is_the_other_way_round() {
         let mut workspace = workspace_of_windows_from(3, 50, 3);
@@ -1565,6 +1849,67 @@ mod tests {
             widths(&workspace.layout_scrolling(&AREA, 0)),
             [300, 300, 300]
         );
+    }
+
+    /// The windows that were put where they are shown since this was last asked.
+    fn take_shown() -> Vec<u32> {
+        SHOWN.with(|shown| std::mem::take(&mut *shown.borrow_mut()))
+    }
+
+    #[test]
+    fn every_window_of_a_stack_that_is_spread_out_is_shown() {
+        // one of the two was a tab at the back, which stacking hid, and whichever it was, it has
+        // to be put where it is shown, the one that stays in its container as much as the one
+        // that goes to a container of its own
+        for in_front in [0, 1] {
+            let mut workspace = workspace_of_windows_from(3, 300, 3);
+            workspace.layout_scrolling(&AREA, 0);
+            workspace.focus_container(1);
+            workspace.consume_scrolling(OperationDirection::Right);
+            workspace.layout_scrolling(&AREA, 0);
+
+            assert!(workspace.toggle_scrolling_column_stack().unwrap());
+
+            let idx = workspace.focused_container_idx();
+            workspace
+                .containers_mut()
+                .get_mut(idx)
+                .unwrap()
+                .focus_window(in_front);
+
+            take_shown();
+            assert!(workspace.toggle_scrolling_column_stack().unwrap());
+
+            let mut shown = take_shown();
+            shown.sort_unstable();
+            assert_eq!(shown, [301, 302], "with window {in_front} in front");
+        }
+    }
+
+    #[test]
+    fn stacking_a_column_and_spreading_it_out_again_leaves_everything_where_it_was() {
+        // three columns fit across, and the strip is exactly as wide as the screen, as in a
+        // column of two windows that is the last of three
+        let mut workspace = workspace_of_windows(3, 4);
+        workspace.layout_scrolling(&AREA, 0);
+        workspace.focus_container(0);
+        workspace.layout_scrolling(&AREA, 0);
+        workspace.focus_container(2);
+        workspace.layout_scrolling(&AREA, 0);
+        workspace.consume_scrolling(OperationDirection::Right);
+
+        let before = lefts(&workspace.layout_scrolling(&AREA, 0));
+        let focused = workspace.focused_container_idx();
+
+        assert!(workspace.toggle_scrolling_column_stack().unwrap());
+        assert_eq!(workspace.containers().len(), 3);
+        workspace.layout_scrolling(&AREA, 0);
+
+        assert!(workspace.toggle_scrolling_column_stack().unwrap());
+        assert_eq!(workspace.containers().len(), 4);
+
+        assert_eq!(lefts(&workspace.layout_scrolling(&AREA, 0)), before);
+        assert_eq!(workspace.focused_container_idx(), focused);
     }
 
     #[test]

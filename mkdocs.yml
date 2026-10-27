@@ -99,6 +99,7 @@ nav:
       - cli/unstack.md
       - cli/consume.md
       - cli/expel.md
+      - cli/toggle-column-stack.md
       - cli/cycle-stack.md
       - cli/cycle-stack-index.md
       - cli/focus-stack-window.md

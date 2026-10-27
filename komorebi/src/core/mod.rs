@@ -338,6 +338,7 @@ pub enum SocketMessage {
     Expand,
     Consume(OperationDirection),
     Expel,
+    ToggleColumnStack,
     LayoutRatios(Option<Vec<f32>>, Option<Vec<f32>>),
     // ChangeLayoutCustom(#[serde_as(as = "ResolvedPathBuf")] PathBuf),
     FlipLayout(Axis),
@@ -502,6 +503,7 @@ mod tests {
             SocketMessage::Expand,
             SocketMessage::Consume(OperationDirection::Left),
             SocketMessage::Expel,
+            SocketMessage::ToggleColumnStack,
         ] {
             let bytes = message.as_bytes().unwrap();
             let read: SocketMessage = String::from_utf8(bytes.clone()).unwrap().parse().unwrap();
