@@ -217,7 +217,6 @@ impl AccessibilityApi {
     }
 
     /// Add a single notification to an observer for a specific element.
-    /// Used to restore notifications after animation completes.
     pub fn add_notification_to_observer(
         observer: &AXObserver,
         element: &AXUIElement,
@@ -242,7 +241,6 @@ impl AccessibilityApi {
     }
 
     /// Remove a single notification from an observer for a specific element.
-    /// Used to suppress notifications during animation to prevent feedback loops.
     pub fn remove_notification_from_observer(
         observer: &AXObserver,
         element: &AXUIElement,

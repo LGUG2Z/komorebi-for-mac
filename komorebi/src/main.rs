@@ -327,6 +327,9 @@ fn main() -> eyre::Result<()> {
         });
     }
 
+    // nothing may move a window once they have all been put back where they were found
+    komorebi::animation::animator::shutdown();
+
     wm.lock().restore_all_windows(false)?;
 
     let sockets = komorebi::SUBSCRIPTION_SOCKETS.lock();

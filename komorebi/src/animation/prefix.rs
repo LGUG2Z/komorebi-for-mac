@@ -15,7 +15,3 @@ pub enum AnimationPrefix {
     Movement,
     // Note: Transparency is not supported on macOS as there's no equivalent to Win32 layered windows
 }
-
-pub fn new_animation_key(prefix: AnimationPrefix, key: String) -> String {
-    format!("{prefix}:{key}")
-}

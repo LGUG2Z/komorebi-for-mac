@@ -10,6 +10,7 @@ use crate::SUBSCRIPTION_SOCKET_OPTIONS;
 use crate::SUBSCRIPTION_SOCKETS;
 use crate::WORKSPACE_MATCHING_RULES;
 use crate::accessibility::AccessibilityApi;
+use crate::animation;
 use crate::animation::ANIMATION_DURATION_GLOBAL;
 use crate::animation::ANIMATION_DURATION_PER_ANIMATION;
 use crate::animation::ANIMATION_ENABLED_GLOBAL;
@@ -285,36 +286,30 @@ impl WindowManager {
             }
 
             SocketMessage::StackWindow(direction) => {
-                let restore = ANIMATION_ENABLED_GLOBAL.swap(false, Ordering::SeqCst);
+                let _suspended_animations = animation::suspend();
                 self.add_window_to_container(direction)?;
-                ANIMATION_ENABLED_GLOBAL.store(restore, Ordering::SeqCst);
             }
             SocketMessage::UnstackWindow => {
-                let restore = ANIMATION_ENABLED_GLOBAL.swap(false, Ordering::SeqCst);
+                let _suspended_animations = animation::suspend();
                 self.remove_window_from_container()?;
                 border_manager::destroy_all_borders()?;
-                ANIMATION_ENABLED_GLOBAL.store(restore, Ordering::SeqCst);
             }
             SocketMessage::StackAll => {
-                let restore = ANIMATION_ENABLED_GLOBAL.swap(false, Ordering::SeqCst);
+                let _suspended_animations = animation::suspend();
                 self.stack_all()?;
-                ANIMATION_ENABLED_GLOBAL.store(restore, Ordering::SeqCst);
             }
             SocketMessage::UnstackAll => {
-                let restore = ANIMATION_ENABLED_GLOBAL.swap(false, Ordering::SeqCst);
+                let _suspended_animations = animation::suspend();
                 self.unstack_all(true)?;
                 border_manager::destroy_all_borders()?;
-                ANIMATION_ENABLED_GLOBAL.store(restore, Ordering::SeqCst);
             }
             SocketMessage::CycleStack(direction) => {
-                let restore = ANIMATION_ENABLED_GLOBAL.swap(false, Ordering::SeqCst);
+                let _suspended_animations = animation::suspend();
                 self.cycle_container_window_in_direction(direction)?;
-                ANIMATION_ENABLED_GLOBAL.store(restore, Ordering::SeqCst);
             }
             SocketMessage::CycleStackIndex(direction) => {
-                let restore = ANIMATION_ENABLED_GLOBAL.swap(false, Ordering::SeqCst);
+                let _suspended_animations = animation::suspend();
                 self.cycle_container_window_index_in_direction(direction)?;
-                ANIMATION_ENABLED_GLOBAL.store(restore, Ordering::SeqCst);
             }
             SocketMessage::FocusStackWindow(idx) => {
                 // In case you are using this command on a bar on a monitor
@@ -324,9 +319,8 @@ impl WindowManager {
                 if let Some(monitor_idx) = self.monitor_idx_from_current_pos() {
                     self.focus_monitor(monitor_idx)?;
                 }
-                let restore = ANIMATION_ENABLED_GLOBAL.swap(false, Ordering::SeqCst);
+                let _suspended_animations = animation::suspend();
                 self.focus_container_window(idx)?;
-                ANIMATION_ENABLED_GLOBAL.store(restore, Ordering::SeqCst);
             }
             SocketMessage::Minimize => {
                 let foreground_window =

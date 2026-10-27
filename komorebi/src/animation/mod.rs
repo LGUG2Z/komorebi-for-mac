@@ -1,4 +1,3 @@
-use crate::animation::animation_manager::AnimationManager;
 use crate::core::animation::AnimationStyle;
 
 use parking_lot::Mutex;
@@ -13,14 +12,9 @@ use std::sync::atomic::Ordering;
 use std::time::Duration;
 use step::MotionSpec;
 
-pub use engine::AnimationEngine;
-pub mod animation_manager;
 pub mod animator;
-pub mod engine;
 pub mod lerp;
 pub mod prefix;
-pub mod render_dispatcher;
-pub use render_dispatcher::RenderDispatcher;
 pub mod stats;
 pub mod step;
 pub mod style;
@@ -67,9 +61,6 @@ pub const DEFAULT_ANIMATION_ENABLED: bool = false;
 pub const DEFAULT_ANIMATION_STYLE: AnimationStyle = AnimationStyle::Linear;
 pub const DEFAULT_ANIMATION_DURATION: u64 = 250;
 pub const DEFAULT_ANIMATION_FPS: u64 = 60;
-
-pub static ANIMATION_MANAGER: LazyLock<Arc<Mutex<AnimationManager>>> =
-    LazyLock::new(|| Arc::new(Mutex::new(AnimationManager::new())));
 
 /// How many operations have asked for animations to be skipped for as long as they run
 static ANIMATIONS_SUSPENDED: AtomicUsize = AtomicUsize::new(0);
