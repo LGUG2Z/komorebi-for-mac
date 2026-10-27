@@ -1,7 +1,9 @@
 //! Slicing komorebi's own `tracing` log for the duration of a recording.
 //!
-//! komorebi writes `komorebi_plaintext.log.<YYYY-MM-DD>` (ANSI-free) into its data directory,
-//! rolled daily at **UTC** midnight, so a recording can span two files. Line prefixes are
+//! komorebi writes `komorebi_plaintext.log.<YYYY-MM-DD>` into its data directory, rolled daily at
+//! **UTC** midnight, so a recording can span two files. Despite the name the text is not entirely
+//! free of ANSI escape codes: they remain inside the fields of a span (`focus_window{idx=0}`),
+//! so readers strip them before parsing. Line prefixes are
 //! RFC 3339 UTC timestamps with microsecond precision. We snapshot a byte offset when recording
 //! starts and the end offset when it stops, and copy exactly that byte range so multi-line
 //! panics and backtraces (which carry no timestamp of their own) are preserved.

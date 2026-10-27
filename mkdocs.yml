@@ -63,6 +63,7 @@ nav:
           - usage/focusing-workspaces.md
           - usage/moving-windows-across-workspaces.md
           - usage/recording-a-bug-repro.md
+          - usage/investigating-a-recording.md
       - Komorebi Configuration:
           - Schema: https://komorebi.lgug2z.com/schema
   - CLI reference:

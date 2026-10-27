@@ -364,6 +364,18 @@ pub fn readme(dir: &Path, manifest: &Manifest) -> String {
         duration
     ));
 
+    out.push_str("## Investigating a bug\n\n");
+    out.push_str(&format!(
+        "Start with what the user marked and described, then what the recording shows around it:\n\n\
+         ```sh\n\
+         komorebi-recorder brief {session}\n\
+         komorebi-recorder guide        # how to investigate, step by step\n\
+         ```\n\n\
+         Every command takes `--json`. `annotate` adds a bug region (a start, an end and what is wrong)\n\
+         to `annotations.jsonl`; `state`, `diff`, `events`, `trace`, `window`, `code`, `search`,\n\
+         `changes` and `sheet` dig in.\n\n"
+    ));
+
     out.push_str("## How to read it\n\n");
     out.push_str(
         "Every second of video maps to the exact records from every other source. Use the\n\
@@ -397,6 +409,7 @@ pub fn readme(dir: &Path, manifest: &Manifest) -> String {
     out.push_str("| `session.json` | Manifest: versions, displays, clock anchors, log segments, OS-trace streams and apps, warnings |\n");
     out.push_str("| `video-<displayID>[-<n>].mp4` | Screen recording of one display. Variable frame rate: frames only exist when the screen changed. A display that was unplugged, whose stream stopped, or that changed resolution has several numbered segments, each a complete file; `session.json` lists every segment with its time span |\n");
     out.push_str("| `frames-<displayID>[-<n>].csv` | Every frame's host-clock timestamp (`pts_mach_ns`) and when it was received |\n");
+    out.push_str("| `annotations.jsonl` | Bug regions (a start, an end and what is wrong), notes and findings, appended by the recorder window, the viewer and `annotate`. Never rewritten |\n");
     out.push_str("| `recorder.jsonl` | What happened to the recording environment: displays connected/disconnected, sleep/wake, screen lock, restarts of log streams or komorebi. Shown as the `recorder` source |\n");
     out.push_str("| `komorebi.log` | The exact byte slice of komorebi's own log for this recording (UTC timestamps) |\n");
     out.push_str("| `events.jsonl` | Every komorebi subscriber notification: `{seq, recv_wall_us, recv_mach_ns, event, state_id}` |\n");
@@ -433,8 +446,9 @@ pub fn readme(dir: &Path, manifest: &Manifest) -> String {
         "The master clock is the host monotonic clock (`mach_absolute_time`, ns). Video frame\n\
          timestamps and the unified log's `machTimestamp` are on it directly. komorebi's log lines\n\
          (UTC wall clock) are mapped onto it with the `anchors` in `session.json`. Subscriber events\n\
-         are stamped on receipt; they lag the true event by komorebi's dispatch latency, so prefer the\n\
-         matching `processing event` line in `komorebi.log` as the authoritative event time.\n\n",
+         are stamped on receipt, and komorebi sends them after handling the event, so a stamp is when\n\
+         the handler *finished*; the `processing event` line in `komorebi.log` is when it began\n\
+         (`komorebi-recorder trace` ties the two together).\n\n",
     );
 
     if !manifest.warnings.is_empty() {
@@ -561,7 +575,7 @@ mod tests {
             "paths with spaces are quoted"
         );
         for command in [
-            "at ", "range ", "summary ", "locate ", "frames ", "reindex ",
+            "at ", "range ", "summary ", "locate ", "frames ", "reindex ", "brief ", "guide",
         ] {
             assert!(
                 text.contains(&format!("komorebi-recorder {command}")),

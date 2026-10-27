@@ -7,10 +7,11 @@
 //! the receive time, read to EOF, hand the bytes to a channel) and all parsing and disk IO
 //! happens on a separate writer thread.
 //!
-//! The payload carries no timestamp, so the receive time is stamped here on both clocks. It lags
-//! the true event time by the daemon's dispatch latency; the matching `processing event` line in
-//! komorebi's own log is the authoritative event time, and the receive stamp is for ordering and
-//! cross-checking.
+//! The payload carries no timestamp, so the receive time is stamped here on both clocks. komorebi
+//! sends the notification *after* its handler has run, so the receive time marks the **end** of
+//! handling the event, not its start: the `processing event` line in komorebi's log is when the
+//! handler began (and, at DEBUG, the `pushed notification to subscriber` line is when it sent
+//! this). `komorebi-recorder trace` ties the two together.
 
 use crate::clock;
 use color_eyre::eyre;

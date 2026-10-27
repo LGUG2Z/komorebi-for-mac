@@ -39,13 +39,24 @@ komorebi is tiling.
   it; otherwise `brew install ffmpeg`.
 
 The recorder window is borderless and untitled on purpose: komorebi does not manage windows without a title, so opening
-it does not move your layout around while you are trying to reproduce a layout bug. It is also excluded from the video.
+it does not move your layout around while you are trying to reproduce a layout bug. It is also excluded from the video, as is any other `komorebi-recorder` process, such as the viewer.
 
 ## Recording
 
 Press **Record**, reproduce the problem, press **Stop**. The window shows live counters, recent events (a display being
 unplugged, a wake) and any warnings. The session is written to
 `~/Library/Application Support/komorebi/recordings/<UTC timestamp>/` unless you pass `--out`.
+
+### Marking where the bug is
+
+While recording, press **Mark bug start** when the bug starts and **Mark bug end** when it ends, optionally typing what
+is going wrong in the box that appears. That marks a _region_ of the recording, not a single moment, and it is saved the
+instant you click, so a region that is still open if the recorder is killed survives, open-ended. Mark as many regions as
+you like. You can describe or adjust them afterwards with `komorebi-recorder annotate`.
+
+This is what makes the recording useful to whoever investigates it, person or agent: your description is the ground
+truth of _what_ went wrong, and everything else in the session is evidence of _why_. See
+[Investigating a recording](investigating-a-recording.md).
 
 With every display ticked, the recorder follows _all_ displays, including ones connected while it is recording. Untick a
 display to record only the others.
@@ -156,6 +167,7 @@ komorebi.log            exact slice of komorebi's own log
 events.jsonl, states/   subscriber notifications; full State stored only when it changed
 state-start.json, state-end.json
 recorder.jsonl          what happened to the recording environment (displays, sleep/wake, lock, restarts)
+annotations.jsonl       bug regions, notes and findings (appended, never rewritten)
 oslog/komorebi.ndjson   unified log, komorebi's process (oslog/komorebi-<pid>.ndjson after a restart)
 oslog/system.ndjson     unified log, accessibility / SkyLight / workspace subsystems
 oslog/apps/<exe>-<pid>.ndjson   unified log, one managed application
@@ -174,8 +186,9 @@ anchors sampled every 5 seconds during the recording and at every sleep, so cloc
 
 - video to OS trace: within about one frame
 - video to komorebi's log: within about one frame plus the wall-clock anchor error (tens of microseconds)
-- subscriber events are stamped when the recorder receives them, which is later than the real event by komorebi's
-  dispatch latency; prefer the matching `processing event` line in `komorebi.log` as the authoritative event time
+- subscriber events are stamped when the recorder receives them. komorebi sends the notification _after_ it has handled
+  the event, so the stamp is when the handler **finished**; the `processing event` line in `komorebi.log` is when it
+  began (`komorebi-recorder trace` ties the two together)
 
 `komorebi-recorder selftest` checks this on your machine: it records a rendered on-screen clock and compares the clock
 visible in the video with the time the session predicts. The result is stored in `session.json` under `calibration`.
