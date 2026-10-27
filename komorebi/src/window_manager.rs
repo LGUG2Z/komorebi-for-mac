@@ -1616,15 +1616,67 @@ impl WindowManager {
                                 }
                             }
 
-                            let resize = layout.resize(
-                                unaltered
-                                    .get(focused_idx)
-                                    .ok_or_eyre("there is no last layout")?,
-                                focused_idx_resize,
-                                direction,
-                                sizing,
-                                delta,
-                            );
+                            let min_width = focused_monitor_work_area.right / 10;
+                            let min_height = focused_monitor_work_area.bottom / 10;
+                            let unaltered_rect = *unaltered
+                                .get(focused_idx)
+                                .ok_or_eyre("there is no last layout")?;
+
+                            let candidate = |amount: i32| {
+                                layout.resize(
+                                    &unaltered_rect,
+                                    focused_idx_resize,
+                                    direction,
+                                    sizing,
+                                    amount,
+                                )
+                            };
+
+                            let calculate = |dimensions: &[Option<Rect>]| {
+                                layout.calculate(
+                                    &focused_monitor_work_area,
+                                    len,
+                                    workspace.container_padding,
+                                    workspace.layout_flip,
+                                    dimensions,
+                                    workspace.focused_container_idx(),
+                                    workspace.layout_options,
+                                    &workspace.latest_layout,
+                                )
+                            };
+
+                            // No tile may end up smaller than a tenth of the work area, or
+                            // smaller than it already is
+                            let now = calculate(&workspace.resize_dimensions);
+                            let fits = |amount: i32| {
+                                let mut dimensions = workspace.resize_dimensions.clone();
+                                dimensions[focused_idx] = candidate(amount);
+                                calculate(&dimensions).iter().zip(now.iter()).all(
+                                    |(tile, before)| {
+                                        tile.right >= min_width.min(before.right)
+                                            && tile.bottom >= min_height.min(before.bottom)
+                                    },
+                                )
+                            };
+
+                            // Grant as much of the request as fits; tiles only get smaller as
+                            // the amount grows, so bisect
+                            let granted = if fits(delta) {
+                                delta
+                            } else {
+                                let (mut fits_at, mut fails_at) = (0, delta);
+                                while fails_at - fits_at > 1 {
+                                    let middle = fits_at + (fails_at - fits_at) / 2;
+                                    if fits(middle) {
+                                        fits_at = middle;
+                                    } else {
+                                        fails_at = middle;
+                                    }
+                                }
+                                fits_at
+                            };
+
+                            let resize = candidate(granted);
 
                             workspace.resize_dimensions[focused_idx] = resize;
 
@@ -1642,6 +1694,82 @@ impl WindowManager {
         }
 
         Ok(())
+    }
+
+    /// How far an edge can be from its tile without having been dragged there: an app that snaps
+    /// its size to a grid of cells, or keeps to a minimum size, is never quite on its tile
+    const DRAG_SNAP_TOLERANCE: i32 = 32;
+
+    /// Applies a mouse drag of the edge(s) of `window_id`'s tile, given the frame the window was
+    /// first seen in once the drag was going on and the frame it ended in. Returns whether the
+    /// workspace needs to be re-tiled, which also puts back a window dragged by an edge with no
+    /// neighbour.
+    #[tracing::instrument(skip(self))]
+    pub fn resize_by_drag(
+        &mut self,
+        window_id: u32,
+        started_from: Rect,
+        ended_at: Rect,
+    ) -> eyre::Result<bool> {
+        let workspace = self.focused_workspace()?;
+        let Some(idx) = workspace.container_idx_for_window(window_id) else {
+            tracing::warn!("the dragged window is not in a container on the focused workspace");
+            return Ok(false);
+        };
+
+        // A Rect is (left, top, width, height); work in edges instead
+        let edges = |r: &Rect| [r.left, r.top, r.left + r.right, r.top + r.bottom];
+        let started = edges(&started_from);
+        let ended = edges(&ended_at);
+        let tile = workspace.latest_layout.get(idx).map(edges);
+
+        // The first AXWindowResized is reported after the edge has already moved, and handlers
+        // run one at a time, so the frame a drag is first seen in is not the one it began from,
+        // and can even be the one it ended in. An edge that ended up further from its tile than
+        // an app strays from its tile on its own was dragged, and began on its tile. Any other
+        // edge was not moved, and the offset of the app from its tile is not part of the drag.
+        let moved: Vec<(OperationDirection, i32)> = [
+            OperationDirection::Left,
+            OperationDirection::Up,
+            OperationDirection::Right,
+            OperationDirection::Down,
+        ]
+        .into_iter()
+        .enumerate()
+        .filter_map(|(i, edge)| {
+            let from = match tile {
+                Some(tile) if (ended[i] - tile[i]).abs() > Self::DRAG_SNAP_TOLERANCE => tile[i],
+                _ => started[i],
+            };
+
+            (ended[i] != from).then_some((edge, ended[i] - from))
+        })
+        .collect();
+
+        if moved.is_empty() {
+            return Ok(false);
+        }
+
+        // Resize the container of the dragged window, which is not necessarily the focused one
+        self.focused_workspace_mut()?.focus_container(idx);
+
+        for (edge, by) in moved {
+            let outward = match edge {
+                OperationDirection::Left | OperationDirection::Up => by < 0,
+                OperationDirection::Right | OperationDirection::Down => by > 0,
+            };
+
+            let sizing = if outward {
+                Sizing::Increase
+            } else {
+                Sizing::Decrease
+            };
+
+            // A shared edge is moved by half of what the layout is given
+            self.resize_window(edge, sizing, by.abs() * 2, false)?;
+        }
+
+        Ok(true)
     }
 
     #[tracing::instrument(skip(self))]
@@ -3384,6 +3512,8 @@ impl WindowManager {
 mod tests {
     use super::*;
     use crate::monitor;
+    use crate::reaper;
+    use crate::reaper::ReaperNotification;
     use crossbeam_channel::Sender;
     use crossbeam_channel::bounded;
     use std::path::PathBuf;
@@ -5334,5 +5464,419 @@ mod tests {
         assert_eq!(op.target_monitor_idx, target_monitor_idx); // 2
         assert_eq!(op.target_workspace_idx, target_workspace_idx); // 3
         assert_eq!(op.floating, floating); // false
+    }
+
+    // Resizing a tile by dragging an edge. A Rect is `left, top, width, height` (`right` and
+    // `bottom` are the size), and the work area of the monitor is 1920x1050, which makes the
+    // right-hand stack of an UltrawideVerticalStack layout narrow enough to expose the old guard.
+
+    const WORK_AREA: Rect = Rect {
+        left: 0,
+        top: 0,
+        right: 1920,
+        bottom: 1050,
+    };
+
+    /// A monitor with one workspace in `layout`, with a container per window id, the last of
+    /// them focused, and the tiles komorebi would have given them recorded as the latest layout
+    fn tiled(layout: DefaultLayout, ids: &[u32]) -> (WindowManager, TestContext) {
+        let (mut wm, context) = setup_window_manager();
+
+        let m = monitor::new(
+            0,
+            WORK_AREA,
+            WORK_AREA,
+            "TestMonitor".to_string(),
+            "TestDeviceID".to_string(),
+        );
+        wm.monitors_mut().push_back(m);
+
+        let workspace = wm.focused_workspace_mut().unwrap();
+        workspace.layout = Layout::Default(layout);
+        for id in ids {
+            workspace
+                .new_container_for_window(&Window::from(*id))
+                .unwrap();
+        }
+
+        let latest_layout = tiles(&wm);
+        wm.focused_workspace_mut().unwrap().latest_layout = latest_layout;
+
+        (wm, context)
+    }
+
+    /// The tile of each container, as the layout calculates them with the current resizes
+    fn tiles(wm: &WindowManager) -> Vec<Rect> {
+        let workspace = wm.focused_workspace().unwrap();
+        let Layout::Default(layout) = workspace.layout;
+
+        layout.calculate(
+            &WORK_AREA,
+            NonZeroUsize::new(workspace.containers().len()).unwrap(),
+            workspace.container_padding,
+            workspace.layout_flip,
+            &workspace.resize_dimensions,
+            workspace.focused_container_idx(),
+            workspace.layout_options,
+            &workspace.latest_layout,
+        )
+    }
+
+    fn grown_left(r: Rect, by: i32) -> Rect {
+        Rect {
+            left: r.left - by,
+            right: r.right + by,
+            ..r
+        }
+    }
+
+    fn overlap(a: &Rect, b: &Rect) -> bool {
+        a.left < b.left + b.right
+            && b.left < a.left + a.right
+            && a.top < b.top + b.bottom
+            && b.top < a.top + a.bottom
+    }
+
+    fn assert_tiling(tiles: &[Rect]) {
+        for (i, a) in tiles.iter().enumerate() {
+            assert!(
+                a.left >= 0
+                    && a.top >= 0
+                    && a.left + a.right <= WORK_AREA.right
+                    && a.top + a.bottom <= WORK_AREA.bottom,
+                "{a:?} is outside the work area"
+            );
+            for b in &tiles[i + 1..] {
+                assert!(!overlap(a, b), "{a:?} and {b:?} overlap");
+            }
+        }
+    }
+
+    fn no_resizes(wm: &WindowManager) -> bool {
+        wm.focused_workspace()
+            .unwrap()
+            .resize_dimensions
+            .iter()
+            .all(|r| r.is_none())
+    }
+
+    #[test]
+    fn test_a_long_drag_of_a_narrow_tile_is_not_dropped() {
+        // the right-hand stack of an ultrawide layout is the narrowest thing there is, and the
+        // layout used to refuse any drag of more than half of a tile's own width, without a word
+        let (mut wm, _context) = tiled(DefaultLayout::UltrawideVerticalStack, &[1, 2, 3, 4, 5]);
+        // 1 is the centre, 2 the left column, 3..5 the stack on the right
+        let before = tiles(&wm);
+        assert!(before[2].left > WORK_AREA.right / 2, "{:?}", before[2]);
+
+        // 5 has focus, not the window being dragged
+        let redraw = wm
+            .resize_by_drag(3, before[2], grown_left(before[2], 300))
+            .unwrap();
+        assert!(redraw);
+
+        let after = tiles(&wm);
+        assert!(
+            after[2].right >= before[2].right + 290,
+            "dragged by 300 and got {:?} -> {:?}",
+            before[2],
+            after[2]
+        );
+        assert!(after[0].right > 0 && after[0].left + after[0].right <= after[2].left);
+        assert_tiling(&after);
+
+        // and the whole stack moved with it: they share the edge
+        for idx in [3, 4] {
+            assert_eq!(after[idx].left, after[2].left, "tile {idx}");
+        }
+    }
+
+    #[test]
+    fn test_a_drag_further_than_the_neighbour_can_give_goes_as_far_as_it_can() {
+        let (mut wm, _context) = tiled(DefaultLayout::UltrawideVerticalStack, &[1, 2, 3, 4, 5]);
+        let before = tiles(&wm);
+
+        // far past the centre tile's whole width
+        wm.resize_by_drag(3, before[2], grown_left(before[2], 1000))
+            .unwrap();
+
+        let after = tiles(&wm);
+        assert!(
+            after[2].right > before[2].right + 400,
+            "it grew: {:?} -> {:?}",
+            before[2],
+            after[2]
+        );
+
+        // no tile is smaller than a tenth of the work area, or than it was
+        let tenth = WORK_AREA.right / 10;
+        for (idx, (tile, was)) in after.iter().zip(before.iter()).enumerate() {
+            assert!(tile.right >= tenth.min(was.right), "tile {idx}: {tile:?}");
+        }
+
+        // and the centre tile was squeezed to the floor, not left where it was
+        assert!(
+            after[0].right < tenth + 10,
+            "the neighbour was not given all it could give: {:?}",
+            after[0]
+        );
+        assert_tiling(&after);
+    }
+
+    #[test]
+    fn test_shrinking_a_tile_by_more_than_it_can_is_granted_as_far_as_it_goes() {
+        let (mut wm, _context) = tiled(DefaultLayout::UltrawideVerticalStack, &[1, 2, 3, 4, 5]);
+        let before = tiles(&wm);
+        let tile = before[2];
+
+        // the user pulls the left edge inward by more than the tile is wide
+        wm.resize_by_drag(
+            3,
+            tile,
+            Rect {
+                left: tile.left + tile.right - 20,
+                right: 20,
+                ..tile
+            },
+        )
+        .unwrap();
+
+        let after = tiles(&wm);
+        let tenth = WORK_AREA.right / 10;
+        assert!(
+            after[2].right < tile.right,
+            "it shrank: {tile:?} -> {:?}",
+            after[2]
+        );
+        assert!(after[2].right >= tenth, "but not too far: {:?}", after[2]);
+        assert!(
+            after[2].right < tenth + 10,
+            "as far as it goes: {:?}",
+            after[2]
+        );
+        assert_tiling(&after);
+    }
+
+    #[test]
+    fn test_a_drag_is_measured_from_where_the_window_was_not_from_its_tile() {
+        // a terminal snaps its size to its cells, so it never quite fills its tile; the horizontal
+        // split between the two windows on the right must stay where it is when the *left* edge
+        // is dragged
+        let (mut wm, _context) = tiled(DefaultLayout::BSP, &[1, 2, 3]);
+        let before = tiles(&wm);
+        let (top_right, split_before) = (before[1], before[2].top);
+
+        let snapped = Rect {
+            right: top_right.right - 1,
+            bottom: top_right.bottom - 8,
+            ..top_right
+        };
+
+        wm.resize_by_drag(2, snapped, grown_left(snapped, 100))
+            .unwrap();
+
+        let after = tiles(&wm);
+        assert!(
+            after[1].left <= top_right.left - 90,
+            "{top_right:?} -> {:?}",
+            after[1]
+        );
+        assert_eq!(
+            after[2].top, split_before,
+            "the split between the two on the right moved, though only a left edge was dragged"
+        );
+        assert_eq!(after[1].bottom, top_right.bottom);
+        assert_tiling(&after);
+    }
+
+    #[test]
+    fn test_the_window_that_was_dragged_is_the_one_resized_not_the_focused_one() {
+        let (mut wm, _context) = tiled(DefaultLayout::BSP, &[1, 2, 3]);
+        // 3 (the bottom right tile) has focus; 2 (top right) is dragged by its bottom edge
+        assert_eq!(wm.focused_workspace().unwrap().focused_container_idx(), 2);
+        let before = tiles(&wm);
+        let (top_right, bottom_right) = (before[1], before[2]);
+
+        wm.resize_by_drag(
+            2,
+            top_right,
+            Rect {
+                bottom: top_right.bottom + 100,
+                ..top_right
+            },
+        )
+        .unwrap();
+
+        let after = tiles(&wm);
+        assert!(
+            after[1].bottom >= top_right.bottom + 90,
+            "{top_right:?} -> {:?}",
+            after[1]
+        );
+        assert!(
+            after[2].bottom <= bottom_right.bottom - 90,
+            "{bottom_right:?} -> {:?}",
+            after[2]
+        );
+        assert_tiling(&after);
+
+        // the dragged one is the focused one now
+        assert_eq!(wm.focused_workspace().unwrap().focused_container_idx(), 1);
+    }
+
+    #[test]
+    fn test_dragging_an_edge_that_has_no_neighbour_changes_nothing_but_puts_the_window_back() {
+        let (mut wm, _context) = tiled(DefaultLayout::BSP, &[1, 2]);
+        let before = tiles(&wm);
+
+        // the outer left edge of the left tile has nothing to take room from
+        let redraw = wm
+            .resize_by_drag(1, before[0], grown_left(before[0], 80))
+            .unwrap();
+
+        assert!(
+            redraw,
+            "the window is not where its tile is, so it needs to be put back"
+        );
+        assert!(no_resizes(&wm));
+        assert_eq!(tiles(&wm), before);
+    }
+
+    #[test]
+    fn test_a_drag_that_changed_nothing_changes_nothing() {
+        let (mut wm, _context) = tiled(DefaultLayout::BSP, &[1, 2, 3]);
+        let before = tiles(&wm);
+
+        // a click on an edge: started, finished, nowhere
+        let redraw = wm.resize_by_drag(2, before[1], before[1]).unwrap();
+
+        assert!(!redraw);
+        assert!(no_resizes(&wm));
+        assert_eq!(tiles(&wm), before);
+        assert_eq!(wm.focused_workspace().unwrap().focused_container_idx(), 2);
+    }
+
+    #[test]
+    fn test_a_corner_resizes_both_of_its_edges() {
+        let (mut wm, _context) = tiled(DefaultLayout::BSP, &[1, 2, 3]);
+        // the bottom right tile, by its top left corner: up into the tile above, left into the
+        // one beside
+        let before = tiles(&wm);
+        let (beside, above, tile) = (before[0], before[1], before[2]);
+
+        wm.resize_by_drag(
+            3,
+            tile,
+            Rect {
+                left: tile.left - 100,
+                top: tile.top - 100,
+                right: tile.right + 100,
+                bottom: tile.bottom + 100,
+            },
+        )
+        .unwrap();
+
+        let after = tiles(&wm);
+        assert!(
+            after[2].left <= tile.left - 90 && after[2].top <= tile.top - 90,
+            "{tile:?} -> {:?}",
+            after[2]
+        );
+        assert!(after[1].bottom < above.bottom);
+        assert!(after[0].right < beside.right);
+        assert_tiling(&after);
+    }
+
+    #[test]
+    fn test_a_window_that_is_in_no_container_is_ignored() {
+        let (mut wm, _context) = tiled(DefaultLayout::BSP, &[1, 2, 3]);
+        let before = tiles(&wm);
+
+        let redraw = wm
+            .resize_by_drag(99, before[1], grown_left(before[1], 100))
+            .unwrap();
+
+        assert!(!redraw);
+        assert!(no_resizes(&wm));
+        assert_eq!(wm.focused_workspace().unwrap().focused_container_idx(), 2);
+    }
+
+    // The two recordings of a left-hand drag of the right-hand tile of an UltrawideVerticalStack
+    // that "doesn't resize properly" (docs/drag-resize.md). Both end with the tile narrower
+    // instead of wider, and in both the log shows the same thing: a workspace update on the
+    // reaper's thread, between the button going up and the handler for the end of the drag
+    // reading where the window is.
+
+    #[test]
+    fn test_a_mouse_up_does_not_re_tile_the_workspace() {
+        // The reaper looks for windows that went away on every mouse-up and key-up. It did that
+        // by re-tiling the workspace, which put the window being dragged back on its tile
+        // before ResizeEnd was handled, so the drag was measured from the dragged frame to the
+        // tile: backwards. A re-tile replaces the latest layout, so a marker in it shows one.
+        let (mut wm, _context) = tiled(DefaultLayout::UltrawideVerticalStack, &[1, 2, 3]);
+        let marker = vec![Rect::default(); 3];
+        wm.focused_workspace_mut().unwrap().latest_layout = marker.clone();
+
+        reaper::handle_notification(&mut wm, ReaperNotification::MouseUpKeyUp, |_| true).unwrap();
+
+        assert_eq!(
+            wm.focused_workspace().unwrap().latest_layout,
+            marker,
+            "the mouse-up re-tiled the workspace"
+        );
+    }
+
+    #[test]
+    fn test_a_mouse_up_still_reaps_the_windows_that_went_away() {
+        // what the re-tile on mouse-up was for: a window closed with a click or a key press
+        let (mut wm, _context) = tiled(DefaultLayout::UltrawideVerticalStack, &[1, 2, 3]);
+
+        reaper::handle_notification(&mut wm, ReaperNotification::MouseUpKeyUp, |w| w.id != 2)
+            .unwrap();
+
+        let ids: Vec<u32> = wm
+            .focused_workspace()
+            .unwrap()
+            .containers()
+            .iter()
+            .flat_map(|c| c.windows().iter().map(|w| w.id))
+            .collect();
+        assert_eq!(ids, vec![1, 3]);
+    }
+
+    #[test]
+    fn test_the_first_step_of_a_drag_is_part_of_the_drag() {
+        // AXWindowResized is reported after the edge has already moved, so the frame recorded as
+        // the start of the drag is not the one it started from: in the second recording the edge
+        // was 22 points out when first seen and 107 when the button went up, and the divider
+        // ended 22 points short of the pointer. The edge began on its tile.
+        let (mut wm, _context) = tiled(DefaultLayout::UltrawideVerticalStack, &[1, 2, 3]);
+        let tile = tiles(&wm)[2];
+
+        let redraw = wm
+            .resize_by_drag(3, grown_left(tile, 22), grown_left(tile, 107))
+            .unwrap();
+
+        assert!(redraw);
+        let after = tiles(&wm);
+        assert_eq!(after[2].left, tile.left - 107, "{tile:?} -> {:?}", after[2]);
+        assert_tiling(&after);
+    }
+
+    #[test]
+    fn test_a_drag_that_was_over_before_it_was_first_seen_is_still_applied() {
+        // Handlers run one at a time and can be slow (432 ms in the first recording, before the
+        // handler for the first AXWindowResized even logged its header), so the frame recorded as
+        // the start of the drag can already be the frame the drag ended in
+        let (mut wm, _context) = tiled(DefaultLayout::UltrawideVerticalStack, &[1, 2, 3]);
+        let tile = tiles(&wm)[2];
+        let dragged = grown_left(tile, 211);
+
+        let redraw = wm.resize_by_drag(3, dragged, dragged).unwrap();
+
+        assert!(redraw);
+        let after = tiles(&wm);
+        assert_eq!(after[2].left, tile.left - 211, "{tile:?} -> {:?}", after[2]);
+        assert_tiling(&after);
     }
 }

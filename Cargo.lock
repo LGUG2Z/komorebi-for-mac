@@ -3158,8 +3158,8 @@ dependencies = [
 
 [[package]]
 name = "komorebi-layouts"
-version = "0.1.41"
-source = "git+https://github.com/LGUG2Z/komorebi?rev=24c0ce0b1df1b5d7d62c682a7e28b32980293883#24c0ce0b1df1b5d7d62c682a7e28b32980293883"
+version = "0.1.42"
+source = "git+https://github.com/LGUG2Z/komorebi?rev=f08aa55511d77ca56ab0e789efabeb0a237a463e#f08aa55511d77ca56ab0e789efabeb0a237a463e"
 dependencies = [
  "clap",
  "color-eyre",
@@ -3174,8 +3174,8 @@ dependencies = [
 
 [[package]]
 name = "komorebi-themes"
-version = "0.1.41"
-source = "git+https://github.com/LGUG2Z/komorebi?rev=24c0ce0b1df1b5d7d62c682a7e28b32980293883#24c0ce0b1df1b5d7d62c682a7e28b32980293883"
+version = "0.1.42"
+source = "git+https://github.com/LGUG2Z/komorebi?rev=f08aa55511d77ca56ab0e789efabeb0a237a463e#f08aa55511d77ca56ab0e789efabeb0a237a463e"
 dependencies = [
  "base16-egui-themes",
  "catppuccin-egui",

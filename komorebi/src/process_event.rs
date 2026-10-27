@@ -13,9 +13,7 @@ use crate::accessibility::notification_constants::AccessibilityNotification;
 use crate::border_manager;
 use crate::core::DefaultLayout;
 use crate::core::Layout;
-use crate::core::OperationDirection;
 use crate::core::Rect;
-use crate::core::Sizing;
 use crate::core::WindowContainerBehaviour;
 use crate::core::WindowHidingPosition;
 use crate::core::config_generation::MatchingRule;
@@ -977,15 +975,23 @@ impl WindowManager {
                 }
             }
             WindowManagerEvent::ResizeStart(_, _, window_id) => {
-                let workspace = self.focused_workspace_mut()?;
-                if let Some(container) = workspace.focused_container()
-                    && let Some(window) = container.focused_window()
-                {
-                    let window = window.clone();
-                    let new_position = Rect::from(MacosApi::window_rect(&window.element)?);
+                // AXWindowResized fires again and again through a drag; only the first frame is
+                // the one the drag started from
+                let already_recorded = matches!(
+                    *self.pending_resize_op,
+                    Some((wid, Some(_))) if wid == window_id
+                );
 
-                    let pending_resize_op = Arc::make_mut(&mut self.pending_resize_op);
-                    *pending_resize_op = Option::from((window_id, Some(new_position)));
+                if !already_recorded {
+                    let workspace = self.focused_workspace()?;
+                    if let Some(container) = workspace.container_for_window(window_id)
+                        && let Some(window) = container.windows().iter().find(|w| w.id == window_id)
+                    {
+                        let started_from = Rect::from(MacosApi::window_rect(&window.element)?);
+
+                        let pending_resize_op = Arc::make_mut(&mut self.pending_resize_op);
+                        *pending_resize_op = Option::from((window_id, Some(started_from)));
+                    }
                 }
             }
             WindowManagerEvent::ResizeEnd(_, _, window_id) => {
@@ -994,7 +1000,7 @@ impl WindowManager {
                 let pending_resize_op = Arc::make_mut(&mut self.pending_resize_op);
                 *pending_resize_op = None;
 
-                if let Some((wid, Some(new_position))) = pending {
+                if let Some((wid, Some(started_from))) = pending {
                     // If the window handles don't match then something went wrong and the pending resize
                     // is not related to this current resize, if so abort this operation.
                     if wid != window_id {
@@ -1005,64 +1011,15 @@ impl WindowManager {
                         );
                     }
 
-                    let workspace = self.focused_workspace_mut()?;
-                    let focused_container_idx = workspace.focused_container_idx();
-
-                    if let Some(container) = workspace.focused_container()
-                        && let Some(window) = container.focused_window()
+                    let workspace = self.focused_workspace()?;
+                    if workspace.tile
+                        && let Some(container) = workspace.container_for_window(window_id)
+                        && let Some(window) = container.windows().iter().find(|w| w.id == window_id)
                     {
-                        let window = window.clone();
+                        let ended_at = Rect::from(MacosApi::window_rect(&window.element)?);
 
-                        let old_position = *workspace
-                            .latest_layout
-                            .get(focused_container_idx)
-                            .unwrap_or(&Rect::default());
-
-                        let workspace = self.focused_workspace_mut()?;
-                        if workspace.tile && workspace.contains_managed_window(window.id) {
-                            let resize = Rect {
-                                left: new_position.left - old_position.left,
-                                top: new_position.top - old_position.top,
-                                right: new_position.right - old_position.right,
-                                bottom: new_position.bottom - old_position.bottom,
-                            };
-
-                            tracing::info!("resizing with mouse");
-                            let mut ops = vec![];
-
-                            macro_rules! resize_op {
-                                ($coordinate:expr, $comparator:tt, $direction:expr) => {{
-                                    let adjusted = $coordinate * 2;
-                                    let sizing = if adjusted $comparator 0 {
-                                        Sizing::Decrease
-                                    } else {
-                                        Sizing::Increase
-                                    };
-
-                                    ($direction, sizing, adjusted.abs())
-                                }};
-                            }
-
-                            if resize.left != 0 {
-                                ops.push(resize_op!(resize.left, >, OperationDirection::Left));
-                            }
-
-                            if resize.top != 0 {
-                                ops.push(resize_op!(resize.top, >, OperationDirection::Up));
-                            }
-
-                            if resize.right != 0 && (resize.left == 0) {
-                                ops.push(resize_op!(resize.right, <, OperationDirection::Right));
-                            }
-
-                            if resize.bottom != 0 && (resize.top == 0) {
-                                ops.push(resize_op!(resize.bottom, <, OperationDirection::Down));
-                            }
-
-                            for (edge, sizing, delta) in ops {
-                                self.resize_window(edge, sizing, delta, true)?;
-                            }
-
+                        tracing::info!("resizing with mouse");
+                        if self.resize_by_drag(window_id, started_from, ended_at)? {
                             self.update_focused_workspace(false, false)?;
                         }
                     }

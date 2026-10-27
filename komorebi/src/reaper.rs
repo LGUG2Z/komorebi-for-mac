@@ -64,64 +64,98 @@ fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result<()>
             continue 'notification;
         }
 
-        match notification {
-            ReaperNotification::InvalidWindow(window_id) => {
-                let mut should_update = false;
-                for monitor in wm.monitors_mut() {
-                    for workspace in monitor.workspaces_mut() {
-                        for container in workspace.containers_mut() {
-                            container.windows_mut().retain(|w| {
-                                if w.id == window_id {
-                                    should_update = true;
-                                    tracing::info!("reaping window: {window_id}");
-                                }
+        handle_notification(&mut wm, notification, Window::is_valid)?;
+    }
 
-                                w.id != window_id
-                            });
-                        }
+    Ok(())
+}
 
-                        if let Some(container) = &mut workspace.monocle_container {
-                            container.windows_mut().retain(|w| {
-                                if w.id == window_id {
-                                    should_update = true;
-                                    tracing::info!("reaping window: {window_id}");
-                                }
-
-                                w.id != window_id
-                            });
-
-                            if container.windows().is_empty() {
-                                workspace.monocle_container = None;
-                                workspace.monocle_container_restore_idx = None;
-                            }
-                        }
-
-                        workspace.floating_windows_mut().retain(|w| {
-                            if w.id == window_id {
-                                should_update = true;
-                                tracing::info!("reaping window: {window_id}");
-                            }
-
-                            w.id != window_id
-                        });
-                    }
-                }
-
-                // If an invalid window was cleaned up, we update the workspace
-                if should_update {
-                    // If an invalid window was cleaned up, we update the workspace
-                    wm.update_focused_workspace(false, false)?;
-                    border_manager::send_notification(None, Some(window_id), true);
-                }
-            }
-            ReaperNotification::MouseUpKeyUp => {
-                // this first one will do a "nothing" update to check if any windows failed
-                // to have their positions set - the failures will trigger an InvalidWindow
-                // notification
-                // TODO: maybe replace this with something a bit more lightweight
-                wm.update_focused_workspace(false, false)?;
+pub(crate) fn handle_notification(
+    wm: &mut WindowManager,
+    notification: ReaperNotification,
+    is_valid: impl Fn(&Window) -> bool,
+) -> color_eyre::Result<()> {
+    match notification {
+        ReaperNotification::InvalidWindow(window_id) => reap_window(wm, window_id)?,
+        ReaperNotification::MouseUpKeyUp => {
+            // This must not move any window: it is handled as soon as the button goes up, ahead
+            // of the events queued for the end of a drag, and a window put back on its tile
+            // would be measured against where it was dragged from, which is backwards
+            for window_id in invalid_window_ids(wm, is_valid)? {
+                reap_window(wm, window_id)?;
             }
         }
+    }
+
+    Ok(())
+}
+
+/// The windows of the focused workspace that no longer exist
+fn invalid_window_ids(
+    wm: &WindowManager,
+    is_valid: impl Fn(&Window) -> bool,
+) -> color_eyre::Result<Vec<u32>> {
+    let workspace = wm.focused_workspace()?;
+
+    let windows = workspace
+        .containers()
+        .iter()
+        .chain(workspace.monocle_container.iter())
+        .flat_map(|container| container.windows().iter())
+        .chain(workspace.floating_windows().iter());
+
+    Ok(windows
+        .filter(|window| !is_valid(window))
+        .map(|window| window.id)
+        .collect())
+}
+
+fn reap_window(wm: &mut WindowManager, window_id: u32) -> color_eyre::Result<()> {
+    let mut should_update = false;
+    for monitor in wm.monitors_mut() {
+        for workspace in monitor.workspaces_mut() {
+            for container in workspace.containers_mut() {
+                container.windows_mut().retain(|w| {
+                    if w.id == window_id {
+                        should_update = true;
+                        tracing::info!("reaping window: {window_id}");
+                    }
+
+                    w.id != window_id
+                });
+            }
+
+            if let Some(container) = &mut workspace.monocle_container {
+                container.windows_mut().retain(|w| {
+                    if w.id == window_id {
+                        should_update = true;
+                        tracing::info!("reaping window: {window_id}");
+                    }
+
+                    w.id != window_id
+                });
+
+                if container.windows().is_empty() {
+                    workspace.monocle_container = None;
+                    workspace.monocle_container_restore_idx = None;
+                }
+            }
+
+            workspace.floating_windows_mut().retain(|w| {
+                if w.id == window_id {
+                    should_update = true;
+                    tracing::info!("reaping window: {window_id}");
+                }
+
+                w.id != window_id
+            });
+        }
+    }
+
+    // If an invalid window was cleaned up, we update the workspace
+    if should_update {
+        wm.update_focused_workspace(false, false)?;
+        border_manager::send_notification(None, Some(window_id), true);
     }
 
     Ok(())
