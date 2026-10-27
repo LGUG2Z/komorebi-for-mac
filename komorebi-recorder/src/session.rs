@@ -370,6 +370,7 @@ pub fn readme(dir: &Path, manifest: &Manifest) -> String {
          ```sh\n\
          komorebi-recorder brief {session}\n\
          komorebi-recorder guide        # how to investigate, step by step\n\
+         komorebi-recorder view {session}   # the same, in a window you can play and scrub\n\
          ```\n\n\
          Every command takes `--json`. `annotate` adds a bug region (a start, an end and what is wrong)\n\
          to `annotations.jsonl`; `state`, `diff`, `events`, `trace`, `window`, `code`, `search`,\n\

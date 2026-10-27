@@ -21,3 +21,4 @@ pub mod system_state;
 pub mod testkit;
 pub mod timecode;
 pub mod timeline;
+pub mod viewer;
