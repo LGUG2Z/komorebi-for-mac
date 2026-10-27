@@ -27,11 +27,32 @@ use objc2_core_foundation::CGFloat;
 use objc2_core_graphics::CGMainDisplayID;
 use objc2_foundation::NSPoint;
 use objc2_foundation::NSRect;
+use objc2_foundation::NSSize;
 use objc2_quartz_core::CATransaction;
 use std::ffi::c_void;
 use std::ptr::NonNull;
 use std::sync::atomic::Ordering;
 use tracing::instrument;
+
+/// The frame of the border drawn around a window with the given frame
+///
+/// The frame is in the coordinates AX uses, with the origin at the top left of the main display,
+/// and the result is in the coordinates AppKit uses, with the origin at the bottom left.
+fn border_frame(frame: Rect) -> NSRect {
+    let display = Rect::from(CoreGraphicsApi::display_bounds(CGMainDisplayID()));
+    let offset = BORDER_OFFSET.load(Ordering::Relaxed) as f64 + BORDER_OFFSET_ADJUSTMENT as f64;
+
+    NSRect::new(
+        NSPoint::new(
+            frame.left as CGFloat - offset,
+            display.bottom as CGFloat - frame.top as CGFloat - frame.bottom as CGFloat - offset,
+        ),
+        NSSize::new(
+            frame.right as CGFloat + offset * 2.0,
+            frame.bottom as CGFloat + offset * 2.0,
+        ),
+    )
+}
 
 #[instrument(skip_all)]
 unsafe extern "C-unwind" fn border_observer_callback(
@@ -48,28 +69,12 @@ unsafe extern "C-unwind" fn border_observer_callback(
             }
 
             if let Ok(rect) = MacosApi::window_rect(&border.tracking_element) {
-                let frame = Rect::from(CoreGraphicsApi::display_bounds(CGMainDisplayID()));
-                let mut ns_rect = NSRect::new(
-                    NSPoint::new(
-                        rect.origin.x,
-                        frame.bottom as CGFloat - rect.origin.y - rect.size.height,
-                    ),
-                    rect.size,
-                );
-
-                let offset =
-                    BORDER_OFFSET.load(Ordering::Relaxed) as f64 + BORDER_OFFSET_ADJUSTMENT as f64;
-
-                ns_rect.origin.x -= offset;
-                ns_rect.origin.y -= offset;
-                ns_rect.size.width += offset * 2.0;
-                ns_rect.size.height += offset * 2.0;
-
                 border.update();
-                border
-                    .ns_window
-                    .window
-                    .setFrame_display_animate(ns_rect, false, false);
+                border.ns_window.window.setFrame_display_animate(
+                    border_frame(Rect::from(rect)),
+                    false,
+                    false,
+                );
             }
         }
     }
@@ -180,6 +185,19 @@ impl Border {
         }
 
         self.tracking_element = new_element;
+    }
+
+    /// Move the border to surround a window that has just been moved
+    ///
+    /// This has to be called on the main thread.
+    pub fn follow(&self, frame: Rect) {
+        if !self.ns_window.window.isVisible() {
+            return;
+        }
+
+        self.ns_window
+            .window
+            .setFrame_display_animate(border_frame(frame), false, false);
     }
 
     pub fn update(&self) {

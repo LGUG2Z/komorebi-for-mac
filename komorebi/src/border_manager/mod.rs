@@ -5,6 +5,7 @@ use crate::AccessibilityUiElement;
 use crate::CoreFoundationRunLoop;
 use crate::accessibility::AccessibilityApi;
 use crate::border_manager::border::Border;
+use crate::core::Rect;
 use crate::core::WindowKind;
 use crate::macos_api::MacosApi;
 use crate::ring::Ring;
@@ -19,6 +20,7 @@ use dispatch2::DispatchQueue;
 use komorebi_themes::colour::Colour;
 use komorebi_themes::colour::Rgb;
 use lazy_static::lazy_static;
+use objc2::rc::autoreleasepool;
 use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
@@ -59,7 +61,17 @@ lazy_static! {
 lazy_static! {
     static ref BORDER_STATE: Mutex<HashMap<String, Box<Border>>> = Mutex::new(HashMap::new());
     static ref WINDOWS_BORDERS: Mutex<HashMap<u32, String>> = Mutex::new(HashMap::new());
+    // the latest frame of each window the animator has moved that has not been applied to a border
+    static ref PENDING_FOLLOWS: Mutex<HashMap<u32, Rect>> = Mutex::new(HashMap::new());
 }
+
+static FOLLOW_SCHEDULED: AtomicBool = AtomicBool::new(false);
+
+/// How many times in a row applying the frames has had to be put off because the borders were busy
+static FOLLOW_DEFERRALS: AtomicU32 = AtomicU32::new(0);
+
+/// How many times applying the frames is put off before they are given up on
+const MAX_FOLLOW_DEFERRALS: u32 = 50;
 
 pub enum Notification {
     // NOTE: bool should only ever be set to true by the reaper
@@ -107,6 +119,66 @@ pub fn send_notification(
     {
         tracing::warn!("channel is full; dropping notification")
     }
+}
+
+/// Move the border around a window to follow the window while the animator moves it
+///
+/// This is called from the animator's threads once for every frame it writes. The frames are handed
+/// to the main thread in batches, where only the latest frame of each window is applied.
+pub fn follow(window_id: u32, frame: Rect) {
+    if !BORDER_ENABLED.load_consume() {
+        return;
+    }
+
+    PENDING_FOLLOWS.lock().insert(window_id, frame);
+
+    if !FOLLOW_SCHEDULED.swap(true, Ordering::AcqRel) {
+        DispatchQueue::main().exec_async(apply_follows);
+    }
+}
+
+fn apply_follows() {
+    FOLLOW_SCHEDULED.store(false, Ordering::Release);
+
+    let frames = std::mem::take(&mut *PENDING_FOLLOWS.lock());
+
+    // the border thread holds these while it creates borders, which it does by waiting for the main
+    // thread, which is where this runs: waiting for them here would deadlock. Instead the frames
+    // are put back, behind any newer ones, and this is tried again on the next turn of the main
+    // thread, by which time the border thread has been let go
+    let (Some(borders), Some(windows_borders)) =
+        (BORDER_STATE.try_lock(), WINDOWS_BORDERS.try_lock())
+    else {
+        if FOLLOW_DEFERRALS.fetch_add(1, Ordering::Relaxed) < MAX_FOLLOW_DEFERRALS {
+            let mut pending = PENDING_FOLLOWS.lock();
+
+            for (window_id, frame) in frames {
+                pending.entry(window_id).or_insert(frame);
+            }
+
+            drop(pending);
+
+            if !FOLLOW_SCHEDULED.swap(true, Ordering::AcqRel) {
+                DispatchQueue::main().exec_async(apply_follows);
+            }
+        } else {
+            FOLLOW_DEFERRALS.store(0, Ordering::Relaxed);
+        }
+
+        return;
+    };
+
+    FOLLOW_DEFERRALS.store(0, Ordering::Relaxed);
+
+    autoreleasepool(|_| {
+        for (window_id, frame) in frames {
+            if let Some(border_id) = windows_borders.get(&window_id)
+                && let Some(border) = borders.get(border_id)
+            {
+                border.follow(frame);
+            }
+        }
+    });
 }
 
 pub fn destroy_all_borders() -> eyre::Result<()> {
