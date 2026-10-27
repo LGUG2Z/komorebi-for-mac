@@ -446,20 +446,19 @@ impl Window {
         Ok(())
     }
 
-    /// Hide a window that has scrolled out of view in the Scrolling layout
+    /// Take a window that has scrolled out of view in the Scrolling layout out of the way
     ///
-    /// With animations on, the window slides out sideways to the edge of the screen it left by, and
-    /// is parked in the corner once it is out of sight. Without them it is hidden straight away, as
-    /// with [`Window::hide`].
+    /// The window comes to rest at the edge of the screen that it left by, with a sliver of it on
+    /// screen. It keeps its size and its height up the screen, so bringing it back is a matter of
+    /// moving it. With animations on it slides there.
+    ///
+    /// Where a neighbouring display would show the window at the edge, it is hidden in the corner
+    /// of the screen instead, as with [`Window::hide`].
     #[tracing::instrument(skip_all)]
     pub fn hide_scrolling(
         &mut self,
         hiding_position: WindowHidingPosition,
     ) -> Result<(), AccessibilityError> {
-        let Some(motion) = animation::motion_for(AnimationPrefix::Movement) else {
-            return self.hide(hiding_position);
-        };
-
         // nothing to do for a window that is already out of the way on this side, which keeps
         // every layout update from sending it on the same trip again
         let mut parked_at = PARKED_WINDOWS.lock().get(&self.id).copied();
@@ -475,13 +474,12 @@ impl Window {
             return Ok(());
         }
 
-        if parked_at.is_some() {
-            // it has to change sides, and sliding across the whole screen would only be seen
-            self.hide(hiding_position)?;
-            PARKED_WINDOWS.lock().insert(self.id, hiding_position);
-
-            return Ok(());
-        }
+        // a window that has to change sides would be seen sliding across the whole screen, so it
+        // goes straight to the other edge
+        let motion = match parked_at {
+            Some(_) => None,
+            None => animation::motion_for(AnimationPrefix::Movement),
+        };
 
         let rect = match animator::target(self.id) {
             Some(target) => CGRect::from(target),
@@ -494,7 +492,7 @@ impl Window {
 
         let edge = scrolling_edge_sliver(screen, rect, hiding_position);
 
-        // sliding out towards a neighbouring display would be seen there
+        // resting at the edge next to a neighbouring display would be seen there
         if is_visible_on_another_display(edge, screen) {
             self.hide(hiding_position)?;
             PARKED_WINDOWS.lock().insert(self.id, hiding_position);
@@ -506,22 +504,28 @@ impl Window {
             entry.insert(rect);
         }
 
-        let handle = WindowHandle {
-            element: self.element.clone(),
-            app: self.application.element().clone(),
-        };
+        match motion {
+            Some(motion) => {
+                let handle = WindowHandle {
+                    element: self.element.clone(),
+                    app: self.application.element().clone(),
+                };
 
-        animator::retarget(
-            &Journey {
-                window_id: self.id,
-                pid: self.application.process_id,
-                handle,
-                target: Rect::from(edge),
-                motion,
-                after: Some(Rect::from(hidden_frame(hiding_position, screen, rect.size))),
-            },
-            || Ok(Rect::from(rect)),
-        )?;
+                animator::retarget(
+                    &Journey {
+                        window_id: self.id,
+                        pid: self.application.process_id,
+                        handle,
+                        target: Rect::from(edge),
+                        motion,
+                        // and it stays where it stops
+                        after: None,
+                    },
+                    || Ok(Rect::from(rect)),
+                )?;
+            }
+            None => self.set_point(edge.origin, true)?,
+        }
 
         PARKED_WINDOWS.lock().insert(self.id, hiding_position);
 
@@ -655,7 +659,11 @@ impl Window {
                 self.slide_in_from_edge(rect);
                 self.set_position_animated(rect, motion)
             }
-            None => self.set_position_direct(rect),
+            None => {
+                // nothing is going to slide it in, so nothing else is going to say that it is back
+                PARKED_WINDOWS.lock().remove(&self.id);
+                self.set_position_direct(rect)
+            }
         }
     }
 
