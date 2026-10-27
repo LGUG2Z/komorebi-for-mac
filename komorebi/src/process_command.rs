@@ -29,7 +29,6 @@ use crate::core::MonocleFocusBehaviour;
 use crate::core::MoveBehaviour;
 use crate::core::OperationDirection;
 use crate::core::Rect;
-use crate::core::ScrollingLayoutOptions;
 use crate::core::SocketMessage;
 use crate::core::StateQuery;
 use crate::core::WindowContainerBehaviour;
@@ -1493,28 +1492,8 @@ impl WindowManager {
                 self.adjust_workspace_padding(sizing, adjustment)?;
             }
             SocketMessage::ScrollingLayoutColumns(count) => {
-                let focused_workspace = self.focused_workspace_mut()?;
-
-                let options = match focused_workspace.layout_options {
-                    Some(mut opts) => {
-                        if let Some(scrolling) = &mut opts.scrolling {
-                            scrolling.columns = count.into();
-                        }
-
-                        opts
-                    }
-                    None => LayoutOptions {
-                        scrolling: Some(ScrollingLayoutOptions {
-                            columns: count.into(),
-                            center_focused_column: Default::default(),
-                        }),
-                        grid: None,
-                        column_ratios: None,
-                        row_ratios: None,
-                    },
-                };
-
-                focused_workspace.layout_options = Some(options);
+                self.focused_workspace_mut()?
+                    .set_scrolling_columns(count.into());
                 self.update_focused_workspace(false, false)?;
             }
             SocketMessage::LayoutRatios(ref columns, ref rows) => {

@@ -9,6 +9,7 @@ use crate::core::LayoutDefaultEntry;
 use crate::core::LayoutOptions;
 use crate::core::OperationDirection;
 use crate::core::Rect;
+use crate::core::ScrollingLayoutOptions;
 use crate::core::SocketMessage;
 use crate::core::WindowContainerBehaviour;
 use crate::core::WindowHidingPosition;
@@ -1308,6 +1309,28 @@ impl Workspace {
         } else {
             &self.latest_layout
         }
+    }
+
+    /// Set how many columns the Scrolling layout shows at once, keeping every other layout option.
+    pub fn set_scrolling_columns(&mut self, columns: usize) {
+        let mut options = self.layout_options.unwrap_or(LayoutOptions {
+            scrolling: None,
+            grid: None,
+            column_ratios: None,
+            row_ratios: None,
+        });
+
+        match &mut options.scrolling {
+            Some(scrolling) => scrolling.columns = columns,
+            None => {
+                options.scrolling = Some(ScrollingLayoutOptions {
+                    columns,
+                    center_focused_column: None,
+                });
+            }
+        }
+
+        self.layout_options = Some(options);
     }
 
     /// Ask the layout for where every container goes, before the result is clamped to the work area.
@@ -2936,11 +2959,67 @@ mod tests {
         assert!(layout.right <= 0);
     }
 
+    #[test]
+    fn test_set_scrolling_columns() {
+        let columns_of = |workspace: &Workspace| {
+            workspace
+                .layout_options
+                .and_then(|options| options.scrolling)
+                .map(|scrolling| scrolling.columns)
+        };
+
+        // a workspace that has no layout options at all
+        let mut workspace = Workspace::default();
+        workspace.set_scrolling_columns(4);
+        assert_eq!(columns_of(&workspace), Some(4));
+
+        // layout options for something else must not swallow the change
+        let ratios = crate::core::validate_ratios(&[0.6]);
+        let mut workspace = Workspace {
+            layout_options: Some(LayoutOptions {
+                scrolling: None,
+                grid: None,
+                column_ratios: Some(ratios),
+                row_ratios: None,
+            }),
+            ..Default::default()
+        };
+        workspace.set_scrolling_columns(4);
+        assert_eq!(columns_of(&workspace), Some(4));
+        assert_eq!(
+            workspace.layout_options.and_then(|o| o.column_ratios),
+            Some(ratios)
+        );
+
+        // existing scrolling options keep their other settings
+        let mut workspace = Workspace {
+            layout_options: Some(LayoutOptions {
+                scrolling: Some(ScrollingLayoutOptions {
+                    columns: 2,
+                    center_focused_column: Some(true),
+                }),
+                grid: None,
+                column_ratios: None,
+                row_ratios: None,
+            }),
+            ..Default::default()
+        };
+        workspace.set_scrolling_columns(5);
+        assert_eq!(columns_of(&workspace), Some(5));
+        assert_eq!(
+            workspace
+                .layout_options
+                .and_then(|o| o.scrolling)
+                .and_then(|s| s.center_focused_column),
+            Some(true)
+        );
+    }
+
     fn scrolling_workspace(containers: usize, columns: usize) -> Workspace {
         let mut workspace = Workspace {
             layout: Layout::Default(DefaultLayout::Scrolling),
             layout_options: Some(LayoutOptions {
-                scrolling: Some(crate::core::ScrollingLayoutOptions {
+                scrolling: Some(ScrollingLayoutOptions {
                     columns,
                     center_focused_column: None,
                 }),
