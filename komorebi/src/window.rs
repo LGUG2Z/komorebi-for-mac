@@ -70,6 +70,7 @@ use objc2_core_foundation::CFRunLoop;
 use objc2_core_foundation::CFString;
 use objc2_core_foundation::CGFloat;
 use objc2_core_foundation::CGPoint;
+use objc2_core_foundation::CGRect;
 use objc2_core_foundation::CGSize;
 use objc2_core_graphics::kCGWindowAlpha;
 use objc2_core_graphics::kCGWindowBounds;
@@ -403,7 +404,12 @@ impl Window {
         &mut self,
         hiding_position: WindowHidingPosition,
     ) -> Result<(), AccessibilityError> {
-        let rect = MacosApi::window_rect(&self.element)?;
+        // a window that is on its way somewhere is restored to where it was going, not to wherever
+        // it happened to be when it was hidden
+        let rect = match animator::take_over(self.id) {
+            Some(target) => CGRect::from(target),
+            None => MacosApi::window_rect(&self.element)?,
+        };
 
         let mut window_restore_positions = WINDOW_RESTORE_POSITIONS.lock();
         if let Entry::Vacant(entry) = window_restore_positions.entry(self.id) {
@@ -451,6 +457,9 @@ impl Window {
 
     #[tracing::instrument(skip_all)]
     pub fn restore(&mut self) -> Result<(), AccessibilityError> {
+        // waiting for what is on its way to the window is not something to do with a lock held
+        animator::take_over(self.id);
+
         let mut should_remove_restore_position = false;
         let mut window_restore_positions = WINDOW_RESTORE_POSITIONS.lock();
         if let Some(cg_rect) = window_restore_positions.get(&self.id) {
@@ -660,6 +669,9 @@ impl Window {
     }
 
     pub fn set_point(&self, point: CGPoint, should_reap: bool) -> Result<(), AccessibilityError> {
+        // anything that is animating this window has to stop before it is written to directly
+        animator::take_over(self.id);
+
         let result = AccessibilityApi::set_attribute_ax_value(
             &self.element,
             kAXPositionAttribute,
@@ -675,6 +687,8 @@ impl Window {
     }
 
     pub fn set_size(&self, size: CGSize, should_reap: bool) -> Result<(), AccessibilityError> {
+        animator::take_over(self.id);
+
         let result = AccessibilityApi::set_attribute_ax_value(
             &self.element,
             kAXSizeAttribute,
