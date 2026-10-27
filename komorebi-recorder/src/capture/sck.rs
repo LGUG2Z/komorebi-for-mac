@@ -216,6 +216,13 @@ pub fn media_duration_s(path: &Path) -> Option<f64> {
         .then(|| duration.value as f64 / f64::from(duration.timescale))
 }
 
+/// Whether a running application is this recorder or another komorebi-recorder process, which
+/// should be left out of the capture.
+#[must_use]
+pub fn is_recorder_application(pid: i32, name: &str, own_pid: i32) -> bool {
+    pid == own_pid || name.eq_ignore_ascii_case("komorebi-recorder")
+}
+
 /// The displays that are attached and drawable right now, from CoreGraphics.
 ///
 /// This is deliberately not ScreenCaptureKit: it is synchronous and cheap enough to poll several
@@ -613,11 +620,19 @@ impl DisplayCapture {
                     ))
                 })?;
 
+            // this process, and any other komorebi-recorder (the viewer is its own process and is
+            // often open beside a recording): neither belongs in the video
             let own_pid = std::process::id() as i32;
             let own_apps: Vec<Retained<SCRunningApplication>> = content
                 .applications()
                 .iter()
-                .filter(|app| app.processID() == own_pid)
+                .filter(|app| {
+                    is_recorder_application(
+                        app.processID(),
+                        &app.applicationName().to_string(),
+                        own_pid,
+                    )
+                })
                 .collect();
 
             (sc_display, own_apps)
@@ -990,5 +1005,23 @@ fn create_writer(
 
         writer.addInput(&input);
         Ok((writer, input))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn every_recorder_process_is_left_out_of_the_capture_and_nothing_else() {
+        // this process, by pid
+        assert!(is_recorder_application(42, "whatever", 42));
+        // another recorder (a viewer opened beside a recording), by name
+        assert!(is_recorder_application(7, "komorebi-recorder", 42));
+        assert!(is_recorder_application(7, "Komorebi-Recorder", 42));
+        // other applications, including komorebi itself and similarly named ones
+        assert!(!is_recorder_application(7, "komorebi", 42));
+        assert!(!is_recorder_application(7, "komorebi-recorder-helper", 42));
+        assert!(!is_recorder_application(7, "Ghostty", 42));
     }
 }
