@@ -77,6 +77,8 @@ Focus and move commands know about columns:
 - A column keeps its width, and a [stack](../cli/stack.md) is still one tile showing one of its windows, as in any layout.
 
 A column that you resized, or made the full width of the screen, keeps that as windows are added to it or taken out.
+A window that you move to another workspace or monitor is a column of its own there, and keeps the width of the column
+that it was in.
 
 ## Heights
 
@@ -158,7 +160,6 @@ arranged above and below each other rather than side by side, none of this appli
 
 These are not done yet.
 
-- Moving a window to another workspace or monitor makes it a column of its own with the default width.
 - Switching to another layout and back keeps the widths, but a column whose windows were moved past each other in the
   other layout is made again from the order that they are in.
 - Every window has a border, including the windows resting at the edges, so you may see a thin line of one at the edge

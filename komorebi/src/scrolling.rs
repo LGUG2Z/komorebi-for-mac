@@ -29,6 +29,8 @@ use komorebi_layouts::scrolling::ScrollingPlacement;
 use komorebi_layouts::scrolling::model::Options;
 use komorebi_layouts::scrolling::model::Viewport;
 use komorebi_layouts::scrolling::model::Visibility;
+use komorebi_layouts::scrolling::note_departure;
+use komorebi_layouts::scrolling::tell_of_arrivals;
 use objc2_core_foundation::CGRect;
 
 /// What the layout options of a workspace come to for the model.
@@ -63,6 +65,17 @@ impl Workspace {
         );
     }
 
+    /// Say what the column of the container at this index was given, as it is about to be taken
+    /// out of the workspace, for the workspace that it is put in to find.
+    pub(crate) fn note_scrolling_departure(&self, idx: usize) {
+        if let Some(space) = &self.scrolling
+            && let Some(container) = self.containers().get(idx)
+            && let Some(record) = space.column_record(&container.id)
+        {
+            note_departure(&container.id, record);
+        }
+    }
+
     /// Make the space match the containers and the focus as they are now, for a space that is
     /// there to be made to match.
     ///
@@ -80,6 +93,7 @@ impl Workspace {
             .map(|container| container.id.clone());
 
         if let Some(space) = self.scrolling.as_mut() {
+            tell_of_arrivals(space, &ids);
             space.reconcile(&ids, focused.as_ref());
         }
     }
@@ -1348,6 +1362,78 @@ mod tests {
         workspace.resize_scrolling_column(OperationDirection::Up, Sizing::Decrease, 200);
 
         assert_eq!(workspace.layout_scrolling(&AREA, 0), before);
+    }
+
+    #[test]
+    fn a_window_that_is_moved_to_another_workspace_is_as_wide_as_it_was() {
+        let mut from = workspace_of_windows_from(3, 120, 3);
+        from.focus_container(1);
+        from.layout_scrolling(&AREA, 0);
+        from.resize_scrolling_column(OperationDirection::Right, Sizing::Increase, 200);
+        assert_eq!(widths(&from.layout_scrolling(&AREA, 0))[1], 500);
+
+        let mut to = workspace_of_windows_from(3, 130, 2);
+        to.layout_scrolling(&AREA, 0);
+
+        // the way that the window manager does it: out of one, and into the other
+        let idx = from.focused_container_idx();
+        let container = from.remove_container_by_idx(idx).unwrap();
+        to.add_container_to_back(container);
+
+        assert_eq!(widths(&to.layout_scrolling(&AREA, 0)), [400, 400, 500]);
+    }
+
+    #[test]
+    fn what_a_window_was_given_is_used_by_the_workspace_that_gets_it_and_by_no_other() {
+        let mut from = workspace_of_windows_from(3, 140, 2);
+        from.focus_container(0);
+        from.layout_scrolling(&AREA, 0);
+        from.resize_scrolling_column(OperationDirection::Right, Sizing::Increase, 200);
+
+        let container = from.remove_container_by_idx(0).unwrap();
+        let mut to = workspace_of_windows_from(3, 150, 1);
+        to.add_container_to_back(container.clone());
+        assert_eq!(widths(&to.layout_scrolling(&AREA, 0)), [400, 500]);
+
+        // a workspace that is given the same container afterwards is not told what the first one
+        // was, which it took
+        let mut other = workspace_of_windows_from(3, 155, 1);
+        other.add_container_to_back(container);
+        assert_eq!(widths(&other.layout_scrolling(&AREA, 0)), [400, 400]);
+    }
+
+    #[test]
+    fn a_window_that_is_moved_on_takes_what_it_has_where_it_is_now() {
+        let mut from = workspace_of_windows_from(3, 180, 2);
+        from.focus_container(0);
+        from.layout_scrolling(&AREA, 0);
+        from.resize_scrolling_column(OperationDirection::Right, Sizing::Increase, 200);
+
+        let container = from.remove_container_by_idx(0).unwrap();
+        let mut to = workspace_of_windows_from(3, 190, 1);
+        to.add_container_to_back(container);
+        to.layout_scrolling(&AREA, 0);
+        to.resize_scrolling_column(OperationDirection::Right, Sizing::Increase, 200);
+        assert_eq!(widths(&to.layout_scrolling(&AREA, 0)), [400, 600]);
+
+        let container = to.remove_container_by_idx(1).unwrap();
+        let mut third = workspace_of_windows_from(3, 195, 1);
+        third.add_container_to_back(container);
+
+        assert_eq!(widths(&third.layout_scrolling(&AREA, 0)), [400, 600]);
+    }
+
+    #[test]
+    fn a_window_that_was_not_laid_out_where_it_was_has_nothing_to_take() {
+        let mut from = workspace_of_windows_from(3, 160, 2);
+        let mut to = workspace_of_windows_from(3, 170, 1);
+        to.layout_scrolling(&AREA, 0);
+
+        // there was never a strip to ask
+        let container = from.remove_container_by_idx(0).unwrap();
+        to.add_container_to_back(container);
+
+        assert_eq!(widths(&to.layout_scrolling(&AREA, 0)), [400, 400]);
     }
 
     #[test]

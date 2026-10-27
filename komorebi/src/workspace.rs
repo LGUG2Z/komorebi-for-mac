@@ -701,6 +701,9 @@ impl Workspace {
     // this fn respects locked container indexes - we should use it for pretty much everything
     // except monocle and maximize toggles
     pub fn remove_container_by_idx(&mut self, idx: usize) -> Option<Container> {
+        // wherever it goes next, it goes as wide as it was
+        self.note_scrolling_departure(idx);
+
         let container = self.containers_mut().remove_respecting_locks(idx);
 
         if idx < self.resize_dimensions.len() {
