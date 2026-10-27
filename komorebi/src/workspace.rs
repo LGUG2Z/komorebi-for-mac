@@ -64,6 +64,11 @@ pub struct Workspace {
     pub workspace_padding: Option<i32>,
     pub container_padding: Option<i32>,
     pub latest_layout: Vec<Rect>,
+    /// The most recent layout exactly as the arrangement algorithm produced it, before it was
+    /// clamped to the work area. The Scrolling layout derives its viewport from the previous
+    /// layout, which only works if that layout still says where the off-screen columns are.
+    #[serde(skip)]
+    pub scrolling_viewport_layout: Vec<Rect>,
     pub resize_dimensions: Vec<Option<Rect>>,
     pub tile: bool,
     pub work_area_offset: Option<Rect>,
@@ -121,6 +126,7 @@ impl Default for Workspace {
             work_area_offset: None,
             work_area_offset_rules: vec![],
             latest_layout: vec![],
+            scrolling_viewport_layout: vec![],
             layout_flip: None,
             layout_options: None,
             layout_rules: vec![],
@@ -1260,7 +1266,89 @@ impl Workspace {
     }
 }
 
+/// Clamp a layout rect to the work area so that a window never bleeds into an adjacent monitor.
+///
+/// A rect that lies entirely outside the work area is left with an empty or negative size, so a
+/// clamped rect says where a window is going to be drawn, not where its column sits in the strip.
+pub(crate) fn clamp_to_work_area(layout: &mut Rect, work_area: &Rect) {
+    // horizontal
+    if layout.left < work_area.left {
+        layout.right -= work_area.left - layout.left;
+        layout.left = work_area.left;
+    }
+    let max_right_edge = work_area.left + work_area.right;
+    let current_right_edge = layout.left + layout.right;
+    if current_right_edge > max_right_edge {
+        layout.right = max_right_edge - layout.left;
+    }
+
+    // vertical
+    if layout.top < work_area.top {
+        layout.bottom -= work_area.top - layout.top;
+        layout.top = work_area.top;
+    }
+    let max_bottom_edge = work_area.top + work_area.bottom;
+    let current_bottom_edge = layout.top + layout.bottom;
+    if current_bottom_edge > max_bottom_edge {
+        layout.bottom = max_bottom_edge - layout.top;
+    }
+}
+
 impl Workspace {
+    /// The previous layout, as it is handed back to the arrangement algorithm.
+    ///
+    /// The Scrolling layout works out which column was first in view from where the previous
+    /// layout put its columns, so it has to see them where the algorithm placed them. The layout
+    /// in `latest_layout` has been clamped to the work area (see [`clamp_to_work_area`]), which
+    /// pulls every off-screen column on to the left edge and makes the strip look like it has
+    /// never scrolled.
+    pub fn layout_feedback(&self) -> &[Rect] {
+        if matches!(self.layout, Layout::Default(DefaultLayout::Scrolling)) {
+            &self.scrolling_viewport_layout
+        } else {
+            &self.latest_layout
+        }
+    }
+
+    /// Ask the layout for where every container goes, before the result is clamped to the work area.
+    fn calculate_layouts(
+        &mut self,
+        work_area: &Rect,
+        container_padding: Option<i32>,
+    ) -> eyre::Result<Vec<Rect>> {
+        let effective_layout_options = self.effective_layout_options();
+
+        tracing::debug!(
+            "Workspace '{}' update() - effective_layout_options: {:?} (base: {:?}, rules: {})",
+            self.name.as_deref().unwrap_or("unnamed"),
+            effective_layout_options,
+            self.layout_options,
+            self.layout_options_rules.len(),
+        );
+
+        let layouts = self.layout.as_boxed_arrangement().calculate(
+            work_area,
+            NonZeroUsize::new(self.containers().len()).ok_or_eyre(
+                "there must be at least one container to calculate a workspace layout",
+            )?,
+            container_padding,
+            self.layout_flip,
+            &self.resize_dimensions,
+            self.focused_container_idx(),
+            effective_layout_options,
+            self.layout_feedback(),
+        );
+
+        if matches!(self.layout, Layout::Default(DefaultLayout::Scrolling)) {
+            self.scrolling_viewport_layout = layouts.clone();
+        } else {
+            // a layout from another algorithm says nothing about where Scrolling left its columns
+            self.scrolling_viewport_layout.clear();
+        }
+
+        Ok(layouts)
+    }
+
     pub fn update(&mut self) -> eyre::Result<()> {
         // make sure we are never holding on to empty containers
         self.prune_duplicate_windows()?;
@@ -1380,27 +1468,8 @@ impl Workspace {
                         window.set_position(&adjusted_work_area)?;
                     };
                 } else if !self.containers().is_empty() {
-                    let effective_layout_options = self.effective_layout_options();
-
-                    tracing::debug!(
-                        "Workspace '{}' update() - effective_layout_options: {:?} (base: {:?}, rules: {})",
-                        self.name.as_deref().unwrap_or("unnamed"),
-                        effective_layout_options,
-                        self.layout_options,
-                        self.layout_options_rules.len(),
-                    );
-                    let mut layouts = self.layout.as_boxed_arrangement().calculate(
-                        &adjusted_work_area,
-                        NonZeroUsize::new(self.containers().len()).ok_or_eyre(
-                            "there must be at least one container to calculate a workspace layout",
-                        )?,
-                        Some(container_padding),
-                        self.layout_flip,
-                        &self.resize_dimensions,
-                        self.focused_container_idx(),
-                        effective_layout_options,
-                        &self.latest_layout,
-                    );
+                    let mut layouts =
+                        self.calculate_layouts(&adjusted_work_area, Some(container_padding))?;
 
                     let is_scrolling =
                         matches!(self.layout, Layout::Default(DefaultLayout::Scrolling));
@@ -1411,29 +1480,7 @@ impl Workspace {
                     for (i, container) in containers.iter_mut().enumerate() {
                         if let Some(layout) = layouts.get_mut(i) {
                             // clamp layout to work area boundaries to prevent bleeding into adjacent monitors
-
-                            // horizontal
-                            if layout.left < adjusted_work_area.left {
-                                layout.right -= adjusted_work_area.left - layout.left;
-                                layout.left = adjusted_work_area.left;
-                            }
-                            let max_right_edge = adjusted_work_area.left + adjusted_work_area.right;
-                            let current_right_edge = layout.left + layout.right;
-                            if current_right_edge > max_right_edge {
-                                layout.right = max_right_edge - layout.left;
-                            }
-
-                            // vertical
-                            if layout.top < adjusted_work_area.top {
-                                layout.bottom -= adjusted_work_area.top - layout.top;
-                                layout.top = adjusted_work_area.top;
-                            }
-                            let max_bottom_edge =
-                                adjusted_work_area.top + adjusted_work_area.bottom;
-                            let current_bottom_edge = layout.top + layout.bottom;
-                            if current_bottom_edge > max_bottom_edge {
-                                layout.bottom = max_bottom_edge - layout.top;
-                            }
+                            clamp_to_work_area(layout, &adjusted_work_area);
 
                             layout.add_padding(border_offset);
                             layout.add_padding(border_width);
@@ -2837,5 +2884,146 @@ mod tests {
             "Container 1 right edge ({}) should not exceed monitor width (5120)",
             container1_right_edge
         );
+    }
+
+    #[test]
+    fn test_clamp_to_work_area() {
+        let work_area = Rect {
+            left: 100,
+            top: 50,
+            right: 1000,
+            bottom: 600,
+        };
+
+        // partly past the left edge: the part inside the work area is what remains
+        let mut layout = Rect {
+            left: 0,
+            top: 50,
+            right: 400,
+            bottom: 600,
+        };
+        clamp_to_work_area(&mut layout, &work_area);
+        assert_eq!(
+            layout,
+            Rect {
+                left: 100,
+                top: 50,
+                right: 300,
+                bottom: 600
+            }
+        );
+
+        // partly past the right edge
+        let mut layout = Rect {
+            left: 900,
+            top: 50,
+            right: 400,
+            bottom: 600,
+        };
+        clamp_to_work_area(&mut layout, &work_area);
+        assert_eq!(layout.left, 900);
+        assert_eq!(layout.right, 200);
+
+        // entirely past the left edge: no visible area is left, and the size goes negative
+        let mut layout = Rect {
+            left: -500,
+            top: 50,
+            right: 400,
+            bottom: 600,
+        };
+        clamp_to_work_area(&mut layout, &work_area);
+        assert_eq!(layout.left, 100);
+        assert!(layout.right <= 0);
+    }
+
+    fn scrolling_workspace(containers: usize, columns: usize) -> Workspace {
+        let mut workspace = Workspace {
+            layout: Layout::Default(DefaultLayout::Scrolling),
+            layout_options: Some(LayoutOptions {
+                scrolling: Some(crate::core::ScrollingLayoutOptions {
+                    columns,
+                    center_focused_column: None,
+                }),
+                grid: None,
+                column_ratios: None,
+                row_ratios: None,
+            }),
+            ..Default::default()
+        };
+
+        for _ in 0..containers {
+            workspace.add_container_to_back(Container::default());
+        }
+        workspace.resize_dimensions = vec![None; containers];
+
+        workspace
+    }
+
+    /// Lay out a workspace the way `Workspace::update` does between two focus changes: ask the
+    /// layout, clamp the result to the work area, and remember it for the next pass. Returns the
+    /// layout as the arrangement algorithm produced it.
+    fn scrolling_update(workspace: &mut Workspace, work_area: &Rect) -> Vec<Rect> {
+        let layouts = workspace.calculate_layouts(work_area, Some(10)).unwrap();
+
+        let mut clamped = layouts.clone();
+        for layout in &mut clamped {
+            clamp_to_work_area(layout, work_area);
+        }
+        workspace.latest_layout = clamped;
+
+        layouts
+    }
+
+    /// The columns that lie completely inside the work area.
+    fn fully_visible(layouts: &[Rect], work_area: &Rect) -> Vec<usize> {
+        layouts
+            .iter()
+            .enumerate()
+            .filter(|(_, layout)| {
+                layout.left >= work_area.left
+                    && layout.left + layout.right <= work_area.left + work_area.right
+            })
+            .map(|(idx, _)| idx)
+            .collect()
+    }
+
+    #[test]
+    fn test_scrolling_view_stays_put_while_focus_moves_within_it() {
+        let work_area = Rect {
+            left: 0,
+            top: 0,
+            right: 1200,
+            bottom: 800,
+        };
+        let mut workspace = scrolling_workspace(6, 3);
+
+        // focusing the last column scrolls it in as the rightmost of three
+        workspace.focus_container(5);
+        let initial = scrolling_update(&mut workspace, &work_area);
+        assert_eq!(fully_visible(&initial, &work_area), vec![3, 4, 5]);
+
+        // moving focus left across columns that are already in view must not scroll the strip
+        for idx in [4, 3] {
+            workspace.focus_container(idx);
+            let layout = scrolling_update(&mut workspace, &work_area);
+            assert_eq!(layout, initial, "focusing column {idx} scrolled the view");
+        }
+
+        // leaving the view on the left scrolls just far enough to bring the column in
+        workspace.focus_container(2);
+        let scrolled = scrolling_update(&mut workspace, &work_area);
+        assert_eq!(fully_visible(&scrolled, &work_area), vec![2, 3, 4]);
+
+        // and moving right within the new view leaves it where it is
+        for idx in [3, 4] {
+            workspace.focus_container(idx);
+            let layout = scrolling_update(&mut workspace, &work_area);
+            assert_eq!(layout, scrolled, "focusing column {idx} scrolled the view");
+        }
+
+        // leaving the view on the right scrolls just far enough, too
+        workspace.focus_container(5);
+        let layout = scrolling_update(&mut workspace, &work_area);
+        assert_eq!(fully_visible(&layout, &work_area), vec![3, 4, 5]);
     }
 }

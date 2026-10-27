@@ -1589,7 +1589,7 @@ impl WindowManager {
                                 &[],
                                 workspace.focused_container_idx(),
                                 workspace.layout_options,
-                                &workspace.latest_layout,
+                                workspace.layout_feedback(),
                             );
 
                             let mut direction = direction;
