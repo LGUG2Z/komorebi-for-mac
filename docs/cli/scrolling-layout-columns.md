@@ -1,13 +1,13 @@
 # scrolling-layout-columns
 
 ```
-Set the number of visible columns for the Scrolling layout on the focused workspace
+Set how many columns fit across the Scrolling layout on the focused workspace
 
 Usage: komorebic scrolling-layout-columns <COUNT>
 
 Arguments:
   <COUNT>
-          Desired number of visible columns
+          Number of columns that fit across the screen
 
 Options:
   -h, --help

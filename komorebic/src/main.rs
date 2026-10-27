@@ -624,7 +624,7 @@ struct EagerFocus {
 
 #[derive(Parser)]
 struct ScrollingLayoutColumns {
-    /// Desired number of visible columns
+    /// Number of columns that fit across the screen
     count: NonZeroUsize,
 }
 
@@ -983,7 +983,7 @@ enum SubCommand {
     /// Cycle between available layouts
     #[clap(arg_required_else_help = true)]
     CycleLayout(CycleLayout),
-    /// Set the number of visible columns for the Scrolling layout on the focused workspace
+    /// Set how many columns fit across the Scrolling layout on the focused workspace
     #[clap(arg_required_else_help = true)]
     ScrollingLayoutColumns(ScrollingLayoutColumns),
     /// Set the layout column and row ratios for the focused workspace
