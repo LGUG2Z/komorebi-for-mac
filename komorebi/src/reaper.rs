@@ -1,4 +1,3 @@
-use crate::TABBED_APPLICATIONS;
 use crate::accessibility::AccessibilityApi;
 use crate::accessibility::error::AccessibilityError;
 use crate::border_manager;
@@ -6,6 +5,7 @@ use crate::window::Window;
 use crate::window_manager::WindowManager;
 use crossbeam_channel::Receiver;
 use crossbeam_channel::Sender;
+use objc2_application_services::AXUIElement;
 use objc2_core_foundation::CFBoolean;
 use parking_lot::Mutex;
 use std::sync::Arc;
@@ -165,36 +165,36 @@ pub fn notify_on_error(
     window: &Window,
     result: Result<(), AccessibilityError>,
 ) -> Result<(), AccessibilityError> {
-    if let Err(_error) = &result {
-        let mut should_reap = true;
-        let tabbed_applications = TABBED_APPLICATIONS.lock();
-        if tabbed_applications.contains(&window.application.name().unwrap_or_default())
-            && window.is_valid()
-        {
-            should_reap = false;
-        }
-
-        if let Some(is_fullscreen) =
-            AccessibilityApi::copy_attribute_value::<CFBoolean>(&window.element, "AXFullScreen")
-            && is_fullscreen.as_bool()
-        {
-            tracing::debug!(
-                "skipping reap for fullscreen window {} during position update failure",
-                window.id
-            );
-            should_reap = false;
-        }
-
-        // calibre does some weird stuff when pressing on the menu options which cause
-        // layout updates to fail, I guess we should also do a generic is_valid check here
-        if window.is_valid() {
-            should_reap = false;
-        }
-
-        if should_reap {
-            send_notification(ReaperNotification::InvalidWindow(window.id));
-        }
+    if result.is_err() {
+        notify_if_gone(window.id, &window.element);
     }
 
     result
+}
+
+/// Tell the reaper about a window if a failure to write to it was because it no longer exists
+///
+/// Returns whether the window is gone.
+pub fn notify_if_gone(window_id: u32, element: &AXUIElement) -> bool {
+    // calibre does some weird stuff when pressing on the menu options which cause layout updates to
+    // fail, and tabbed applications hand out elements for tabs that then stop being valid while the
+    // window carries on: a window whose element still answers is never reaped
+    if AccessibilityApi::copy_attribute_names(element).is_some() {
+        return false;
+    }
+
+    if let Some(is_fullscreen) =
+        AccessibilityApi::copy_attribute_value::<CFBoolean>(element, "AXFullScreen")
+        && is_fullscreen.as_bool()
+    {
+        tracing::debug!(
+            "skipping reap for fullscreen window {window_id} during position update failure"
+        );
+
+        return false;
+    }
+
+    send_notification(ReaperNotification::InvalidWindow(window_id));
+
+    true
 }
