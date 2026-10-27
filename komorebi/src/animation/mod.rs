@@ -16,8 +16,10 @@ pub mod lerp;
 pub mod prefix;
 pub mod render_dispatcher;
 pub use render_dispatcher::RenderDispatcher;
+pub mod stats;
 pub mod step;
 pub mod style;
+pub mod throttle;
 pub mod tracks;
 
 use serde::Deserialize;
