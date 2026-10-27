@@ -60,6 +60,7 @@ nav:
           - usage/focusing-windows.md
           - usage/moving-windows.md
           - usage/stacking-windows.md
+          - usage/scrolling-layout.md
           - usage/focusing-workspaces.md
           - usage/moving-windows-across-workspaces.md
           - usage/animations.md
