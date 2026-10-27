@@ -38,6 +38,7 @@ use crate::animation::prefix::AnimationPrefix;
 use crate::animation::step::MotionSpec;
 use crate::animation::tracks::Verdict;
 use crate::application::Application;
+use crate::arrival;
 use crate::cf_dictionary_value;
 use crate::core::ApplicationIdentifier;
 use crate::core::Rect;
@@ -118,6 +119,9 @@ lazy_static::lazy_static! {
     static ref PARKED_WINDOWS: parking_lot::Mutex<HashMap<u32, Parked>> =
         parking_lot::Mutex::new(HashMap::new());
 }
+
+/// How long, in seconds, to wait for a window to say how big it is after it was resized
+const ARRIVAL_TIMEOUT: f32 = 1.0;
 
 const NOTIFICATIONS: &[&str] = &[
     kAXWindowMiniaturizedNotification,
@@ -746,6 +750,31 @@ impl Window {
                 // nothing is going to slide it in, so nothing else is going to say that it is back
                 PARKED_WINDOWS.lock().remove(&self.id);
                 self.set_position_direct(rect)
+            }
+        }
+    }
+
+    /// Find out what the window is after it was written the size of `target` without animating,
+    /// and say so if it did not take the width, so that the layout can make room for it.
+    ///
+    /// With animations on the animator finds out when the window arrives, and says so itself. A
+    /// window that was not resized is not asked: that costs a round trip to the app, and what
+    /// the window turned out to be is not going to be any different from last time.
+    pub fn note_arrival(&self, target: &Rect, resized: bool) {
+        if !resized || animation::motion_for(AnimationPrefix::Movement).is_some() {
+            return;
+        }
+
+        // the window manager is waiting for this, and so is every window after this one
+        let _ = AccessibilityApi::set_messaging_timeout(&self.element, ARRIVAL_TIMEOUT);
+
+        match MacosApi::window_rect(&self.element) {
+            Ok(actual) => arrival::report(self.id, *target, Rect::from(actual)),
+            Err(error) => {
+                tracing::debug!(
+                    "could not read back the size of window {}: {error}",
+                    self.id
+                )
             }
         }
     }

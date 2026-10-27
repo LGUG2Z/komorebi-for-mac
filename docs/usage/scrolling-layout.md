@@ -91,6 +91,14 @@ so resizing a height does nothing.
 [`scrolling-layout-columns`](../cli/scrolling-layout-columns.md) gives, on the focused workspace of each monitor. The
 focused column stays where it is on screen, unless it has to scroll to stay in view.
 
+## Windows with a minimum width
+
+Many apps will not make a window narrower than some width, whatever they are asked. komorebi asks a window how wide it is
+once it has been resized, and if it did not get as narrow as its column, the column becomes as wide as the window needs.
+With [animations](animations.md) on that is when the window arrives, and with them off it is straight after the resize.
+The columns after it move along to make room, and nothing overlaps. A column never gets narrower again because of this,
+and never gets wider than the screen.
+
 ## Windows that are out of view
 
 A window that scrolls out of view comes to rest at the edge of the screen that it left by, with 5 pixels of it still on
@@ -108,7 +116,5 @@ arranged above and below each other rather than side by side, none of this appli
 
 These are not done yet.
 
-- A window that will not get as narrow as its column, which is what many apps do, is not noticed, so it can overlap the
-  column next to it.
 - Every window has a border, including the windows resting at the edges, so you may see a thin line of one at the edge
   of the screen.

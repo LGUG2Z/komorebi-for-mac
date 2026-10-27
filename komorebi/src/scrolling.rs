@@ -11,6 +11,7 @@
 //! The list of containers stays what is true. Every layout change starts from it, and the space is
 //! made to match it, so that nothing that changes the list has to know the space exists.
 
+use crate::arrival;
 use crate::core::DefaultLayout;
 use crate::core::Layout;
 use crate::core::LayoutOptions;
@@ -138,20 +139,125 @@ impl Workspace {
         border_offset: i32,
         border_width: i32,
     ) -> eyre::Result<()> {
+        // what a column takes up around its window on either side
+        let around_window = container_padding + border_offset + border_width;
+
+        // windows that were not what they were told to be since the last layout, which is where
+        // the animator says so
+        self.adopt_actual_sizes(around_window, adjusted_work_area.right);
+
+        self.place_scrolling(
+            work_area,
+            adjusted_work_area,
+            container_padding,
+            border_offset,
+            border_width,
+        )?;
+
+        // with animations off every window that changed width was just asked what it is, so a
+        // window that refused is known by now, and everything after it is placed again with room
+        // for it. Once is enough: the sizes that are read back this time round are picked up by
+        // the next layout, and a layout is never made to chase them.
+        if self.adopt_actual_sizes(around_window, adjusted_work_area.right) {
+            self.place_scrolling(
+                work_area,
+                adjusted_work_area,
+                container_padding,
+                border_offset,
+                border_width,
+            )?;
+        }
+
+        Ok(())
+    }
+
+    /// Learn from what windows turned out to be when they were sent to where the layout put them,
+    /// which is that some of them are wider than the layout said and will not be any narrower.
+    ///
+    /// A column is never made narrower than the window in it needs, and everything after it is
+    /// placed where it ends. Only ever wider: what an app will not do is a fact about the app, and
+    /// a limit that came and went would make the strip bounce between two layouts.
+    ///
+    /// `around_window` is what a column takes up around its window on either side, and the strip
+    /// is `viewport_width` wide. Returns whether any column changed.
+    pub(crate) fn adopt_actual_sizes(&mut self, around_window: i32, viewport_width: i32) -> bool {
+        let Some(space) = self.scrolling.as_mut() else {
+            return false;
+        };
+
+        let mut adopted = false;
+
+        for container in self.containers.elements() {
+            // a stack is one tile and as wide as the widest of its windows needs
+            let needed = container
+                .windows()
+                .iter()
+                .filter_map(|window| arrival::take(window.id))
+                .filter_map(|arrival| {
+                    arrival::column_width_for(&arrival, around_window, viewport_width)
+                })
+                .max();
+
+            let Some(needed) = needed else {
+                continue;
+            };
+
+            let Some((min, max)) = space.width_limits(&container.id) else {
+                continue;
+            };
+
+            if min.is_some_and(|min| min >= needed) {
+                continue;
+            }
+
+            tracing::debug!(
+                "a window in column {} will not be narrower than a column of {needed}px",
+                container.id
+            );
+
+            space.set_width_limits(&container.id, Some(needed), max);
+            adopted = true;
+        }
+
+        adopted
+    }
+
+    /// Put every window where the layout says that it goes.
+    fn place_scrolling(
+        &mut self,
+        work_area: &Rect,
+        adjusted_work_area: &Rect,
+        container_padding: i32,
+        border_offset: i32,
+        border_width: i32,
+    ) -> eyre::Result<()> {
         let placements = self.layout_scrolling(adjusted_work_area, container_padding);
         let screen = CoreGraphicsApi::display_bounds_for_window_rect(CGRect::from(*work_area));
+        let previous = std::mem::take(&mut self.latest_layout);
 
         let mut latest_layout = Vec::with_capacity(placements.len());
 
-        for (container, placement) in self.containers_mut().iter_mut().zip(&placements) {
+        for (idx, (container, placement)) in self
+            .containers_mut()
+            .iter_mut()
+            .zip(&placements)
+            .enumerate()
+        {
             let mut rect = placement.rect;
             rect.add_padding(border_offset);
             rect.add_padding(border_width);
             latest_layout.push(rect);
 
+            // a window that is asked for the width that it already has is not asked what it is
+            let resized = previous
+                .get(idx)
+                .is_none_or(|before| before.right != rect.right);
+
             for window in container.windows_mut() {
                 let result = match placement.visibility {
-                    Visibility::Visible => window.set_position(&rect),
+                    Visibility::Visible => window
+                        .set_position(&rect)
+                        .map(|()| window.note_arrival(&rect, resized)),
                     Visibility::Clipped => {
                         // part of it is in view and the rest is past the edge of the screen,
                         // which is all right unless there is another display past that edge,
@@ -161,7 +267,9 @@ impl Workspace {
                             clamp_to_work_area(&mut target, adjusted_work_area);
                         }
 
-                        window.set_position(&target)
+                        window
+                            .set_position(&target)
+                            .map(|()| window.note_arrival(&target, resized))
                     }
                     Visibility::OffLeft => {
                         window.hide_scrolling(WindowHidingPosition::BottomLeft, screen)
@@ -680,19 +788,156 @@ mod tests {
 
     /// A workspace with a window in every container, which is how closing a window finds a container.
     fn workspace_of_windows(columns: usize, count: u32) -> Workspace {
+        workspace_of_windows_from(columns, 0, count)
+    }
+
+    /// A workspace with a window in every container, whose ids start at `first`.
+    fn workspace_of_windows_from(columns: usize, first: u32, count: u32) -> Workspace {
         let mut workspace = Workspace {
             layout: Layout::Default(DefaultLayout::Scrolling),
             layout_options: options(columns, None),
             ..Default::default()
         };
 
-        for id in 0..count {
+        for id in first..first + count {
             workspace
                 .new_container_for_window(&Window::from(id))
                 .unwrap();
         }
 
         workspace
+    }
+
+    fn lefts(placements: &[ScrollingPlacement]) -> Vec<i32> {
+        placements
+            .iter()
+            .map(|placement| placement.rect.left)
+            .collect()
+    }
+
+    fn sent_to(width: i32) -> Rect {
+        Rect {
+            left: 0,
+            top: 0,
+            right: width,
+            bottom: 800,
+        }
+    }
+
+    // The arrivals that these tests report are shared by every test that runs at the same time,
+    // so each of them has windows with ids of its own.
+
+    #[test]
+    fn a_window_that_will_not_get_narrower_pushes_the_columns_after_it_along() {
+        let mut workspace = workspace_of_windows_from(3, 6_000_000, 3);
+        let before = workspace.layout_scrolling(&AREA, 0);
+        assert_eq!(widths(&before), [400, 400, 400]);
+
+        // the second window was sent 400 and is 700
+        arrival::report(6_000_001, sent_to(400), sent_to(700));
+        assert!(workspace.adopt_actual_sizes(0, 1200));
+
+        let after = workspace.layout_scrolling(&AREA, 0);
+        assert_eq!(widths(&after), [400, 700, 400]);
+
+        // and the next column starts where that one ends, where it would have overlapped it
+        assert_eq!(lefts(&after)[2], lefts(&after)[1] + 700);
+    }
+
+    #[test]
+    fn the_room_around_a_window_is_taken_into_account() {
+        let mut workspace = workspace_of_windows_from(3, 6_000_010, 2);
+        workspace.layout_scrolling(&AREA, 0);
+
+        // padding of 10, and a border of 2 and 0, on either side of a window of 700
+        arrival::report(6_000_010, sent_to(376), sent_to(700));
+        assert!(workspace.adopt_actual_sizes(12, 1200));
+
+        assert_eq!(widths(&workspace.layout_scrolling(&AREA, 0))[0], 724);
+    }
+
+    #[test]
+    fn what_a_window_will_not_do_is_only_ever_learned_upwards() {
+        let mut workspace = workspace_of_windows_from(3, 6_000_020, 2);
+        workspace.layout_scrolling(&AREA, 0);
+
+        arrival::report(6_000_020, sent_to(400), sent_to(700));
+        assert!(workspace.adopt_actual_sizes(0, 1200));
+
+        // a window that is smaller than that now is not a reason to forget it
+        arrival::report(6_000_020, sent_to(700), sent_to(750));
+        assert!(workspace.adopt_actual_sizes(0, 1200));
+        arrival::report(6_000_020, sent_to(750), sent_to(720));
+        assert!(!workspace.adopt_actual_sizes(0, 1200));
+        arrival::report(6_000_020, sent_to(750), sent_to(750));
+        assert!(!workspace.adopt_actual_sizes(0, 1200));
+
+        assert_eq!(widths(&workspace.layout_scrolling(&AREA, 0))[0], 750);
+    }
+
+    #[test]
+    fn a_column_is_never_made_wider_than_the_screen() {
+        let mut workspace = workspace_of_windows_from(3, 6_000_030, 2);
+        workspace.layout_scrolling(&AREA, 0);
+
+        arrival::report(6_000_030, sent_to(400), sent_to(1500));
+        assert!(workspace.adopt_actual_sizes(12, 1200));
+
+        assert_eq!(widths(&workspace.layout_scrolling(&AREA, 0))[0], 1200);
+    }
+
+    #[test]
+    fn a_window_that_took_its_size_changes_nothing() {
+        let mut workspace = workspace_of_windows_from(3, 6_000_040, 3);
+        let before = workspace.layout_scrolling(&AREA, 0);
+
+        // exactly, and within the rounding that apps do
+        arrival::report(6_000_040, sent_to(400), sent_to(400));
+        arrival::report(6_000_041, sent_to(400), sent_to(402));
+
+        assert!(!workspace.adopt_actual_sizes(0, 1200));
+        assert_eq!(workspace.layout_scrolling(&AREA, 0), before);
+    }
+
+    #[test]
+    fn a_window_that_refused_and_then_took_its_size_is_forgotten() {
+        let mut workspace = workspace_of_windows_from(3, 6_000_050, 2);
+        workspace.layout_scrolling(&AREA, 0);
+
+        arrival::report(6_000_050, sent_to(400), sent_to(700));
+        arrival::report(6_000_050, sent_to(400), sent_to(400));
+
+        assert!(!workspace.adopt_actual_sizes(0, 1200));
+    }
+
+    #[test]
+    fn a_stack_is_as_wide_as_the_widest_of_its_windows_needs() {
+        let mut workspace = workspace_of_windows_from(3, 6_000_060, 2);
+        workspace
+            .containers_mut()
+            .front_mut()
+            .unwrap()
+            .add_window(&Window::from(6_000_062), WindowHidingPosition::default())
+            .unwrap();
+        workspace.layout_scrolling(&AREA, 0);
+
+        arrival::report(6_000_060, sent_to(400), sent_to(500));
+        arrival::report(6_000_062, sent_to(400), sent_to(650));
+
+        assert!(workspace.adopt_actual_sizes(0, 1200));
+        assert_eq!(widths(&workspace.layout_scrolling(&AREA, 0)), [650, 400]);
+    }
+
+    #[test]
+    fn nothing_is_adopted_before_there_is_a_strip() {
+        let mut workspace = workspace_of_windows_from(3, 6_000_070, 2);
+        arrival::report(6_000_070, sent_to(400), sent_to(700));
+
+        assert!(!workspace.adopt_actual_sizes(0, 1200));
+
+        // and it is still there for when there is
+        workspace.layout_scrolling(&AREA, 0);
+        assert!(workspace.adopt_actual_sizes(0, 1200));
     }
 
     fn focused_window(workspace: &Workspace) -> u32 {
