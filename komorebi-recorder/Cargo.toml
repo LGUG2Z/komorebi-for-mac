@@ -76,6 +76,7 @@ objc2-screen-capture-kit = { version = "0.3", default-features = false, features
   "SCStream",
 ] }
 parking_lot = { workspace = true }
+regex = "1"
 schemars = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

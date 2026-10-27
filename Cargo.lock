@@ -3195,6 +3195,7 @@ dependencies = [
  "objc2-screen-capture-kit",
  "parking_lot",
  "proc-macro2",
+ "regex",
  "schemars 1.2.1",
  "serde",
  "serde_json_lenient",

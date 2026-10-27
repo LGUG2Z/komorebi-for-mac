@@ -22,6 +22,7 @@ use super::state::Window;
 use super::views::EventView;
 use super::views::Moment;
 use super::views::StateOrigin;
+use crate::annotations::AnnotationView;
 use color_eyre::eyre;
 use schemars::JsonSchema;
 use serde::Serialize;
@@ -360,4 +361,20 @@ impl Analysis {
             next_cursor,
         }
     }
+}
+
+/// `annotate add` / `edit` answer with the annotation as it now reads.
+#[derive(Serialize, JsonSchema)]
+pub struct AnnotationData {
+    pub annotation: AnnotationView,
+}
+
+#[derive(Serialize, JsonSchema)]
+pub struct DeletedData {
+    pub deleted: String,
+}
+
+#[derive(Serialize, JsonSchema)]
+pub struct AnnotationsData {
+    pub annotations: Vec<AnnotationView>,
 }

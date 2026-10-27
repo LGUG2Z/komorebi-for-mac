@@ -8,6 +8,7 @@
 
 pub mod answers;
 pub mod blocks;
+pub mod brief;
 pub mod budget;
 pub mod catalog;
 pub mod classify;
@@ -22,6 +23,9 @@ pub mod ids;
 pub mod invariants;
 pub mod logparse;
 pub mod lookup;
+pub mod overview;
+pub mod schemas;
+pub mod search;
 pub mod state;
 pub mod timespec;
 pub mod trace;

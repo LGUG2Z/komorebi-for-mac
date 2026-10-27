@@ -3,6 +3,7 @@
 //! Each family of commands lives next to its arguments: [`record`] (recording), [`query`]
 //! (reading a session back).
 
+mod agent;
 mod annotate;
 mod investigate;
 mod query;
@@ -18,6 +19,11 @@ use color_eyre::eyre;
 use serde::Serialize;
 use std::path::PathBuf;
 
+pub use agent::BriefArgs;
+pub use agent::GuideArgs;
+pub use agent::OverviewArgs;
+pub use agent::SchemaArgs;
+pub use agent::SearchArgs;
 pub use annotate::AnnotateArgs;
 pub use annotate::AnnotationsArgs;
 pub use investigate::CodeArgs;
@@ -68,6 +74,17 @@ pub enum Command {
     Locate(LocateArgs),
     /// Extract PNG frames at video timecodes (needs ffmpeg)
     Frames(FramesArgs),
+    /// Start here when investigating: what the user marked as the bug, and what the recording shows
+    /// around it
+    Brief(BriefArgs),
+    /// The whole recording at a glance: what stands out, ranked, and when things happened
+    Overview(OverviewArgs),
+    /// Where a word appears: komorebi's log, events, incidents, annotations, optionally the OS trace
+    Search(SearchArgs),
+    /// How to investigate a recording, for an agent
+    Guide(GuideArgs),
+    /// The JSON Schema of a command's `--json` output
+    Schema(SchemaArgs),
     /// The state komorebi was in at a moment: monitors, workspaces, windows, focus, and anything wrong
     State(StateArgs),
     /// What changed between two moments, in terms a person would use
@@ -132,6 +149,10 @@ impl Command {
             Self::Summary(args) => args.json,
             Self::Locate(args) => args.json,
             Self::Frames(args) => args.json,
+            Self::Brief(args) => args.json,
+            Self::Overview(args) => args.json,
+            Self::Search(args) => args.json,
+            Self::Guide(args) => args.json,
             Self::State(args) => args.json,
             Self::Diff(args) => args.json,
             Self::Events(args) => args.json,
@@ -176,6 +197,11 @@ pub fn run(command: Command) -> eyre::Result<()> {
         Command::Summary(args) => query::summary(&args),
         Command::Locate(args) => query::locate(&args),
         Command::Frames(args) => query::frames_command(&args),
+        Command::Brief(args) => agent::brief(&args),
+        Command::Overview(args) => agent::overview(&args),
+        Command::Search(args) => agent::search(&args),
+        Command::Guide(args) => agent::guide(&args),
+        Command::Schema(args) => agent::schema(&args),
         Command::State(args) => investigate::state(&args),
         Command::Diff(args) => investigate::diff_command(&args),
         Command::Events(args) => investigate::events(&args),

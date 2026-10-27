@@ -1,6 +1,9 @@
 //! `annotate` and `annotations`: marking where a bug starts and ends, notes, and agent findings.
 
 use super::print_json;
+use crate::analysis::answers::AnnotationData;
+use crate::analysis::answers::AnnotationsData;
+use crate::analysis::answers::DeletedData;
 use crate::analysis::envelope;
 use crate::analysis::envelope::Envelope;
 use crate::analysis::lookup::SessionLookup;
@@ -18,8 +21,6 @@ use clap::Args;
 use clap::Subcommand;
 use clap::ValueEnum;
 use color_eyre::eyre;
-use schemars::JsonSchema;
-use serde::Serialize;
 use std::path::PathBuf;
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
@@ -162,22 +163,6 @@ impl AnnotateArgs {
             Action::Delete(args) => args.json,
         }
     }
-}
-
-/// `annotate add` / `edit` answer with the annotation as it now reads.
-#[derive(Serialize, JsonSchema)]
-pub struct AnnotationData {
-    pub annotation: AnnotationView,
-}
-
-#[derive(Serialize, JsonSchema)]
-pub struct DeletedData {
-    pub deleted: String,
-}
-
-#[derive(Serialize, JsonSchema)]
-pub struct AnnotationsData {
-    pub annotations: Vec<AnnotationView>,
 }
 
 pub const SCHEMA_ANNOTATION: &str = "annotation/1";
