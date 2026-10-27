@@ -27,6 +27,27 @@ pub struct DecodedFrame {
     pub frame: Frame,
 }
 
+/// A started decode of one segment of one display. Frames come in order, each with the session
+/// video time it was on screen.
+pub struct Stream {
+    reader: crate::av::Reader,
+    offset_s: f64,
+    /// The segment of the display's video it reads.
+    pub segment: u32,
+    /// Session video time at which the segment ends.
+    pub end_s: f64,
+}
+
+impl Stream {
+    /// The next frame and when it was shown, or `None` at the end of the segment (or range).
+    pub fn next_frame(&mut self) -> eyre::Result<Option<(f64, Frame)>> {
+        Ok(self
+            .reader
+            .next_frame()?
+            .map(|frame| (self.offset_s + frame.pts_s, frame)))
+    }
+}
+
 /// The video of a session. Not `Send`: decoding objects belong to the thread that made them.
 pub struct SessionVideo<'a> {
     manifest: &'a Manifest,
@@ -93,6 +114,39 @@ impl<'a> SessionVideo<'a> {
             segment: entry.result.segment,
             shown_s: entry.offset_s + frame.pts_s,
             frame,
+        }))
+    }
+
+    /// Whether `display` has video at `video_s`.
+    #[must_use]
+    pub fn has_video_at(&self, display: u32, video_s: f64) -> bool {
+        self.manifest.segment_at(display, video_s).is_some()
+    }
+
+    /// Start decoding the segment of `display` that has video at `video_s`, beginning with the
+    /// frame on screen then and running to `to_s` (or the end of the segment). `None` if the
+    /// display had no video then.
+    pub fn open_at(
+        &self,
+        display: u32,
+        video_s: f64,
+        to_s: Option<f64>,
+        scale: Scale,
+    ) -> eyre::Result<Option<Stream>> {
+        let Some(entry) = self.manifest.segment_at(display, video_s) else {
+            return Ok(None);
+        };
+
+        let asset = self.asset(entry)?;
+        let start = (video_s - entry.offset_s)
+            .max(0.0)
+            .min((asset.duration_s() - 0.002).max(0.0));
+        let stop = to_s.map(|to| (to - entry.offset_s).max(start));
+        Ok(Some(Stream {
+            reader: asset.start(start, stop, scale)?,
+            offset_s: entry.offset_s,
+            segment: entry.result.segment,
+            end_s: entry.end_s.unwrap_or_else(|| self.manifest.video_span().1),
         }))
     }
 

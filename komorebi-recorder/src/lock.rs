@@ -99,6 +99,12 @@ mod tests {
         assert_eq!(recorder(&dir), Recorder::Running(Some(std::process::id())));
 
         drop(lock);
+        // a process spawned at that moment by another test briefly holds a copy of the descriptor,
+        // and a flock lasts until every copy is closed
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        while recorder(&dir) != Recorder::NotRunning && std::time::Instant::now() < deadline {
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
         assert_eq!(recorder(&dir), Recorder::NotRunning);
     }
 
