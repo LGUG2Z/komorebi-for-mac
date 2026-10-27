@@ -1813,9 +1813,9 @@ impl WindowManager {
                     *resize = None;
                 }
 
-                // and the widths of the columns of the Scrolling layout, which are resize
+                // and the widths and heights of the Scrolling layout, which are resize
                 // adjustments too
-                workspace.reset_scrolling_widths();
+                workspace.reset_scrolling_sizes();
             }
 
             if (workspace.wallpaper.is_some() || monitor_wp.is_some())

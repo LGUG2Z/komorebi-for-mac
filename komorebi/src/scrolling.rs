@@ -25,9 +25,7 @@ use crate::workspace::Workspace;
 use crate::workspace::clamp_to_work_area;
 use color_eyre::eyre;
 use komorebi_layouts::scrolling;
-use komorebi_layouts::scrolling::MINIMUM_COLUMN_WIDTH;
 use komorebi_layouts::scrolling::ScrollingPlacement;
-use komorebi_layouts::scrolling::model::ColumnWidth;
 use komorebi_layouts::scrolling::model::Options;
 use komorebi_layouts::scrolling::model::Viewport;
 use komorebi_layouts::scrolling::model::Visibility;
@@ -457,12 +455,14 @@ impl Workspace {
     }
 
     /// Put every column back to the width that the `columns` option gives, which forgets every
-    /// width that was set by resizing, by a preset, or by taking the full width.
+    /// width that was set by resizing, by a preset, or by taking the full width, and every window
+    /// back to an equal share of the height of its column.
     ///
     /// The focused column stays where it is on screen unless it has to scroll to stay in view.
-    pub(crate) fn reset_scrolling_widths(&mut self) {
+    pub(crate) fn reset_scrolling_sizes(&mut self) {
         if let Some(space) = self.scrolling.as_mut() {
             space.reset_widths();
+            space.reset_heights();
         }
     }
 
@@ -512,25 +512,19 @@ impl Workspace {
         }
     }
 
-    /// Make the focused column wider or narrower. Only the horizontal edges mean anything, since
-    /// a column is as tall as the viewport.
+    /// Make the focused column wider or narrower with the horizontal edges, and the focused window
+    /// taller or shorter in its column with the vertical ones. A window that is alone in its
+    /// column is as tall as the screen, so resizing it vertically does nothing.
     ///
     /// The layouts that are made of splits move one edge of a container by half of `delta`, and
     /// callers that want to move both, or to follow a mouse, rely on that, so a column changes
-    /// width by half of `delta` per edge too.
+    /// width, or a window height, by half of `delta` per edge too.
     pub(crate) fn resize_scrolling_column(
         &mut self,
         direction: OperationDirection,
         sizing: Sizing,
         delta: i32,
     ) {
-        if !matches!(
-            direction,
-            OperationDirection::Left | OperationDirection::Right
-        ) {
-            return;
-        }
-
         let Some(id) = self
             .focused_container()
             .map(|container| container.id.clone())
@@ -542,18 +536,7 @@ impl Workspace {
             return;
         };
 
-        let Some(width) = space.column_width(&id) else {
-            return;
-        };
-
-        let change = f64::from(delta) / 2.0;
-        let width = match sizing {
-            Sizing::Increase => width + change,
-            Sizing::Decrease => width - change,
-        };
-
-        let width = (width.round() as i32).max(MINIMUM_COLUMN_WIDTH);
-        space.set_width(&id, ColumnWidth::Fixed(width));
+        scrolling::resize(space, &id, direction, sizing, delta);
     }
 }
 
@@ -574,8 +557,11 @@ mod tests {
     use crate::container::Container;
     use crate::core::ScrollingLayoutOptions;
     use crate::window::Window;
+    use komorebi_layouts::scrolling::MINIMUM_COLUMN_WIDTH;
+    use komorebi_layouts::scrolling::MINIMUM_WINDOW_HEIGHT;
     use komorebi_layouts::scrolling::ScrollingCentering;
     use komorebi_layouts::scrolling::model::CenterFocusedColumn;
+    use komorebi_layouts::scrolling::model::ColumnWidth;
 
     const AREA: Rect = Rect {
         left: 100,
@@ -844,7 +830,7 @@ mod tests {
         let resized = widths(&workspace.layout_scrolling(&AREA, 0));
         assert_ne!(resized, [400; 4]);
 
-        workspace.reset_scrolling_widths();
+        workspace.reset_scrolling_sizes();
 
         assert_eq!(widths(&workspace.layout_scrolling(&AREA, 0)), [400; 4]);
     }
@@ -859,7 +845,7 @@ mod tests {
         workspace.focus_container(3);
         let before = workspace.layout_scrolling(&AREA, 0)[3].rect.left;
 
-        workspace.reset_scrolling_widths();
+        workspace.reset_scrolling_sizes();
 
         assert_eq!(workspace.layout_scrolling(&AREA, 0)[3].rect.left, before);
         assert_eq!(workspace.focused_container_idx(), 3);
@@ -869,7 +855,7 @@ mod tests {
     fn resetting_the_widths_before_there_is_a_layout_does_nothing() {
         let mut workspace = workspace(3, 2);
 
-        workspace.reset_scrolling_widths();
+        workspace.reset_scrolling_sizes();
 
         assert!(workspace.scrolling.is_none());
     }
@@ -1291,6 +1277,77 @@ mod tests {
         let placements = workspace.layout_scrolling(&AREA, 0);
         assert_eq!(placements[2].rect.bottom, AREA.bottom);
         assert_eq!(placements[2].rect.left, placements[0].rect.left + 400);
+    }
+
+    fn heights(placements: &[ScrollingPlacement]) -> Vec<i32> {
+        placements
+            .iter()
+            .map(|placement| placement.rect.bottom)
+            .collect()
+    }
+
+    #[test]
+    fn resizing_a_vertical_edge_changes_the_height_of_the_window_by_half_of_the_delta() {
+        let mut workspace = workspace_with_a_column(70);
+        assert_eq!(
+            heights(&workspace.layout_scrolling(&AREA, 0))[..2],
+            [400, 400]
+        );
+
+        workspace.resize_scrolling_column(OperationDirection::Down, Sizing::Increase, 200);
+        assert_eq!(
+            heights(&workspace.layout_scrolling(&AREA, 0))[..2],
+            [500, 300]
+        );
+
+        // either edge is the same, and a window can be made shorter
+        workspace.resize_scrolling_column(OperationDirection::Up, Sizing::Decrease, 100);
+        assert_eq!(
+            heights(&workspace.layout_scrolling(&AREA, 0))[..2],
+            [450, 350]
+        );
+
+        // and none of it touched the width
+        assert_eq!(widths(&workspace.layout_scrolling(&AREA, 0)), [400; 4]);
+    }
+
+    #[test]
+    fn a_window_is_not_made_shorter_than_the_least_that_is_configured() {
+        let mut workspace = workspace_with_a_column(80);
+
+        workspace.resize_scrolling_column(OperationDirection::Down, Sizing::Decrease, 10_000);
+
+        assert_eq!(
+            heights(&workspace.layout_scrolling(&AREA, 0))[..2],
+            [MINIMUM_WINDOW_HEIGHT, 800 - MINIMUM_WINDOW_HEIGHT]
+        );
+    }
+
+    #[test]
+    fn retile_puts_heights_back_as_well_as_widths() {
+        let mut workspace = workspace_with_a_column(110);
+        workspace.resize_scrolling_column(OperationDirection::Down, Sizing::Increase, 200);
+        workspace.resize_scrolling_column(OperationDirection::Right, Sizing::Increase, 200);
+        let placements = workspace.layout_scrolling(&AREA, 0);
+        assert_ne!(heights(&placements)[..2], [400, 400]);
+        assert_ne!(widths(&placements), [400; 4]);
+
+        workspace.reset_scrolling_sizes();
+
+        let placements = workspace.layout_scrolling(&AREA, 0);
+        assert_eq!(heights(&placements)[..2], [400, 400]);
+        assert_eq!(widths(&placements), [400; 4]);
+    }
+
+    #[test]
+    fn resizing_the_height_does_nothing_for_a_window_that_is_alone_in_its_column() {
+        let mut workspace = laid_out(3, 3, 1);
+        let before = workspace.layout_scrolling(&AREA, 0);
+
+        workspace.resize_scrolling_column(OperationDirection::Down, Sizing::Increase, 200);
+        workspace.resize_scrolling_column(OperationDirection::Up, Sizing::Decrease, 200);
+
+        assert_eq!(workspace.layout_scrolling(&AREA, 0), before);
     }
 
     #[test]

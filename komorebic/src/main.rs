@@ -1030,7 +1030,8 @@ enum SubCommand {
     /// Force the retiling of all managed windows
     ///
     /// Every column of a workspace in the Scrolling layout goes back to the width that
-    /// scrolling-layout-columns gives.
+    /// scrolling-layout-columns gives, and every window in a column of several goes back to an
+    /// equal share of its height.
     Retile,
     // /// Set the monitor index preference for a monitor identified using its size
     // #[clap(arg_required_else_help = true)]

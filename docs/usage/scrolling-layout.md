@@ -78,6 +78,19 @@ Focus and move commands know about columns:
 
 A column that you resized, or made the full width of the screen, keeps that as windows are added to it or taken out.
 
+## Heights
+
+The windows of a column share its height equally. To change that:
+
+- [`komorebic resize-edge up`, `down`](../cli/resize-edge.md) and the [axis](../cli/resize-axis.md) commands make the
+  focused window taller or shorter, by half of the [resize delta](../cli/resize-delta.md) for each edge. The other windows
+  in the column share what it leaves.
+
+Giving a window a height gives the others in its column an equal share of what it leaves, so there is always something
+to take up the difference. No window is made shorter than 100 pixels, and what one window is given cannot
+leave the others with less. A window that is alone in its column is as tall as the screen, and a window that is taken
+out of its column, or put in another, starts with an equal share.
+
 ## Full width and centring
 
 - [`komorebic scrolling-layout-full-width`](../cli/scrolling-layout-full-width.md) makes the focused column as wide as the
@@ -111,12 +124,14 @@ with it.
 
 [`komorebic resize-edge`](../cli/resize-edge.md) and [`komorebic resize-axis`](../cli/resize-axis.md) change the width of
 the focused column, by half of the [resize delta](../cli/resize-delta.md) for each edge, so resizing the horizontal axis
-changes the width by the whole delta. Dragging an edge with the mouse does the same. Columns are as tall as the screen,
-so resizing a height does nothing.
+changes the width by the whole delta. Dragging an edge with the mouse does the same. Resizing the top or bottom edge
+changes the [height](#heights) of a window that shares its column with others. A window that is alone in its column is
+as tall as the screen, so resizing its height does nothing.
 
 [`komorebic retile`](../cli/retile.md) puts every column back to the width that
-[`scrolling-layout-columns`](../cli/scrolling-layout-columns.md) gives, on the focused workspace of each monitor. The
-focused column stays where it is on screen, unless it has to scroll to stay in view.
+[`scrolling-layout-columns`](../cli/scrolling-layout-columns.md) gives, and every window in a column of several back to
+an equal share of its height, on the focused workspace of each monitor. The focused column stays where it is on screen,
+unless it has to scroll to stay in view.
 
 ## Windows with a minimum width
 
@@ -143,8 +158,6 @@ arranged above and below each other rather than side by side, none of this appli
 
 These are not done yet.
 
-- The windows of a column share its height equally. There are no commands for giving a window more of it, and no minimum
-  height.
 - Moving a window to another workspace or monitor makes it a column of its own with the default width.
 - Switching to another layout and back keeps the widths, but a column whose windows were moved past each other in the
   other layout is made again from the order that they are in.
