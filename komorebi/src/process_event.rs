@@ -7,9 +7,12 @@ use crate::TABBED_APPLICATIONS;
 use crate::UNMANAGED_WINDOW_IDS;
 use crate::WORKSPACE_MATCHING_RULES;
 use crate::accessibility::AccessibilityApi;
+use crate::accessibility::enhanced_ui;
 use crate::accessibility::error::AccessibilityApiError;
 use crate::accessibility::error::AccessibilityError;
 use crate::accessibility::notification_constants::AccessibilityNotification;
+use crate::animation::animator;
+use crate::app_kit_notification_constants::AppKitWorkspaceNotification;
 use crate::border_manager;
 use crate::core::DefaultLayout;
 use crate::core::Layout;
@@ -718,6 +721,16 @@ impl WindowManager {
                 }
             }
             WindowManagerEvent::Destroy(notification, process_id) => {
+                // a new process may be given this id, and must not inherit what we know about it
+                if matches!(
+                    notification,
+                    SystemNotification::AppKitWorkspace(
+                        AppKitWorkspaceNotification::NSWorkspaceDidTerminateApplicationNotification
+                    )
+                ) {
+                    enhanced_ui::forget(process_id);
+                }
+
                 // some apps like Discord in all of their relentless Electron slop stupidity
                 // hijack CMD+W to send a HIDE instead of a close (i.e. the equivalent of pressing CMD+H)
                 let mut should_force_reap = false;
@@ -807,6 +820,9 @@ impl WindowManager {
                 }
             }
             WindowManagerEvent::MoveStart(_, _, window_id) => {
+                // somebody is dragging the window, so we must stop animating it somewhere else
+                animator::cancel(window_id);
+
                 if self.pending_move_op.is_none() && self.pending_resize_op.is_none() {
                     let monitor_idx = self.focused_monitor_idx();
                     let workspace_idx = self
@@ -1026,6 +1042,8 @@ impl WindowManager {
                 }
             }
             WindowManagerEvent::ResizeStart(_, _, window_id) => {
+                animator::cancel(window_id);
+
                 // AXWindowResized fires again and again through a drag; only the first frame is
                 // the one the drag started from
                 let already_recorded = matches!(

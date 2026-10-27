@@ -36,6 +36,7 @@ use crate::animation::animator::Journey;
 use crate::animation::animator::WindowHandle;
 use crate::animation::prefix::AnimationPrefix;
 use crate::animation::step::MotionSpec;
+use crate::animation::tracks::Verdict;
 use crate::application::Application;
 use crate::cf_dictionary_value;
 use crate::core::ApplicationIdentifier;
@@ -112,33 +113,61 @@ unsafe extern "C-unwind" fn window_observer_callback(
     _context: *mut c_void,
 ) {
     unsafe {
+        let window_id = AccessibilityApi::window_id(element.as_ref()).ok();
+        let notification = AccessibilityNotification::from_str(&notification.as_ref().to_string());
+
+        let mut process_id = 0;
+        element.as_ref().pid(NonNull::from_mut(&mut process_id));
+
+        // the moves and resizes the animator makes are reported back to us like any others, and
+        // must not be mistaken for somebody moving a window
+        if let Ok(
+            moved_or_resized @ (AccessibilityNotification::AXWindowMoved
+            | AccessibilityNotification::AXWindowResized),
+        ) = notification
+            && let Some(window_id) = window_id
+        {
+            let mouse_is_down = MacosApi::left_mouse_button_is_pressed();
+
+            let verdict =
+                animator::notification_verdict(window_id, process_id, mouse_is_down, || {
+                    MacosApi::window_rect(element.as_ref()).ok().map(Rect::from)
+                });
+
+            if verdict == Verdict::Suppress {
+                return;
+            }
+
+            // an app that will not stop reporting must not be allowed to fill the event channel
+            if !animator::admit_notification(
+                window_id,
+                process_id,
+                moved_or_resized == AccessibilityNotification::AXWindowResized,
+                mouse_is_down,
+            ) {
+                return;
+            }
+        }
+
         let name =
             AccessibilityApi::copy_attribute_value::<CFString>(element.as_ref(), kAXTitleAttribute)
                 .map(|s| s.to_string());
 
         if let Some(name) = name
             && !name.is_empty()
+            && let Ok(notification) = notification
+            && let Some(event) = WindowManagerEvent::from_system_notification(
+                SystemNotification::Accessibility(notification),
+                process_id,
+                window_id,
+            )
         {
-            let mut process_id = 0;
-            element.as_ref().pid(NonNull::from_mut(&mut process_id));
+            tracing::debug!(
+                "notification: {}, process: {process_id}, name: \"{name}\"",
+                notification,
+            );
 
-            let window_id = AccessibilityApi::window_id(element.as_ref()).ok();
-
-            if let Ok(notification) =
-                AccessibilityNotification::from_str(&notification.as_ref().to_string())
-                && let Some(event) = WindowManagerEvent::from_system_notification(
-                    SystemNotification::Accessibility(notification),
-                    process_id,
-                    window_id,
-                )
-            {
-                tracing::debug!(
-                    "notification: {}, process: {process_id}, name: \"{name}\"",
-                    notification,
-                );
-
-                window_manager_event_listener::send_notification(event);
-            }
+            window_manager_event_listener::send_notification(event);
         }
     }
 }

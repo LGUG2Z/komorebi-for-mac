@@ -5,6 +5,7 @@ use crate::accessibility::AccessibilityApi;
 use crate::accessibility::notification_constants::kAXMainWindowChangedNotification;
 use crate::accessibility::notification_constants::kAXWindowMovedNotification;
 use crate::accessibility::notification_constants::kAXWindowResizedNotification;
+use crate::animation::animator;
 use crate::border_manager::BORDER_OFFSET;
 use crate::border_manager::BORDER_OFFSET_ADJUSTMENT;
 use crate::border_manager::BORDER_WIDTH;
@@ -65,6 +66,12 @@ unsafe extern "C-unwind" fn border_observer_callback(
         if !context.is_null() {
             let border = &*context.cast::<Border>();
             if !border.ns_window.window.isVisible() {
+                return;
+            }
+
+            // while a window is being animated the animator moves the border along with it, a
+            // frame at a time, without having to ask the window where it is
+            if animator::is_animating(border.tracking_window_id) {
                 return;
             }
 
