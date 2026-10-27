@@ -6,6 +6,7 @@ use crate::core::DefaultLayout;
 use crate::core::LayoutDefaultEntry;
 use crate::core::SocketMessage;
 use crate::core::SubscribeOptions;
+use crate::core::WindowHidingPosition;
 use crate::core::config_generation::IdWithIdentifier;
 use crate::core::config_generation::MatchingRule;
 use crate::core::config_generation::MatchingStrategy;
@@ -338,4 +339,56 @@ pub fn hidden_frame_bottom_right(screen_frame: CGRect, window_size: CGSize) -> C
     let origin_y = screen_frame.origin.y + screen_frame.size.height - visible_sliver;
 
     CGRect::new(CGPoint::new(origin_x, origin_y), window_size)
+}
+
+/// Where a window is hidden for the given hiding position
+pub fn hidden_frame(
+    hiding_position: WindowHidingPosition,
+    screen_frame: CGRect,
+    window_size: CGSize,
+) -> CGRect {
+    match hiding_position {
+        WindowHidingPosition::BottomLeft => hidden_frame_bottom_left(screen_frame, window_size),
+        WindowHidingPosition::BottomRight => hidden_frame_bottom_right(screen_frame, window_size),
+    }
+}
+
+/// How much of a window that has scrolled out of view stays on screen while it slides away
+pub const SCROLLING_EDGE_SLIVER: f64 = 5.0;
+
+/// Where a window that has scrolled out of view comes to rest at the edge of the screen
+///
+/// The window keeps its height and its size, and stays at the same height up the screen, so that it
+/// slides out sideways rather than cutting across the screen to the corner it is eventually hidden
+/// in. Only a sliver of it stays on screen, which is what stops macOS from moving it back.
+pub fn scrolling_edge_sliver(
+    screen_frame: CGRect,
+    window_frame: CGRect,
+    hiding_position: WindowHidingPosition,
+) -> CGRect {
+    let origin_x = match hiding_position {
+        WindowHidingPosition::BottomLeft => {
+            screen_frame.origin.x - (window_frame.size.width - SCROLLING_EDGE_SLIVER)
+        }
+        WindowHidingPosition::BottomRight => {
+            screen_frame.origin.x + screen_frame.size.width - SCROLLING_EDGE_SLIVER
+        }
+    };
+
+    CGRect::new(
+        CGPoint::new(origin_x, window_frame.origin.y),
+        window_frame.size,
+    )
+}
+
+/// Whether any display other than the one with `screen_frame` shows part of `frame`
+///
+/// A window that slides out of view towards a neighbouring display would be seen on it.
+pub fn is_visible_on_another_display(frame: CGRect, screen_frame: CGRect) -> bool {
+    core_graphics::CoreGraphicsApi::connected_display_ids()
+        .unwrap_or_default()
+        .into_iter()
+        .map(core_graphics::CoreGraphicsApi::display_bounds)
+        .filter(|bounds| bounds.origin != screen_frame.origin || bounds.size != screen_frame.size)
+        .any(|bounds| core_graphics::CoreGraphicsApi::contains_rect(frame, bounds))
 }

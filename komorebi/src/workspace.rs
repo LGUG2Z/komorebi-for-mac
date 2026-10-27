@@ -1469,7 +1469,9 @@ impl Workspace {
                                         WindowHidingPosition::BottomRight
                                     };
 
-                                    if let Err(error) = window.hide(scrolling_hiding_position) {
+                                    if let Err(error) =
+                                        window.hide_scrolling(scrolling_hiding_position)
+                                    {
                                         tracing::warn!(
                                             "failed to set hide window for scrolling layout: {error}"
                                         )

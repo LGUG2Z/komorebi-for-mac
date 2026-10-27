@@ -46,11 +46,12 @@ use crate::core::config_generation::IdWithIdentifier;
 use crate::core::config_generation::MatchingRule;
 use crate::core::config_generation::MatchingStrategy;
 use crate::core_graphics::CoreGraphicsApi;
-use crate::hidden_frame_bottom_left;
-use crate::hidden_frame_bottom_right;
+use crate::hidden_frame;
+use crate::is_visible_on_another_display;
 use crate::macos_api::MacosApi;
 use crate::reaper;
 use crate::reaper::ReaperNotification;
+use crate::scrolling_edge_sliver;
 use crate::skylight;
 use crate::window_manager_event::SystemNotification;
 use crate::window_manager_event::WindowManagerEvent;
@@ -97,6 +98,15 @@ use std::str::FromStr;
 use strum::Display;
 use strum::EnumString;
 use tracing::instrument;
+
+lazy_static::lazy_static! {
+    /// The windows that have scrolled out of view and been parked, and where they were parked
+    ///
+    /// A window in here is known to be out of the way without having to ask it, and is brought
+    /// back in from the edge it left by rather than from the corner it was parked in.
+    static ref PARKED_WINDOWS: parking_lot::Mutex<HashMap<u32, WindowHidingPosition>> =
+        parking_lot::Mutex::new(HashMap::new());
+}
 
 const NOTIFICATIONS: &[&str] = &[
     kAXWindowMiniaturizedNotification,
@@ -419,14 +429,7 @@ impl Window {
 
         if let Some(monitor_size) = CoreGraphicsApi::display_bounds_for_window_rect(rect) {
             // I don't love this, but it's basically what Aerospace does in lieu of an actual "Hide" API
-            let hidden_rect = match hiding_position {
-                WindowHidingPosition::BottomLeft => {
-                    hidden_frame_bottom_left(monitor_size, rect.size)
-                }
-                WindowHidingPosition::BottomRight => {
-                    hidden_frame_bottom_right(monitor_size, rect.size)
-                }
-            };
+            let hidden_rect = hidden_frame(hiding_position, monitor_size, rect.size);
 
             tracing::debug!(
                 "hiding {} and setting restore point to {},{}",
@@ -439,6 +442,88 @@ impl Window {
             self.set_point(hidden_rect.origin, true)?;
             self.set_size(hidden_rect.size, true)?;
         }
+
+        Ok(())
+    }
+
+    /// Hide a window that has scrolled out of view in the Scrolling layout
+    ///
+    /// With animations on, the window slides out sideways to the edge of the screen it left by, and
+    /// is parked in the corner once it is out of sight. Without them it is hidden straight away, as
+    /// with [`Window::hide`].
+    #[tracing::instrument(skip_all)]
+    pub fn hide_scrolling(
+        &mut self,
+        hiding_position: WindowHidingPosition,
+    ) -> Result<(), AccessibilityError> {
+        let Some(motion) = animation::motion_for(AnimationPrefix::Movement) else {
+            return self.hide(hiding_position);
+        };
+
+        // nothing to do for a window that is already out of the way on this side, which keeps
+        // every layout update from sending it on the same trip again
+        let mut parked_at = PARKED_WINDOWS.lock().get(&self.id).copied();
+
+        // a window that was stopped on its way out of view, by somebody grabbing it or by the app
+        // not answering, is not out of the way at all
+        if parked_at.is_some() && animator::take_unfinished(self.id) {
+            PARKED_WINDOWS.lock().remove(&self.id);
+            parked_at = None;
+        }
+
+        if parked_at == Some(hiding_position) {
+            return Ok(());
+        }
+
+        if parked_at.is_some() {
+            // it has to change sides, and sliding across the whole screen would only be seen
+            self.hide(hiding_position)?;
+            PARKED_WINDOWS.lock().insert(self.id, hiding_position);
+
+            return Ok(());
+        }
+
+        let rect = match animator::target(self.id) {
+            Some(target) => CGRect::from(target),
+            None => MacosApi::window_rect(&self.element)?,
+        };
+
+        let Some(screen) = CoreGraphicsApi::display_bounds_for_window_rect(rect) else {
+            return self.hide(hiding_position);
+        };
+
+        let edge = scrolling_edge_sliver(screen, rect, hiding_position);
+
+        // sliding out towards a neighbouring display would be seen there
+        if is_visible_on_another_display(edge, screen) {
+            self.hide(hiding_position)?;
+            PARKED_WINDOWS.lock().insert(self.id, hiding_position);
+
+            return Ok(());
+        }
+
+        if let Entry::Vacant(entry) = WINDOW_RESTORE_POSITIONS.lock().entry(self.id) {
+            entry.insert(rect);
+        }
+
+        let handle = WindowHandle {
+            element: self.element.clone(),
+            app: self.application.element().clone(),
+        };
+
+        animator::retarget(
+            &Journey {
+                window_id: self.id,
+                pid: self.application.process_id,
+                handle,
+                target: Rect::from(edge),
+                motion,
+                after: Some(Rect::from(hidden_frame(hiding_position, screen, rect.size))),
+            },
+            || Ok(Rect::from(rect)),
+        )?;
+
+        PARKED_WINDOWS.lock().insert(self.id, hiding_position);
 
         Ok(())
     }
@@ -459,6 +544,7 @@ impl Window {
     pub fn restore(&mut self) -> Result<(), AccessibilityError> {
         // waiting for what is on its way to the window is not something to do with a lock held
         animator::take_over(self.id);
+        PARKED_WINDOWS.lock().remove(&self.id);
 
         let mut should_remove_restore_position = false;
         let mut window_restore_positions = WINDOW_RESTORE_POSITIONS.lock();
@@ -565,8 +651,50 @@ impl Window {
 
     pub fn set_position(&self, rect: &Rect) -> Result<(), AccessibilityError> {
         match animation::motion_for(AnimationPrefix::Movement) {
-            Some(motion) => self.set_position_animated(rect, motion),
+            Some(motion) => {
+                self.slide_in_from_edge(rect);
+                self.set_position_animated(rect, motion)
+            }
             None => self.set_position_direct(rect),
+        }
+    }
+
+    /// Bring a parked window back to the edge of the screen it left by, ready to slide in from there
+    ///
+    /// Without this it would fly in from the corner it was parked in.
+    fn slide_in_from_edge(&self, target: &Rect) {
+        let Some(hiding_position) = PARKED_WINDOWS.lock().remove(&self.id) else {
+            return;
+        };
+
+        if animator::is_animating(self.id) {
+            return;
+        }
+
+        let Ok(current) = MacosApi::window_rect(&self.element) else {
+            return;
+        };
+
+        let target = CGRect::from(*target);
+        let Some(screen) = CoreGraphicsApi::display_bounds_for_window_rect(target) else {
+            return;
+        };
+
+        // the corner it was parked in is out of sight, so it comes back at the height it is going to
+        let mut level = current;
+        level.origin.y = target.origin.y;
+
+        let edge = scrolling_edge_sliver(screen, level, hiding_position);
+
+        if is_visible_on_another_display(edge, screen) {
+            return;
+        }
+
+        if let Err(error) = self.set_point(edge.origin, true) {
+            tracing::debug!(
+                "could not bring window {} back to the edge: {error}",
+                self.id
+            );
         }
     }
 
@@ -669,8 +797,10 @@ impl Window {
     }
 
     pub fn set_point(&self, point: CGPoint, should_reap: bool) -> Result<(), AccessibilityError> {
-        // anything that is animating this window has to stop before it is written to directly
+        // anything that is animating this window has to stop before it is written to directly,
+        // and wherever it ends up it is no longer where it was parked
         animator::take_over(self.id);
+        PARKED_WINDOWS.lock().remove(&self.id);
 
         let result = AccessibilityApi::set_attribute_ax_value(
             &self.element,
@@ -688,6 +818,7 @@ impl Window {
 
     pub fn set_size(&self, size: CGSize, should_reap: bool) -> Result<(), AccessibilityError> {
         animator::take_over(self.id);
+        PARKED_WINDOWS.lock().remove(&self.id);
 
         let result = AccessibilityApi::set_attribute_ax_value(
             &self.element,
@@ -985,14 +1116,7 @@ impl AdhocWindow {
                 drop(window_restore_positions);
 
                 // I don't love this, but it's basically what Aerospace does in lieu of an actual "Hide" API
-                let hidden_rect = match hiding_position {
-                    WindowHidingPosition::BottomLeft => {
-                        hidden_frame_bottom_left(monitor_size, rect.size)
-                    }
-                    WindowHidingPosition::BottomRight => {
-                        hidden_frame_bottom_right(monitor_size, rect.size)
-                    }
-                };
+                let hidden_rect = hidden_frame(hiding_position, monitor_size, rect.size);
 
                 tracing::debug!(
                     "hiding window with id {id} and setting restore point to {},{}",
