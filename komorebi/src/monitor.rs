@@ -9,6 +9,7 @@ use crate::core::Rect;
 use crate::core::WindowHidingPosition;
 use crate::macos_api::MacosApi;
 use crate::ring::Ring;
+use crate::skylight::BatchedUpdates;
 use crate::static_config::Wallpaper;
 use crate::workspace::Workspace;
 use crate::workspace::WorkspaceGlobals;
@@ -228,6 +229,11 @@ impl Monitor {
 
         let mut restore = None;
 
+        // putting one workspace away and another up is a window at a time, each as slow as the app
+        // it belongs to, which is seen as the windows of both on screen together unless it all
+        // appears at once
+        let batched = BatchedUpdates::begin();
+
         for (i, workspace) in self.workspaces_mut().iter_mut().enumerate() {
             if i == focused_idx {
                 restore = Some(workspace);
@@ -237,7 +243,11 @@ impl Monitor {
         }
 
         if let Some(workspace) = restore {
-            workspace.restore(mouse_follows_focus, monitor_id, &monitor_wp)?;
+            workspace.restore_windows(mouse_follows_focus)?;
+
+            // the screen has what it needs to show, and a wallpaper can take a while
+            drop(batched);
+            workspace.apply_wallpaper(monitor_id, &monitor_wp)?;
         }
 
         Ok(())

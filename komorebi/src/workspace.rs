@@ -921,6 +921,13 @@ impl Workspace {
         monitor_id: u32,
         monitor_wp: &Option<Wallpaper>,
     ) -> eyre::Result<()> {
+        self.restore_windows(mouse_follows_focus)?;
+        self.apply_wallpaper(monitor_id, monitor_wp)
+    }
+
+    /// Put the windows of the workspace back where they were and focus the one that has focus,
+    /// which is all of [`Workspace::restore`] that is windows being moved
+    pub fn restore_windows(&mut self, mouse_follows_focus: bool) -> eyre::Result<()> {
         if let Some(container) = &mut self.monocle_container {
             container.restore()?;
 
@@ -928,7 +935,7 @@ impl Workspace {
                 window.focus(mouse_follows_focus)?;
             }
 
-            return self.apply_wallpaper(monitor_id, monitor_wp);
+            return Ok(());
         }
 
         let idx = self.focused_container_idx();
@@ -974,7 +981,7 @@ impl Workspace {
             floating_window.focus(mouse_follows_focus)?;
         }
 
-        self.apply_wallpaper(monitor_id, monitor_wp)
+        Ok(())
     }
 
     pub fn remove_focused_container(&mut self) -> Option<Container> {
