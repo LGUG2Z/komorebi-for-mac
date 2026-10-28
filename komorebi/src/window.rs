@@ -58,6 +58,7 @@ use crate::hidden_frame_bottom_right;
 use crate::macos_api::MacosApi;
 use crate::reaper;
 use crate::reaper::ReaperNotification;
+use crate::skylight;
 use crate::window_manager_event::SystemNotification;
 use crate::window_manager_event::WindowManagerEvent;
 use crate::window_manager_event_listener;
@@ -735,16 +736,23 @@ impl Window {
     }
 
     pub fn focus(&self, mouse_follows_focus: bool) -> Result<(), LibraryError> {
-        match self.running_application() {
-            Ok(running_application) => {
-                running_application.activateWithOptions(NSApplicationActivationOptions::empty());
-            }
-            Err(error) => {
-                tracing::warn!(
-                    "failed to get running application for {} ({:?}): {error}",
-                    self.application.process_id,
-                    self.application.name()
-                );
+        // Activating the application is turned away by the window server as an expired request once
+        // the user has typed or clicked since komorebi started, and the application in front stays
+        // there, so the window server is asked directly first. That is only for as long as it
+        // works: when it does not, this is the way it always was.
+        if !skylight::set_front_process(self.application.process_id, self.id) {
+            match self.running_application() {
+                Ok(running_application) => {
+                    running_application
+                        .activateWithOptions(NSApplicationActivationOptions::empty());
+                }
+                Err(error) => {
+                    tracing::warn!(
+                        "failed to get running application for {} ({:?}): {error}",
+                        self.application.process_id,
+                        self.application.name()
+                    );
+                }
             }
         }
 
