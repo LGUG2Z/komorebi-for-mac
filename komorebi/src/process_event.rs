@@ -210,7 +210,7 @@ impl WindowManager {
                 let frontmost = MacosApi::frontmost_process_id();
                 let stale = is_stale_focus_notification(frontmost, process_id);
                 if stale {
-                    tracing::debug!(
+                    tracing::warn!(
                         "not following {notification} for process {process_id}: process {} is in front",
                         frontmost.unwrap_or_default()
                     );
