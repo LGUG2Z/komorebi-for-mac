@@ -211,9 +211,9 @@ let
               lib.types.submodule {
                 options = {
                   center_focused_column = lib.mkOption {
-                    type = (lib.types.nullOr lib.types.bool);
+                    type = lib.types.anything;
                     default = null;
-                    description = "With an odd number of visible columns, keep the focused window column centered";
+                    description = "When to centre the focused column: `Never` (the default), `Always`, or `OnOverflow`, which\nis when it does not fit on the screen together with the column that focus came from. A\nboolean is also accepted, where `true` is `Always` and `false` is `Never`";
                   };
                   columns = lib.mkOption {
                     type = lib.types.int;

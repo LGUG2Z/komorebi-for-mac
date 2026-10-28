@@ -31,6 +31,7 @@ pub use komorebi_layouts::OperationDirection;
 pub use komorebi_layouts::Rect;
 pub use komorebi_layouts::ScrollingLayoutOptions;
 pub use komorebi_layouts::Sizing;
+pub use komorebi_layouts::scrolling::ScrollingCentering;
 pub use komorebi_layouts::validate_ratios;
 
 // Keep local modules that aren't in komorebi-layouts

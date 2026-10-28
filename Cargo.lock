@@ -3247,10 +3247,11 @@ dependencies = [
 [[package]]
 name = "komorebi-layouts"
 version = "0.1.42"
-source = "git+https://github.com/LGUG2Z/komorebi?rev=f08aa55511d77ca56ab0e789efabeb0a237a463e#f08aa55511d77ca56ab0e789efabeb0a237a463e"
+source = "git+https://github.com/LGUG2Z/komorebi?rev=c6a780c6ceb696951765e7d1831bb8e5a8815d86#c6a780c6ceb696951765e7d1831bb8e5a8815d86"
 dependencies = [
  "clap",
  "color-eyre",
+ "komorebi-scrolling",
  "objc2-core-foundation",
  "schemars 1.2.3",
  "serde",
@@ -3261,9 +3262,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "komorebi-scrolling"
+version = "0.1.42"
+source = "git+https://github.com/LGUG2Z/komorebi?rev=c6a780c6ceb696951765e7d1831bb8e5a8815d86#c6a780c6ceb696951765e7d1831bb8e5a8815d86"
+
+[[package]]
 name = "komorebi-themes"
 version = "0.1.42"
-source = "git+https://github.com/LGUG2Z/komorebi?rev=f08aa55511d77ca56ab0e789efabeb0a237a463e#f08aa55511d77ca56ab0e789efabeb0a237a463e"
+source = "git+https://github.com/LGUG2Z/komorebi?rev=c6a780c6ceb696951765e7d1831bb8e5a8815d86#c6a780c6ceb696951765e7d1831bb8e5a8815d86"
 dependencies = [
  "base16-egui-themes",
  "catppuccin-egui",

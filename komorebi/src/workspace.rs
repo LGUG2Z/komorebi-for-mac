@@ -2996,7 +2996,7 @@ mod tests {
             layout_options: Some(LayoutOptions {
                 scrolling: Some(ScrollingLayoutOptions {
                     columns: 2,
-                    center_focused_column: Some(true),
+                    center_focused_column: Some(crate::core::ScrollingCentering::Always),
                 }),
                 grid: None,
                 column_ratios: None,
@@ -3011,7 +3011,7 @@ mod tests {
                 .layout_options
                 .and_then(|o| o.scrolling)
                 .and_then(|s| s.center_focused_column),
-            Some(true)
+            Some(crate::core::ScrollingCentering::Always)
         );
     }
 
