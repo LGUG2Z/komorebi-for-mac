@@ -131,6 +131,18 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                 let previous_idx = monitor.focused_workspace_idx();
                 monitor.last_focused_workspace = Option::from(previous_idx);
                 monitor.focus_workspace(notification.workspace_idx)?;
+            }
+
+            // the window that came to the front is the one to focus, and not whichever one the
+            // workspace had focused when it was last in view
+            if let Some(window_id) = notification.triggered_by.window_id()
+                && let Ok(workspace) = wm.focused_workspace_mut()
+                && let Err(error) = workspace.focus_container_by_window(window_id)
+            {
+                tracing::debug!("not focusing window {window_id} on reconciliation: {error}");
+            }
+
+            if let Some(monitor) = wm.focused_monitor_mut() {
                 monitor.load_focused_workspace(mouse_follows_focus)?;
             }
         }

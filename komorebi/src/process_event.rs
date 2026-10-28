@@ -450,6 +450,22 @@ impl WindowManager {
                             needs_reconciliation = true;
                         }
                     }
+                } else {
+                    // An application whose window is parked on a hidden workspace can have no main
+                    // window to ask for when it comes to the front, but the notification may still
+                    // say which window it is about, and that is enough to follow it
+                    tracing::debug!(
+                        "{notification} for process {process_id}: no main window to ask for"
+                    );
+
+                    if !stale
+                        && let Some(window_id) = event.window_id()
+                        && let Some((m_idx, w_idx)) = self.known_window_ids.get(&window_id).cloned()
+                        && !self.focused_workspace()?.contains_window(window_id)
+                    {
+                        workspace_reconciliator::send_notification(m_idx, w_idx, event);
+                        needs_reconciliation = true;
+                    }
                 }
 
                 if matches!(
