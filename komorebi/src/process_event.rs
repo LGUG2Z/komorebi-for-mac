@@ -203,6 +203,19 @@ impl WindowManager {
                 let mut tabbed_window = false;
                 let mut needs_reconciliation = false;
 
+                // An application that komorebi brings to the front says so some time later, often
+                // after komorebi has moved on to another. Moving focus or workspace to follow that
+                // is moving it back to where it was, so it is only followed while the application
+                // is still the one in front.
+                let frontmost = MacosApi::frontmost_process_id();
+                let stale = is_stale_focus_notification(frontmost, process_id);
+                if stale {
+                    tracing::debug!(
+                        "not following {notification} for process {process_id}: process {} is in front",
+                        frontmost.unwrap_or_default()
+                    );
+                }
+
                 if let Some(window_id) = application.main_window_id()
                     && let Some(element) = application.main_window()
                 {
@@ -406,7 +419,7 @@ impl WindowManager {
                                                 should_switch_workspace_layer_to_tiling = false;
                                             }
                                     }
-                                } else if is_on_current_workspace {
+                                } else if is_on_current_workspace && !stale {
                                     workspace.focus_container_by_window(window_id)?;
                                 }
 
@@ -429,7 +442,10 @@ impl WindowManager {
                             }
                         }
 
-                        if !is_on_current_workspace && let Some((m_idx, w_idx)) = is_known {
+                        if !stale
+                            && !is_on_current_workspace
+                            && let Some((m_idx, w_idx)) = is_known
+                        {
                             workspace_reconciliator::send_notification(m_idx, w_idx, event);
                             needs_reconciliation = true;
                         }
@@ -1044,5 +1060,36 @@ impl WindowManager {
         border_manager::send_notification(window_element, window_id, false);
 
         Ok(())
+    }
+}
+
+/// Whether a notification that the application with this process id came to the front is out of
+/// date, which it is if some other application is in front now.
+///
+/// An application can be told to come to the front, and a while later tell komorebi that it did,
+/// by which time another one has been told to, so what it says is no longer true. Nothing is out
+/// of date if what is in front is not known, which leaves things as they were.
+fn is_stale_focus_notification(frontmost: Option<i32>, process_id: i32) -> bool {
+    frontmost.is_some_and(|frontmost| frontmost != process_id)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn an_application_that_is_in_front_is_followed() {
+        assert!(!is_stale_focus_notification(Some(79469), 79469));
+    }
+
+    #[test]
+    fn an_application_that_is_not_in_front_any_more_is_not() {
+        // Beeper says that it came to the front after Slack has
+        assert!(is_stale_focus_notification(Some(96328), 79469));
+    }
+
+    #[test]
+    fn nothing_is_stale_when_it_is_not_known_what_is_in_front() {
+        assert!(!is_stale_focus_notification(None, 79469));
     }
 }

@@ -447,6 +447,23 @@ impl MacosApi {
         }
     }
 
+    /// The process id of the application that is in front right now, as the accessibility API
+    /// says, or `None` if it will not say
+    pub fn frontmost_process_id() -> Option<i32> {
+        unsafe {
+            let syswide = AXUIElement::new_system_wide();
+            let app = AccessibilityApi::copy_attribute_value::<AXUIElement>(
+                &syswide,
+                kAXFocusedApplicationAttribute,
+            )?;
+
+            let mut pid = 0;
+            app.pid(NonNull::from_mut(&mut pid));
+
+            (pid != 0).then_some(pid)
+        }
+    }
+
     pub fn cursor_pos() -> CGPoint {
         let source = CGEventSource::new(CGEventSourceStateID::HIDSystemState);
         let event = CGEvent::new(source.as_deref());
