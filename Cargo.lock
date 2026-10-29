@@ -3247,7 +3247,7 @@ dependencies = [
 [[package]]
 name = "komorebi-layouts"
 version = "0.1.42"
-source = "git+https://github.com/LGUG2Z/komorebi?rev=c6a780c6ceb696951765e7d1831bb8e5a8815d86#c6a780c6ceb696951765e7d1831bb8e5a8815d86"
+source = "git+https://github.com/LGUG2Z/komorebi?rev=424a9371325a41e7f2f568e523d7cc32932a6d5a#424a9371325a41e7f2f568e523d7cc32932a6d5a"
 dependencies = [
  "clap",
  "color-eyre",
@@ -3264,12 +3264,12 @@ dependencies = [
 [[package]]
 name = "komorebi-scrolling"
 version = "0.1.42"
-source = "git+https://github.com/LGUG2Z/komorebi?rev=c6a780c6ceb696951765e7d1831bb8e5a8815d86#c6a780c6ceb696951765e7d1831bb8e5a8815d86"
+source = "git+https://github.com/LGUG2Z/komorebi?rev=424a9371325a41e7f2f568e523d7cc32932a6d5a#424a9371325a41e7f2f568e523d7cc32932a6d5a"
 
 [[package]]
 name = "komorebi-themes"
 version = "0.1.42"
-source = "git+https://github.com/LGUG2Z/komorebi?rev=c6a780c6ceb696951765e7d1831bb8e5a8815d86#c6a780c6ceb696951765e7d1831bb8e5a8815d86"
+source = "git+https://github.com/LGUG2Z/komorebi?rev=424a9371325a41e7f2f568e523d7cc32932a6d5a#424a9371325a41e7f2f568e523d7cc32932a6d5a"
 dependencies = [
  "base16-egui-themes",
  "catppuccin-egui",
@@ -7140,7 +7140,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]
