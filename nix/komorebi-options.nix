@@ -364,6 +364,9 @@ in
                               movement = lib.mkOption {
                                 type = lib.types.int;
                               };
+                              workspace = lib.mkOption {
+                                type = lib.types.int;
+                              };
                             };
                           })
                           lib.types.int
@@ -379,6 +382,9 @@ in
                         (lib.types.submodule {
                           options = {
                             movement = lib.mkOption {
+                              type = lib.types.bool;
+                            };
+                            workspace = lib.mkOption {
                               type = lib.types.bool;
                             };
                           };
@@ -401,6 +407,9 @@ in
                           (lib.types.submodule {
                             options = {
                               movement = lib.mkOption {
+                                type = animationStyle;
+                              };
+                              workspace = lib.mkOption {
                                 type = animationStyle;
                               };
                             };
