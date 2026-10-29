@@ -197,6 +197,14 @@ impl WindowManager {
 
         match event {
             WindowManagerEvent::FocusChange(notification, process_id, _) => {
+                let activation_of_focused_application = is_activation_of_application(
+                    notification,
+                    self.focused_window()
+                        .ok()
+                        .map(|window| window.application.process_id),
+                    process_id,
+                );
+
                 let application = self.application(process_id)?;
                 let application_name = application.name().unwrap_or_default().clone();
                 let mut should_switch_workspace_layer_to_tiling = true;
@@ -419,7 +427,11 @@ impl WindowManager {
                                                 should_switch_workspace_layer_to_tiling = false;
                                             }
                                     }
-                                } else if is_on_current_workspace && !stale {
+                                } else if should_refocus_container(
+                                    stale,
+                                    is_on_current_workspace,
+                                    activation_of_focused_application,
+                                ) {
                                     workspace.focus_container_by_window(window_id)?;
                                 }
 
@@ -442,9 +454,12 @@ impl WindowManager {
                             }
                         }
 
-                        if !stale
-                            && !is_on_current_workspace
-                            && let Some((m_idx, w_idx)) = is_known
+                        if should_follow_focus_to_workspace(
+                            stale,
+                            is_on_current_workspace,
+                            is_known.is_some(),
+                            activation_of_focused_application,
+                        ) && let Some((m_idx, w_idx)) = is_known
                         {
                             workspace_reconciliator::send_notification(m_idx, w_idx, event);
                             needs_reconciliation = true;
@@ -458,10 +473,14 @@ impl WindowManager {
                         "{notification} for process {process_id}: no main window to ask for"
                     );
 
-                    if !stale
-                        && let Some(window_id) = event.window_id()
+                    if let Some(window_id) = event.window_id()
                         && let Some((m_idx, w_idx)) = self.known_window_ids.get(&window_id).cloned()
-                        && !self.focused_workspace()?.contains_window(window_id)
+                        && should_follow_focus_to_workspace(
+                            stale,
+                            self.focused_workspace()?.contains_window(window_id),
+                            true,
+                            activation_of_focused_application,
+                        )
                     {
                         workspace_reconciliator::send_notification(m_idx, w_idx, event);
                         needs_reconciliation = true;
@@ -1089,6 +1108,49 @@ fn is_stale_focus_notification(frontmost: Option<i32>, process_id: i32) -> bool 
     frontmost.is_some_and(|frontmost| frontmost != process_id)
 }
 
+/// Whether a notification says that an application came to the front, when the window that is
+/// focused here is one of its own.
+///
+/// The application reports its main window, which is not necessarily the one komorebi focused: it
+/// can be another of its windows, parked on another workspace or beside the focused one. That is
+/// komorebi's own focus coming back, not a request to move it, unlike a window of the application
+/// being chosen, which is said with `AXMainWindowChanged`.
+fn is_activation_of_application(
+    notification: SystemNotification,
+    focused_window_process_id: Option<i32>,
+    process_id: i32,
+) -> bool {
+    matches!(
+        notification,
+        SystemNotification::AppKitWorkspace(
+            AppKitWorkspaceNotification::NSWorkspaceDidActivateApplicationNotification
+        ) | SystemNotification::Accessibility(AccessibilityNotification::AXApplicationActivated)
+    ) && focused_window_process_id == Some(process_id)
+}
+
+/// Whether an application coming to the front should take komorebi to the workspace that has the
+/// window it names. Not when the notification is stale, nor when the window is already on the
+/// workspace that is showing, nor when it is only the application saying which of its windows is
+/// its main one.
+fn should_follow_focus_to_workspace(
+    stale: bool,
+    is_on_current_workspace: bool,
+    window_is_known: bool,
+    activation_of_focused_application: bool,
+) -> bool {
+    !stale && !is_on_current_workspace && window_is_known && !activation_of_focused_application
+}
+
+/// Whether the container of the window a notification names should take the focus, when the window
+/// is on the workspace that is showing.
+fn should_refocus_container(
+    stale: bool,
+    is_on_current_workspace: bool,
+    activation_of_focused_application: bool,
+) -> bool {
+    is_on_current_workspace && !stale && !activation_of_focused_application
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1107,5 +1169,82 @@ mod tests {
     #[test]
     fn nothing_is_stale_when_it_is_not_known_what_is_in_front() {
         assert!(!is_stale_focus_notification(None, 79469));
+    }
+
+    const ACTIVATED: SystemNotification = SystemNotification::AppKitWorkspace(
+        AppKitWorkspaceNotification::NSWorkspaceDidActivateApplicationNotification,
+    );
+    const MAIN_WINDOW_CHANGED: SystemNotification =
+        SystemNotification::Accessibility(AccessibilityNotification::AXMainWindowChanged);
+
+    #[test]
+    fn an_activation_of_the_application_with_the_focused_window_is_recognised() {
+        // WezTerm (875) says it came to the front while one of its windows is focused here
+        assert!(is_activation_of_application(ACTIVATED, Some(875), 875));
+        assert!(is_activation_of_application(
+            SystemNotification::Accessibility(AccessibilityNotification::AXApplicationActivated),
+            Some(875),
+            875
+        ));
+    }
+
+    #[test]
+    fn an_activation_of_another_application_is_not() {
+        // Beeper (868) comes to the front while one of Zen's (833) windows is focused here
+        assert!(!is_activation_of_application(ACTIVATED, Some(833), 868));
+        assert!(!is_activation_of_application(ACTIVATED, None, 868));
+    }
+
+    #[test]
+    fn choosing_a_window_of_the_focused_application_is_not_an_activation() {
+        assert!(!is_activation_of_application(
+            MAIN_WINDOW_CHANGED,
+            Some(875),
+            875
+        ));
+    }
+
+    #[test]
+    fn a_window_known_on_another_workspace_is_followed() {
+        assert!(should_follow_focus_to_workspace(false, false, true, false));
+    }
+
+    #[test]
+    fn a_stale_notification_is_not_followed() {
+        assert!(!should_follow_focus_to_workspace(true, false, true, false));
+    }
+
+    #[test]
+    fn a_window_on_the_workspace_that_is_showing_is_not_followed() {
+        assert!(!should_follow_focus_to_workspace(false, true, true, false));
+    }
+
+    #[test]
+    fn another_window_of_the_application_whose_window_is_focused_is_not_followed() {
+        // WezTerm (875) is told to focus window 51 here and reports its main window, 939, which
+        // is parked on another workspace: that is not a request to go there
+        assert!(!should_follow_focus_to_workspace(false, false, true, true));
+    }
+
+    #[test]
+    fn a_window_on_the_workspace_that_is_showing_takes_the_focus() {
+        assert!(should_refocus_container(false, true, false));
+    }
+
+    #[test]
+    fn a_stale_notification_does_not_take_the_focus() {
+        assert!(!should_refocus_container(true, true, false));
+    }
+
+    #[test]
+    fn a_window_that_is_not_on_the_workspace_that_is_showing_does_not_take_the_focus() {
+        assert!(!should_refocus_container(false, false, false));
+    }
+
+    #[test]
+    fn another_window_of_the_application_whose_window_is_focused_does_not_take_the_focus() {
+        // WezTerm (875) is told to focus window 51 here and reports its main window, 939, which is
+        // beside it on the same workspace: the focus stays on 51
+        assert!(!should_refocus_container(false, true, true));
     }
 }
