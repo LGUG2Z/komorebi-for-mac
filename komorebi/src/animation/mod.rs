@@ -13,6 +13,8 @@ use std::time::Duration;
 use step::MotionSpec;
 
 pub mod animator;
+pub mod capture;
+pub mod ghost;
 pub mod lerp;
 pub mod prefix;
 pub mod stats;
@@ -20,6 +22,8 @@ pub mod step;
 pub mod style;
 pub mod throttle;
 pub mod tracks;
+pub mod transition;
+pub mod workspace_transition;
 
 use serde::Deserialize;
 use serde::Serialize;
@@ -135,6 +139,11 @@ pub fn motion_for(prefix: AnimationPrefix) -> Option<MotionSpec> {
             .copied()
             .unwrap_or_else(|| *ANIMATION_STYLE_GLOBAL.lock()),
     })
+}
+
+/// Whether switching workspaces should slide the windows out and in
+pub fn workspace_transitions_enabled() -> bool {
+    motion_for(AnimationPrefix::Workspace).is_some()
 }
 
 /// How long one frame takes, given the configured frames per second

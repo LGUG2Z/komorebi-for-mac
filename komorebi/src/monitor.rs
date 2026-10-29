@@ -265,6 +265,39 @@ impl Monitor {
         Ok(())
     }
 
+    /// Put the windows of every workspace but the focused one away, which is the half of
+    /// [`Monitor::load_focused_workspace`] that a transition can do before it is over
+    pub fn hide_unfocused_workspaces(&mut self) -> eyre::Result<()> {
+        let focused_idx = self.focused_workspace_idx();
+
+        for (i, workspace) in self.workspaces_mut().iter_mut().enumerate() {
+            if i != focused_idx {
+                workspace.hide(None)?;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Bring the windows of the focused workspace back, which is the other half of
+    /// [`Monitor::load_focused_workspace`]
+    pub fn restore_focused_workspace(&mut self, mouse_follows_focus: bool) -> eyre::Result<()> {
+        let monitor_id = self.id;
+        let monitor_wp = self.wallpaper.clone();
+
+        // as when everything is done at once, the windows are to appear together
+        let batched = BatchedUpdates::begin();
+
+        if let Some(workspace) = self.focused_workspace_mut() {
+            workspace.restore_windows(mouse_follows_focus)?;
+
+            drop(batched);
+            workspace.apply_wallpaper(monitor_id, &monitor_wp)?;
+        }
+
+        Ok(())
+    }
+
     pub fn new_workspace_idx(&self) -> usize {
         self.workspaces().len()
     }

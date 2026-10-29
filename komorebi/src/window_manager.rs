@@ -5,10 +5,17 @@ use crate::LibraryError;
 use crate::REGEX_IDENTIFIERS;
 use crate::SUBSCRIPTION_SOCKETS;
 use crate::UNMANAGED_WINDOW_IDS;
+use crate::WINDOW_RESTORE_POSITIONS;
 use crate::WORKSPACE_MATCHING_RULES;
 use crate::accessibility::AccessibilityApi;
+use crate::animation;
+use crate::animation::AnimationPrefix;
+use crate::animation::transition;
+use crate::animation::transition::SlideDirection;
+use crate::animation::workspace_transition::WorkspaceTransition;
 use crate::application::Application;
 use crate::border_manager;
+use crate::border_manager::BorderLook;
 use crate::container::Container;
 use crate::core::Arrangement;
 use crate::core::Axis;
@@ -25,6 +32,7 @@ use crate::core::Rect;
 use crate::core::Sizing;
 use crate::core::WindowContainerBehaviour;
 use crate::core::WindowHidingPosition;
+use crate::core::WindowKind;
 use crate::core::WindowManagementBehaviour;
 use crate::core::config_generation::MatchingRule;
 use crate::current_space_id;
@@ -32,6 +40,7 @@ use crate::lockable_sequence::Lockable;
 use crate::macos_api::MacosApi;
 use crate::monitor::Monitor;
 use crate::ring::Ring;
+use crate::skylight::BatchedUpdates;
 use crate::static_config::StaticConfig;
 use crate::window::AdhocWindow;
 use crate::window::Snapping;
@@ -1353,6 +1362,31 @@ impl WindowManager {
         tracing::info!("focusing workspace");
 
         let mouse_follows_focus = self.mouse_follows_focus;
+
+        let monitor_idx = self.focused_monitor_idx();
+
+        if let Some(transition) = self.workspace_transition(idx) {
+            let monitor = self
+                .focused_monitor_mut()
+                .ok_or_eyre("there is no workspace")?;
+
+            transition.run(
+                monitor,
+                |monitor| {
+                    // behind the ghosts, the workspace that is left goes away at once, and the one
+                    // that is entered waits for them to slide in
+                    let _batched = BatchedUpdates::begin();
+                    // the pictures have borders of their own
+                    border_manager::hide_borders_on(monitor_idx);
+                    monitor.focus_workspace(idx)?;
+                    monitor.hide_unfocused_workspaces()
+                },
+                |monitor| monitor.restore_focused_workspace(mouse_follows_focus),
+            )?;
+
+            return self.update_focused_workspace(false, true);
+        }
+
         let monitor = self
             .focused_monitor_mut()
             .ok_or_eyre("there is no workspace")?;
@@ -1361,6 +1395,116 @@ impl WindowManager {
         monitor.load_focused_workspace(mouse_follows_focus)?;
 
         self.update_focused_workspace(false, true)
+    }
+
+    /// The borders that the windows of a workspace that is entered on the focused monitor are going
+    /// to have, as the border manager is going to give them
+    fn entering_borders(workspace: &Workspace) -> Vec<(u32, BorderLook)> {
+        let mut borders = vec![];
+
+        if !workspace.tile {
+            return borders;
+        }
+
+        if let Some(window) = workspace
+            .monocle_container
+            .as_ref()
+            .and_then(|monocle| monocle.focused_window())
+        {
+            borders
+                .extend(border_manager::look_of(WindowKind::Monocle).map(|look| (window.id, look)));
+        } else if workspace.layer != WorkspaceLayer::Floating {
+            for (idx, container) in workspace.containers().iter().enumerate() {
+                let Some(window) = container.focused_window() else {
+                    continue;
+                };
+
+                let kind = if idx != workspace.focused_container_idx() {
+                    if container.locked {
+                        WindowKind::UnfocusedLocked
+                    } else {
+                        WindowKind::Unfocused
+                    }
+                } else if container.windows().len() > 1 {
+                    WindowKind::Stack
+                } else {
+                    WindowKind::Single
+                };
+
+                borders.extend(border_manager::look_of(kind).map(|look| (window.id, look)));
+            }
+        }
+
+        for window in workspace.floating_windows() {
+            borders.extend(
+                border_manager::look_of(WindowKind::Unfocused).map(|look| (window.id, look)),
+            );
+        }
+
+        borders
+    }
+
+    /// What it takes to slide the workspace that is focused out of the focused monitor and the one
+    /// at `idx` in, or `None` for when the switch is to be done at once: animations are not asked
+    /// for, there is nothing to slide, or a window cannot be pictured
+    fn workspace_transition(&self, idx: usize) -> Option<WorkspaceTransition> {
+        let motion = animation::motion_for(AnimationPrefix::Workspace)?;
+
+        let monitor = self.focused_monitor()?;
+        let from_idx = monitor.focused_workspace_idx();
+        let direction = SlideDirection::between(from_idx, idx)?;
+
+        let leaving = monitor.workspaces().get(from_idx)?;
+        let entering = monitor.workspaces().get(idx);
+
+        // a window that is maximized is not hidden and shown like the rest
+        if leaving.maximized_window.is_some()
+            || entering.is_some_and(|workspace| workspace.maximized_window.is_some())
+        {
+            return None;
+        }
+
+        let outgoing: Vec<(u32, Rect)> = leaving
+            .visible_windows()
+            .into_iter()
+            .flatten()
+            .filter_map(|window| {
+                MacosApi::window_rect(&window.element)
+                    .ok()
+                    .map(|rect| (window.id, Rect::from(rect)))
+            })
+            .collect();
+
+        // where the windows of the workspace that is entered were when it was left, which is
+        // where they are put back
+        let restore_positions = WINDOW_RESTORE_POSITIONS.lock();
+        let incoming: Vec<(u32, Rect)> = entering
+            .map(|workspace| workspace.visible_windows())
+            .unwrap_or_default()
+            .into_iter()
+            .flatten()
+            .filter_map(|window| {
+                restore_positions
+                    .get(&window.id)
+                    .map(|rect| (window.id, Rect::from(*rect)))
+            })
+            .collect();
+        drop(restore_positions);
+
+        let plan = transition::plan(direction, monitor.size, &outgoing, &incoming)?;
+
+        // the borders that the windows have now, and the ones that the windows that are entered are
+        // going to have, which the border manager decides on once it gets to it
+        let mut borders: HashMap<u32, BorderLook> = outgoing
+            .iter()
+            .filter_map(|(id, _)| border_manager::window_look(*id).map(|look| (*id, look)))
+            .collect();
+
+        if let Some(workspace) = entering {
+            borders.extend(Self::entering_borders(workspace));
+        }
+
+        WorkspaceTransition::capture(plan, motion, &borders)
     }
 
     #[tracing::instrument(skip(self))]

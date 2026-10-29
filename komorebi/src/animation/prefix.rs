@@ -13,5 +13,6 @@ use strum::EnumString;
 #[serde(rename_all = "snake_case")]
 pub enum AnimationPrefix {
     Movement,
+    Workspace,
     // Note: Transparency is not supported on macOS as there's no equivalent to Win32 layered windows
 }

@@ -87,6 +87,17 @@ unsafe extern "C-unwind" fn border_observer_callback(
     }
 }
 
+/// A border window that is to be taken off the screen, on the main thread
+pub struct HiddenBorder(Retained<NSWindow>);
+
+unsafe impl Send for HiddenBorder {}
+
+impl HiddenBorder {
+    pub fn hide(&self) {
+        self.0.orderOut(None);
+    }
+}
+
 #[derive(Debug)]
 pub struct Border {
     pub id: String,
@@ -205,6 +216,11 @@ impl Border {
         self.ns_window
             .window
             .setFrame_display_animate(border_frame(frame), false, false);
+    }
+
+    /// A way to take the border off the screen from the main thread, which outlives the border
+    pub fn hide_handle(&self) -> HiddenBorder {
+        HiddenBorder(self.ns_window.window.clone())
     }
 
     pub fn update(&self) {

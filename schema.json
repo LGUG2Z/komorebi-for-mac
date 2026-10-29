@@ -3242,6 +3242,9 @@
           "properties": {
             "movement": {
               "type": "boolean"
+            },
+            "workspace": {
+              "type": "boolean"
             }
           },
           "additionalProperties": false
@@ -3260,6 +3263,11 @@
           "type": "object",
           "properties": {
             "movement": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0
+            },
+            "workspace": {
               "type": "integer",
               "format": "uint64",
               "minimum": 0
@@ -3283,6 +3291,9 @@
           "type": "object",
           "properties": {
             "movement": {
+              "$ref": "#/$defs/AnimationStyle"
+            },
+            "workspace": {
               "$ref": "#/$defs/AnimationStyle"
             }
           },

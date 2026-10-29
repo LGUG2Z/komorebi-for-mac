@@ -65,11 +65,14 @@ objc2-core-foundation = { version = "0.3", default-features = false, features = 
   "CFRunLoop",
   "CFMachPort",
   "CFCGTypes",
+  "CFData",
 ] }
 objc2-core-graphics = { version = "0.3", default-features = false, features = [
   "std",
   "alloc",
   "CGWindow",
+  "CGImage",
+  "CGDataProvider",
   "CGDirectDisplay",
   "CGDisplayConfiguration",
   "CGEvent",
@@ -93,6 +96,7 @@ objc2-foundation = { version = "0.3", default-features = false, features = [
   "NSRunLoop",
   "NSDate",
   "NSKeyValueCoding",
+  "NSArray",
 ] }
 objc2-quartz-core = { version = "0.3", default-features = false, features = [
   "std",

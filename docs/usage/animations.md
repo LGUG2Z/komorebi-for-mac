@@ -39,23 +39,53 @@ them. `Linear`, the default, moves windows at a constant speed and stops them ab
 
 ## Different animations for different things
 
-Every option can be set for a kind of animation instead of for all of them. At the moment `movement` is the only kind.
+Every option can be set for a kind of animation instead of for all of them. There are two kinds: `movement`, for windows moving to their place in a layout, and `workspace`, for switching
+workspaces.
 
 ```json
 {
   "animation": {
     "enabled": {
-      "movement": true
+      "movement": true,
+      "workspace": true
     },
     "duration": {
-      "movement": 300
+      "movement": 300,
+      "workspace": 400
     },
     "style": {
-      "movement": "EaseOutQuint"
+      "movement": "EaseOutQuint",
+      "workspace": "EaseOutCubic"
     }
   }
 }
 ```
+
+## Switching workspaces
+
+With the `workspace` animation on, the windows of the workspace that you leave slide out of the monitor, and the windows
+of the workspace that you enter slide in from the other side: from the right when the workspace that you go to has a
+higher number, and from the left when it has a lower one.
+
+```json
+{
+  "animation": {
+    "enabled": {
+      "workspace": true
+    }
+  }
+}
+```
+
+What slides are pictures of the windows, which komorebi takes with the Screen Recording permission that it already asks
+for, and not the windows themselves. The real windows are put away, or kept waiting, behind the pictures, and the ones
+that you enter are shown where the pictures end up, which the pictures fade away over. The pictures have borders of
+their own, in the colours that the windows' borders have or are about to have, which slide along with them. `fps` does not apply: the
+pictures are moved by the system.
+
+Switching workspaces is not animated if a window on either workspace is maximized, if there is nothing to slide, and for
+a window that komorebi cannot take a picture of, which is put away or shown at once. Only the `focus-workspace` commands
+are animated for now. Everything else that changes workspace, such as moving a window to another one, happens at once.
 
 ## Good to know
 
@@ -74,8 +104,7 @@ Every option can be set for a kind of animation instead of for all of them. At t
 - Some apps animate every move they are asked to make, which gets in the way of komorebi's animation. While a window is
   being animated komorebi turns this off for the app, and puts it back afterwards.
 - A window that you grab with the mouse while it is moving is let go of straight away.
-- Stacking and unstacking windows, and cycling or focusing a window in a stack, are never animated, and neither is
-  switching workspaces.
+- Stacking and unstacking windows, and cycling or focusing a window in a stack, are never animated.
 - In the Scrolling layout, windows that scroll out of view slide off the edge of the screen that they left by instead of
   disappearing, and windows that scroll back into view slide in from the same edge.
 - To see how an animation went, run komorebi with `--log-level debug`. When the windows stop moving, a line starting with

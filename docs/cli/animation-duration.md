@@ -13,7 +13,7 @@ Options:
   -a, --animation-type <ANIMATION_TYPE>
           Animation type to apply the duration to. If not specified, sets global duration
           
-          [possible values: movement]
+          [possible values: movement, workspace]
 
   -h, --help
           Print help

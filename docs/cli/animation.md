@@ -13,7 +13,7 @@ Options:
   -a, --animation-type <ANIMATION_TYPE>
           Animation type to apply the state to. If not specified, sets global state
           
-          [possible values: movement]
+          [possible values: movement, workspace]
 
   -h, --help
           Print help

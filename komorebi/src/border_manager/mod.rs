@@ -108,6 +108,61 @@ pub fn window_border(window_id: u32) -> Option<BorderInfo> {
     })
 }
 
+/// What a border looks like, for a picture of a window that is to be drawn with one
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct BorderLook {
+    pub colour: Rgb,
+    pub width: f64,
+    pub radius: f64,
+    /// How far outside of the window the border is
+    pub outset: f64,
+}
+
+/// What the border of a window of this kind looks like, or `None` when there are no borders
+pub fn look_of(kind: WindowKind) -> Option<BorderLook> {
+    if !BORDER_ENABLED.load(Ordering::Relaxed) {
+        return None;
+    }
+
+    Some(BorderLook {
+        colour: Rgb::from(window_kind_colour(kind)),
+        width: f64::from(BORDER_WIDTH.load(Ordering::Relaxed)),
+        radius: f64::from(BORDER_RADIUS.load(Ordering::Relaxed)),
+        outset: f64::from(BORDER_OFFSET.load(Ordering::Relaxed) + BORDER_OFFSET_ADJUSTMENT),
+    })
+}
+
+/// What the border that a window has now looks like, or `None` if it has none
+pub fn window_look(window_id: u32) -> Option<BorderLook> {
+    window_border(window_id).and_then(|info| look_of(info.window_kind))
+}
+
+/// Take down the borders of the windows on a monitor, which is to be done while pictures of them
+/// are on screen instead
+///
+/// The borders are not shown again: they belong to windows that are being put away, and the ones
+/// of the windows that take their place are made when the borders are next looked at.
+pub fn hide_borders_on(monitor_idx: usize) {
+    let windows: Vec<_> = BORDER_STATE
+        .lock()
+        .values()
+        .filter(|border| border.monitor_idx == Some(monitor_idx))
+        .map(|border| border.hide_handle())
+        .collect();
+
+    if windows.is_empty() {
+        return;
+    }
+
+    DispatchQueue::main().exec_sync(move || {
+        autoreleasepool(|_| {
+            for window in windows {
+                window.hide();
+            }
+        });
+    });
+}
+
 pub fn send_notification(
     element: Option<AccessibilityUiElement>,
     window_id: Option<u32>,
