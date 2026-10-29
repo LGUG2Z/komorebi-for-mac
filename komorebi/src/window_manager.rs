@@ -3976,12 +3976,16 @@ impl WindowManager {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::SocketMessage;
+    use crate::animation::animator;
+    use crate::core::animation::AnimationStyle;
     use crate::monitor;
     use crate::reaper;
     use crate::reaper::ReaperNotification;
     use crossbeam_channel::Sender;
     use crossbeam_channel::bounded;
     use std::path::PathBuf;
+    use std::time::Duration;
     use uuid::Uuid;
 
     struct TestContext {
@@ -4021,6 +4025,98 @@ mod tests {
                 socket_path: Some(socket_path),
             },
         )
+    }
+
+    /// Windows move by animation, for as long as this is alive
+    struct AnimationsOn;
+
+    impl AnimationsOn {
+        fn new() -> Self {
+            animation::ANIMATION_ENABLED_PER_ANIMATION
+                .lock()
+                .insert(AnimationPrefix::Movement, true);
+            Self
+        }
+    }
+
+    impl Drop for AnimationsOn {
+        fn drop(&mut self) {
+            animation::ANIMATION_ENABLED_PER_ANIMATION
+                .lock()
+                .remove(&AnimationPrefix::Movement);
+        }
+    }
+
+    /// Start a journey for a window that is to last a minute, and so is in flight until
+    /// something takes it over
+    fn start_journey(window_id: u32, target: Rect) {
+        animator::retarget(
+            &animator::Journey {
+                window_id,
+                pid: 1,
+                handle: animator::WindowHandle {
+                    element: AccessibilityUiElement::default(),
+                    app: AccessibilityUiElement::default(),
+                },
+                target,
+                motion: animation::step::MotionSpec {
+                    duration: Duration::from_secs(60),
+                    style: AnimationStyle::Linear,
+                },
+                after: None,
+            },
+            || Ok(Rect::default()),
+        )
+        .unwrap();
+
+        assert!(animator::is_animating(window_id));
+    }
+
+    #[test]
+    fn resize_commands_lay_the_windows_out_in_place_with_animations_on() {
+        // ids that nothing else in the tests uses, as what is animating is shared by all of them
+        const FIRST: u32 = 3_700_000_001;
+        let area = Rect {
+            left: 0,
+            top: 0,
+            right: 1200,
+            bottom: 800,
+        };
+
+        for message in [
+            SocketMessage::ResizeWindowEdge(OperationDirection::Right, Sizing::Increase),
+            SocketMessage::ResizeWindowAxis(Axis::Horizontal, Sizing::Decrease),
+        ] {
+            let (mut wm, _context) = setup_window_manager();
+            wm.monitors_mut().push_back(monitor::new(
+                0,
+                area,
+                area,
+                "TestMonitor".to_string(),
+                "TestDeviceID".to_string(),
+            ));
+
+            let workspace = wm.focused_workspace_mut().unwrap();
+            workspace.layout = Layout::Default(DefaultLayout::Scrolling);
+            for id in FIRST..FIRST + 3 {
+                workspace
+                    .new_container_for_window(&Window::from(id))
+                    .unwrap();
+            }
+            workspace.focus_container(0);
+            workspace.layout_scrolling(&area, 0);
+
+            let _animations = AnimationsOn::new();
+            start_journey(FIRST, area);
+
+            wm.process_command(message.clone(), std::io::sink())
+                .unwrap();
+
+            assert!(
+                !animator::is_animating(FIRST),
+                "{message}: the window that was resized is still animating"
+            );
+        }
     }
 
     #[test]

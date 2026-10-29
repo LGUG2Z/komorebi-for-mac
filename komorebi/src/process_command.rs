@@ -731,9 +731,13 @@ impl WindowManager {
                 }
             }
             SocketMessage::ResizeWindowEdge(direction, sizing) => {
+                // resizing is done by the key, over and over, and every press is laid out where it
+                // goes and not by an animation that the next press would have to catch up with
+                let _suspended_animations = animation::suspend();
                 self.resize_window(direction, sizing, self.resize_delta, true)?;
             }
             SocketMessage::ResizeWindowAxis(axis, sizing) => {
+                let _suspended_animations = animation::suspend();
                 match axis {
                     Axis::Horizontal => {
                         self.resize_window(
