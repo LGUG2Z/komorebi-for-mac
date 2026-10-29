@@ -155,6 +155,7 @@ nav:
       - cli/promote-focus.md
       - cli/center-focus.md
       - cli/expand.md
+      - cli/pan.md
       - cli/promote-window.md
       - cli/retile.md
       - cli/display-index-preference.md

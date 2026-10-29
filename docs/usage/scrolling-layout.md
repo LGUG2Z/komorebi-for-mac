@@ -2,7 +2,9 @@
 
 In the Scrolling layout every window is a column in a row that is as long as it needs to be, and the screen is a
 viewport onto a part of it. A new window is added to the right of the focused one. Nothing is squeezed to make it fit:
-the row gets longer, and the screen scrolls to follow your focus.
+the row gets longer, and the screen scrolls to follow your focus. Every workspace that uses the layout has a row of
+its own, and the screen of the monitor that shows it is the viewport onto it, so each monitor has a strip of its own,
+and focus and move commands carry on to the next monitor when they reach the end of one.
 
 ```json
 {
@@ -131,6 +133,58 @@ When you close a window, focus goes back to the window that it was opened next t
 and the screen scrolls back to where it was. If you have, focus goes to the window that takes the closed window's place
 on the right, or to the one before it if there is none. A window that is closed without having focus does not take focus
 with it.
+
+## Panning
+
+[`komorebic pan`](../cli/pan.md) moves the view along the row without moving focus first. `pan left` brings what is to
+the left of the screen into view, and `pan right` what is to the right, by the width of a new column. The row comes to
+rest with a column against an edge of the screen, and focus goes to the nearest column that is fully on the screen if the
+focused one has gone off it. With [animations](animations.md) on, the windows glide to where the row rests.
+
+```
+alt + shift - 0x2B : komorebic pan left  # 0x2B is ,
+alt + shift - 0x2F : komorebic pan right # 0x2F is .
+```
+
+It does nothing in the other layouts.
+
+### With the fingers on a touchpad
+
+`komorebic pan --stream` reads the gestures of fingers on a touchpad from standard input and moves the view with them:
+the row follows the fingers while they are down, and when they lift it comes to rest with a column against an edge of the
+screen, the one that the speed that the fingers lifted at takes it to.
+
+Nothing in komorebi for Mac writes that stream yet, and skhd has no bindings for swipes, so it takes a program that reads
+the touchpad and writes it, with its output piped in:
+
+```
+touchpad-gestures | komorebic pan --stream
+```
+
+The stream is the gesture stream that [whkd](https://github.com/LGUG2Z/whkd) writes on Windows, so a program that
+writes it works on either: a line for each `begin`, `move`, `end` and `cancel`, a name and then `key=value` fields in any
+order, with the distances in centimetres and the times in milliseconds on a clock of the program's own, since only the
+differences between them mean anything. `move` needs `dx` and `t`, and `dy` is not used. Fields and messages that are not
+known are ignored.
+
+```
+begin fingers=3 x=4.000 y=2.000 t=118337
+move dx=0.420 dy=-0.030 x=4.420 y=1.970 t=118345
+move dx=0.510 dy=-0.020 x=4.930 y=1.950 t=118353
+end x=5.400 y=1.950 t=118369
+```
+
+- A swipe of 10 centimetres across the touchpad moves the row the width of the screen, and the row can be pulled up to
+  a screen's width past either end, from where it comes back when the fingers lift. `--sensitivity` multiplies the
+  distances, and `--reversed` makes the row go the other way to the fingers.
+- With `--paging` the row does not follow the fingers: it takes a step, as `komorebic pan` does, for every two
+  centimetres that they go.
+- A gesture that is given up, or whose stream stops, puts the row back to where it was, and so does one that moves again
+  after you changed workspace. One that ends after you changed workspace lets the row of the workspace that it began on
+  come to rest instead. Vertical movement is not used.
+- The windows are moved as the fingers go, a few at a time, so one that belongs to an app that is slow to resize lags
+  behind them.
+- It does nothing in the other layouts.
 
 ## Resizing
 

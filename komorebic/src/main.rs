@@ -1020,10 +1020,9 @@ enum SubCommand {
     ScrollingLayoutColumns(ScrollingLayoutColumns),
     /// Make the focused column of the Scrolling layout as wide as the screen, or put it back
     ScrollingLayoutFullWidth,
-    /// Centre the user focus on the screen, once
+    /// Scroll the Scrolling layout so that the focused column is in the middle of the screen, once
     ///
-    /// In the Scrolling layout the screen scrolls so that the focused column is in the middle of
-    /// it. Only the Scrolling layout scrolls, so this does nothing in the other layouts.
+    /// Only the Scrolling layout scrolls, so this does nothing in the other layouts.
     CenterFocus,
     /// Make the focused column of the Scrolling layout fill the room that the columns in view
     /// leave on the screen, which does nothing in any other layout
