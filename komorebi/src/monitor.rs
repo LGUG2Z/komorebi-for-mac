@@ -174,6 +174,17 @@ impl Monitor {
     }
 
     /// Updates the `globals` field of workspace with index `workspace_idx`
+    /// Give every workspace the work area of this monitor, not only the focused one
+    ///
+    /// A workspace that is put away is hidden on the display that its work area is on, so after
+    /// the display of a monitor changes, the workspaces that are not showing would be hidden on
+    /// the display that is gone, and their windows would be left in view.
+    pub fn update_all_workspace_globals(&mut self, offset: Option<Rect>) {
+        for idx in 0..self.workspaces().len() {
+            self.update_workspace_globals(idx, offset);
+        }
+    }
+
     pub fn update_workspace_globals(&mut self, workspace_idx: usize, offset: Option<Rect>) {
         let container_padding = self
             .container_padding
@@ -237,8 +248,9 @@ impl Monitor {
         for (i, workspace) in self.workspaces_mut().iter_mut().enumerate() {
             if i == focused_idx {
                 restore = Some(workspace);
-            } else {
-                workspace.hide(None)?;
+            } else if let Err(error) = workspace.hide(None) {
+                // the windows that can be put away should be, whatever happened to the others
+                tracing::warn!("failed to hide workspace {i}: {error}");
             }
         }
 

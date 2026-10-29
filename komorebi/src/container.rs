@@ -165,8 +165,9 @@ impl Container {
                 should_hide = true
             }
 
-            if should_hide {
-                window.hide(hiding_position)?;
+            // a window that has gone away must not leave the ones after it in view
+            if should_hide && let Err(error) = window.hide(hiding_position) {
+                tracing::warn!("failed to hide window {}: {error}", window.id);
             }
         }
 

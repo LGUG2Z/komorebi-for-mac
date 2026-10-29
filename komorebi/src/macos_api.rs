@@ -181,19 +181,27 @@ impl MacosApi {
 
     pub fn update_monitor_work_areas(wm: &mut WindowManager) -> eyre::Result<()> {
         let all_devices = Self::latest_monitor_information()?;
+        let mut updated = false;
+
         for device in all_devices {
+            // Display ids change when a display is reconnected, the serial number does not
             for monitor in wm.monitors_mut() {
-                if monitor.id == device.id {
+                if monitor.serial_number_id == device.serial_number_id {
+                    monitor.id = device.id;
                     monitor.size = device.size;
                     monitor.work_area_size = device.work_area_size;
+                    updated = true;
+
+                    tracing::info!(
+                        "updated monitor size and work area for monitor {}",
+                        monitor.serial_number_id
+                    );
                 }
-
-                tracing::info!(
-                    "updated monitor size and work area for monitor {}",
-                    monitor.serial_number_id
-                );
             }
+        }
 
+        // A display that komorebi does not know yet is the business of the reconciliator
+        if updated {
             let focus_follows_mouse = wm.mouse_follows_focus;
             wm.update_focused_workspace(focus_follows_mouse, true)?;
         }

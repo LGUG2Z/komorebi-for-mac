@@ -144,6 +144,70 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                 }
 
                 if initial_monitor_count == attached_devices.len() {
+                    // The count can match while the displays do not: closing a laptop lid with
+                    // an external display connected swaps one display for another. Hand the
+                    // unplugged monitor's workspaces to the display that took its place.
+                    let unplugged = wm
+                        .monitors()
+                        .iter()
+                        .enumerate()
+                        .filter(|(_, m)| {
+                            !attached_devices
+                                .iter()
+                                .any(|a| a.serial_number_id.eq(&m.serial_number_id))
+                        })
+                        .map(|(idx, _)| idx)
+                        .collect::<Vec<_>>();
+
+                    let plugged = attached_devices
+                        .iter()
+                        .filter(|a| {
+                            !wm.monitors()
+                                .iter()
+                                .any(|m| m.serial_number_id.eq(&a.serial_number_id))
+                        })
+                        .collect::<Vec<_>>();
+
+                    if !unplugged.is_empty() && unplugged.len() == plugged.len() {
+                        tracing::info!(
+                            "{} display(s) swapped for others, moving their monitors over",
+                            unplugged.len()
+                        );
+
+                        for (idx, attached) in unplugged.iter().zip(plugged) {
+                            if let Some(monitor) = wm.monitors_mut().get_mut(*idx) {
+                                monitor.id = attached.id;
+                                monitor.device = attached.device.clone();
+                                monitor.serial_number_id = attached.serial_number_id.clone();
+                                monitor.size = attached.size;
+                                monitor.work_area_size = attached.work_area_size;
+                            }
+                        }
+
+                        let offset = wm.work_area_offset;
+                        for monitor in wm.monitors_mut() {
+                            monitor.update_all_workspace_globals(offset);
+                        }
+
+                        if let Err(error) = wm.retile_all(true) {
+                            tracing::error!("failed to retile after swapping displays: {error}");
+                        }
+
+                        let mouse_follows_focus = wm.mouse_follows_focus;
+                        for monitor in wm.monitors_mut() {
+                            if let Err(error) = monitor.load_focused_workspace(mouse_follows_focus)
+                            {
+                                tracing::error!(
+                                    "failed to load the focused workspace after swapping displays: {error}"
+                                );
+                            }
+                        }
+
+                        drop(wm);
+                        border_manager::send_notification(None, None, false);
+                        continue 'receiver;
+                    }
+
                     tracing::debug!("monitor counts match, reconciliation not required");
                     drop(wm);
                     continue 'receiver;
@@ -551,7 +615,9 @@ pub fn handle_notifications(wm: Arc<Mutex<WindowManager>>) -> color_eyre::Result
                 // get brought back onto the screen, so we wanna make sure unfocused
                 // workspaces get hidden again
                 if initial_monitor_count != final_count {
+                    let offset = wm.work_area_offset;
                     for monitor in wm.monitors_mut() {
+                        monitor.update_all_workspace_globals(offset);
                         monitor.load_focused_workspace(mouse_follows_focus)?;
                     }
                 }
