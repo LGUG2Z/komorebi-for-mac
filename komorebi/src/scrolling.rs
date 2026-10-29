@@ -22,6 +22,7 @@ use crate::core::Sizing;
 use crate::core::WindowHidingPosition;
 use crate::core_graphics::CoreGraphicsApi;
 use crate::is_visible_on_another_display;
+use crate::window::is_stepping;
 use crate::workspace::Workspace;
 use crate::workspace::clamp_to_work_area;
 use color_eyre::eyre;
@@ -179,9 +180,16 @@ impl Workspace {
         // what a column takes up around its window on either side
         let around_window = container_padding + border_offset + border_width;
 
+        // windows next to an edge that is dragged are laid out for every step of the drag, and
+        // what they have turned out to be is not asked: a window that has not settled is not what
+        // it will be, and a column is never made narrower again once it was made wider for it
+        let stepping = is_stepping();
+
         // windows that were not what they were told to be since the last layout, which is where
         // the animator says so
-        self.adopt_actual_sizes(around_window, adjusted_work_area.right);
+        if !stepping {
+            self.adopt_actual_sizes(around_window, adjusted_work_area.right);
+        }
 
         self.place_scrolling(
             work_area,
@@ -195,7 +203,7 @@ impl Workspace {
         // window that refused is known by now, and everything after it is placed again with room
         // for it. Once is enough: the sizes that are read back this time round are picked up by
         // the next layout, and a layout is never made to chase them.
-        if self.adopt_actual_sizes(around_window, adjusted_work_area.right) {
+        if !stepping && self.adopt_actual_sizes(around_window, adjusted_work_area.right) {
             self.place_scrolling(
                 work_area,
                 adjusted_work_area,
@@ -700,10 +708,9 @@ impl Workspace {
         sizing: Sizing,
         delta: i32,
     ) {
-        let Some(id) = self
-            .focused_container()
-            .map(|container| container.id.clone())
-        else {
+        // the left edge of a column is moved by panning the strip, which is only done for the
+        // active column of the space, so the space has to agree about which one that is
+        let Some(id) = self.focused_scrolling_column() else {
             return;
         };
 
@@ -971,6 +978,48 @@ mod tests {
             widths(&workspace.layout_scrolling(&AREA, 0))[1],
             MINIMUM_COLUMN_WIDTH
         );
+    }
+
+    /// Where the edges of the column at `idx` are, from the left and the right
+    fn edges_of(placements: &[ScrollingPlacement], idx: usize) -> (i32, i32) {
+        let rect = placements[idx].rect;
+
+        (rect.left, rect.left + rect.right)
+    }
+
+    #[test]
+    fn resizing_by_the_left_edge_moves_that_edge_and_keeps_the_right_one() {
+        let mut workspace = workspace(3, 3);
+        let before = workspace.layout_scrolling(&AREA, 0);
+        let (left, right) = edges_of(&before, 2);
+
+        workspace.resize_scrolling_column(OperationDirection::Left, Sizing::Increase, 100);
+        let after = workspace.layout_scrolling(&AREA, 0);
+
+        assert_eq!(edges_of(&after, 2), (left - 50, right));
+
+        // and moving it back puts it back
+        workspace.resize_scrolling_column(OperationDirection::Left, Sizing::Decrease, 100);
+        assert_eq!(
+            edges_of(&workspace.layout_scrolling(&AREA, 0), 2),
+            (left, right)
+        );
+    }
+
+    #[test]
+    fn resizing_a_column_that_has_focus_but_is_not_the_active_one_moves_its_left_edge_too() {
+        // dragging the edge of a window moves the focus of the workspace to its container, and the
+        // strip is only told about that when something asks it to lay out
+        let mut workspace = workspace(3, 5);
+        workspace.focus_container(0);
+        let before = workspace.layout_scrolling(&AREA, 0);
+        let (left, right) = edges_of(&before, 1);
+
+        workspace.focus_container(1);
+        workspace.resize_scrolling_column(OperationDirection::Left, Sizing::Increase, 100);
+        let after = workspace.layout_scrolling(&AREA, 0);
+
+        assert_eq!(edges_of(&after, 1), (left - 50, right));
     }
 
     #[test]

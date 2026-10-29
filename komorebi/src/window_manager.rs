@@ -1,3 +1,4 @@
+use crate::AccessibilityUiElement;
 use crate::CoreFoundationRunLoop;
 use crate::DATA_DIR;
 use crate::LibraryError;
@@ -33,7 +34,11 @@ use crate::monitor::Monitor;
 use crate::ring::Ring;
 use crate::static_config::StaticConfig;
 use crate::window::AdhocWindow;
+use crate::window::Snapping;
 use crate::window::Window;
+use crate::window::dragged_window;
+use crate::window::live_resize_begins;
+use crate::window::live_resize_ends;
 use crate::window::should_act_individual;
 use crate::window_manager_event::ManualNotification;
 use crate::window_manager_event::SystemNotification;
@@ -46,6 +51,7 @@ use color_eyre::eyre::OptionExt;
 use color_eyre::eyre::bail;
 use crossbeam_channel::Receiver;
 use hotwatch::Hotwatch;
+use komorebi_layouts::scrolling::model::ScrollingSpace;
 use objc2_core_foundation::CFRetained;
 use objc2_core_foundation::CFRunLoop;
 use parking_lot::Mutex;
@@ -60,6 +66,43 @@ use std::os::unix::net::UnixListener;
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
 use std::sync::Arc;
+
+/// What the workspace was when somebody took hold of an edge of a window, and what has been done
+/// with it since, so that the windows next to the edge can follow it as it is dragged
+///
+/// Every step of the drag, and the end of it, is worked out from this and not from the step
+/// before: a drag ends the same with its steps as without them, and one that is taken back to
+/// where it began puts the windows next to it back.
+#[derive(Debug)]
+pub struct LiveResize {
+    /// The window that is being dragged
+    pub window: u32,
+    /// How many containers there were, since a window that opens or closes in the middle of a drag
+    /// changes what the layout is made of, and what is kept is no longer about it
+    pub containers: usize,
+    pub resize_dimensions: Vec<Option<Rect>>,
+    pub latest_layout: Vec<Rect>,
+    pub scrolling: Option<ScrollingSpace<String>>,
+    /// Whether the windows next to the edge have been laid out for a step, which is to be put
+    /// right when the drag ends, whatever it comes to
+    pub stepped: bool,
+    /// The windows next to the dragged one and their apps, which are not waited for for as long as
+    /// they are by default while the drag is on
+    timeouts: Vec<AccessibilityUiElement>,
+}
+
+/// How long, in seconds, the apps of the windows next to a dragged edge are waited for, which is
+/// a good deal less than the time that it takes for an app that does not answer to be given up on:
+/// a step is no use to anybody by then
+const LIVE_RESIZE_TIMEOUT: f32 = 0.25;
+
+/// Say how long the apps in `elements` are waited for. Nought is what they are waited for by
+/// default.
+fn set_messaging_timeouts(elements: &[AccessibilityUiElement], seconds: f32) {
+    for element in elements {
+        let _ = AccessibilityApi::set_messaging_timeout(element, seconds);
+    }
+}
 
 #[derive(Debug)]
 pub struct WindowManager {
@@ -83,6 +126,8 @@ pub struct WindowManager {
     pub minimized_windows: HashMap<u32, Window>,
     pub pending_move_op: Arc<Option<(usize, usize, u32)>>,
     pub pending_resize_op: Arc<Option<(u32, Option<Rect>)>>,
+    /// The workspace as it was when an edge that the windows next to it follow was taken hold of
+    pub live_resize: Option<LiveResize>,
     pub already_moved_window_handles: Arc<Mutex<HashSet<u32>>>,
     /// Maps each known window id to the (monitor, workspace) index pair managing it
     pub known_window_ids: HashMap<u32, (usize, usize)>,
@@ -167,6 +212,7 @@ impl WindowManager {
             minimized_windows: HashMap::new(),
             pending_move_op: Arc::new(None),
             pending_resize_op: Arc::new(None),
+            live_resize: None,
             already_moved_window_handles: Default::default(),
             known_window_ids: Default::default(),
         })
@@ -1715,6 +1761,63 @@ impl WindowManager {
     /// its size to a grid of cells, or keeps to a minimum size, is never quite on its tile
     const DRAG_SNAP_TOLERANCE: i32 = 32;
 
+    /// How far an edge can have got between somebody taking hold of it and the start of the drag
+    /// being handled, which a fast drag makes a good many pixels
+    const DRAG_LAG_ALLOWANCE: i32 = 64;
+
+    /// Where the edges of a drag began, given the first frame of the window that was seen once the
+    /// drag was going on, the frame that it is in now and the tile that it was put in. All three
+    /// are `[left, top, right, bottom]`.
+    ///
+    /// The first AXWindowResized is reported after the edge has already moved, and handlers run
+    /// one at a time, so the frame a drag is first seen in is not the one it began from, and can
+    /// even be the one it has ended in.
+    ///
+    /// * An edge that has moved since the drag was first seen was dragged, and began on its tile
+    ///   if the frame that it was first seen in was no further from it than a fast drag gets
+    ///   before it is handled. Any further and it is measured from where it was seen.
+    /// * An edge that has not moved was not dragged, and the offset of an app from its tile is not
+    ///   part of the drag, nor is a window that cannot be as small as its tile.
+    /// * Where nothing has moved at all the drag was over before it was seen, and an edge that is
+    ///   further from its tile than an app strays from its tile on its own was dragged.
+    fn drag_origin(started: [i32; 4], ended: [i32; 4], tile: Option<[i32; 4]>) -> [i32; 4] {
+        let Some(tile) = tile else {
+            return started;
+        };
+
+        let seen_moving = started != ended;
+
+        let mut origin = started;
+        for i in 0..4 {
+            let began_on_tile = if seen_moving {
+                ended[i] != started[i] && (started[i] - tile[i]).abs() <= Self::DRAG_LAG_ALLOWANCE
+            } else {
+                (ended[i] - tile[i]).abs() > Self::DRAG_SNAP_TOLERANCE
+            };
+
+            if began_on_tile {
+                origin[i] = tile[i];
+            }
+        }
+
+        origin
+    }
+
+    /// The edges that were moved from `origin` to `ended`, and by how much, which is negative
+    /// for an edge that went left or up.
+    fn edges_moved(origin: [i32; 4], ended: [i32; 4]) -> Vec<(OperationDirection, i32)> {
+        [
+            OperationDirection::Left,
+            OperationDirection::Up,
+            OperationDirection::Right,
+            OperationDirection::Down,
+        ]
+        .into_iter()
+        .enumerate()
+        .filter_map(|(i, edge)| (ended[i] != origin[i]).then_some((edge, ended[i] - origin[i])))
+        .collect()
+    }
+
     /// Applies a mouse drag of the edge(s) of `window_id`'s tile, given the frame the window was
     /// first seen in once the drag was going on and the frame it ended in. Returns whether the
     /// workspace needs to be re-tiled, which also puts back a window dragged by an edge with no
@@ -1734,41 +1837,31 @@ impl WindowManager {
 
         // A Rect is (left, top, width, height); work in edges instead
         let edges = |r: &Rect| [r.left, r.top, r.left + r.right, r.top + r.bottom];
-        let started = edges(&started_from);
         let ended = edges(&ended_at);
         let tile = workspace.latest_layout.get(idx).map(edges);
 
-        // The first AXWindowResized is reported after the edge has already moved, and handlers
-        // run one at a time, so the frame a drag is first seen in is not the one it began from,
-        // and can even be the one it ended in. An edge that ended up further from its tile than
-        // an app strays from its tile on its own was dragged, and began on its tile. Any other
-        // edge was not moved, and the offset of the app from its tile is not part of the drag.
-        let moved: Vec<(OperationDirection, i32)> = [
-            OperationDirection::Left,
-            OperationDirection::Up,
-            OperationDirection::Right,
-            OperationDirection::Down,
-        ]
-        .into_iter()
-        .enumerate()
-        .filter_map(|(i, edge)| {
-            let from = match tile {
-                Some(tile) if (ended[i] - tile[i]).abs() > Self::DRAG_SNAP_TOLERANCE => tile[i],
-                _ => started[i],
-            };
-
-            (ended[i] != from).then_some((edge, ended[i] - from))
-        })
-        .collect();
+        let origin = Self::drag_origin(edges(&started_from), ended, tile);
+        let moved = Self::edges_moved(origin, ended);
 
         if moved.is_empty() {
             return Ok(false);
         }
 
-        // Resize the container of the dragged window, which is not necessarily the focused one
+        self.apply_mouse_resize(idx, &moved)?;
+
+        Ok(true)
+    }
+
+    /// Resize the container at `idx` by the edges that were dragged, which is not necessarily
+    /// the one that has focus.
+    fn apply_mouse_resize(
+        &mut self,
+        idx: usize,
+        moved: &[(OperationDirection, i32)],
+    ) -> eyre::Result<()> {
         self.focused_workspace_mut()?.focus_container(idx);
 
-        for (edge, by) in moved {
+        for &(edge, by) in moved {
             let outward = match edge {
                 OperationDirection::Left | OperationDirection::Up => by < 0,
                 OperationDirection::Right | OperationDirection::Down => by > 0,
@@ -1784,7 +1877,212 @@ impl WindowManager {
             self.resize_window(edge, sizing, by.abs() * 2, false)?;
         }
 
-        Ok(true)
+        Ok(())
+    }
+
+    /// What a drag by an edge of `window_id` is followed from, if it is one that the windows next
+    /// to the edge follow: that is a window in a container of a workspace that is tiled, and
+    /// where nothing is maximised or in monocle.
+    fn live_resize_snapshot(&self, window_id: u32) -> Option<LiveResize> {
+        let workspace = self.focused_workspace().ok()?;
+
+        let follows = workspace.tile
+            && matches!(workspace.layer, WorkspaceLayer::Tiling)
+            && workspace.monocle_container.is_none()
+            && workspace.maximized_window.is_none()
+            && workspace.container_idx_for_window(window_id).is_some();
+
+        follows.then(|| LiveResize {
+            window: window_id,
+            containers: workspace.containers().len(),
+            resize_dimensions: workspace.resize_dimensions.clone(),
+            latest_layout: workspace.latest_layout.clone(),
+            scrolling: workspace.scrolling.clone(),
+            stepped: false,
+            timeouts: vec![],
+        })
+    }
+
+    /// Somebody has taken hold of an edge of `window_id`: keep what the workspace is, for the
+    /// windows next to the edge to follow it from here, if they are to.
+    pub fn live_resize_begin(&mut self, window_id: u32) {
+        // one that was never ended, by a window manager that did not hear that the button went up
+        self.live_resize_forget();
+
+        let Some(mut live) = self.live_resize_snapshot(window_id) else {
+            return;
+        };
+
+        if let Ok(workspace) = self.focused_workspace() {
+            let dragged_process = workspace
+                .container_for_window(window_id)
+                .and_then(|container| container.windows().iter().find(|w| w.id == window_id))
+                .map(|window| window.application.process_id);
+
+            for container in workspace.containers() {
+                for window in container.windows().iter().filter(|w| w.id != window_id) {
+                    live.timeouts.push(window.element.clone());
+
+                    // the app of the window that is dragged is asked where that window is for
+                    // every step, and is not to be given up on any sooner for a neighbour that
+                    // is one of its windows
+                    if Some(window.application.process_id) != dragged_process {
+                        live.timeouts.push(window.application.element().clone());
+                    }
+                }
+            }
+        }
+
+        set_messaging_timeouts(&live.timeouts, LIVE_RESIZE_TIMEOUT);
+
+        live_resize_begins(window_id);
+        self.live_resize = Some(live);
+    }
+
+    /// Stop following a drag, wherever it got to, and give back what was kept.
+    pub(crate) fn live_resize_forget(&mut self) -> Option<LiveResize> {
+        live_resize_ends();
+
+        let live = self.live_resize.take()?;
+        set_messaging_timeouts(&live.timeouts, 0.0);
+
+        Some(live)
+    }
+
+    /// Whether the windows next to an edge are following the drag of a window other than
+    /// `window_id`.
+    ///
+    /// A window that is moved or resized while somebody is dragging another one is a window that
+    /// the layout has moved, and not somebody dragging it. With the button up there is no drag,
+    /// whatever was kept.
+    pub fn another_window_is_being_dragged(&self, window_id: u32) -> bool {
+        self.live_resize
+            .as_ref()
+            .is_some_and(|live| live.window != window_id && dragged_window() == Some(live.window))
+    }
+
+    /// Work out what the workspace is for where the dragged window is now, from what it was when
+    /// the drag began, and say whether that is to be laid out.
+    ///
+    /// `now` is where the window is, which is not asked for here.
+    pub(crate) fn live_resize_apply(&mut self, now: Rect) -> eyre::Result<bool> {
+        let Some(mut live) = self.live_resize.take() else {
+            return Ok(false);
+        };
+
+        let Some((_, Some(started_from))) =
+            (*self.pending_resize_op).filter(|(window, _)| *window == live.window)
+        else {
+            self.live_resize = Some(live);
+            return Ok(false);
+        };
+
+        let workspace = self.focused_workspace()?;
+
+        // a window that opens or closes in the middle of a drag changes what the layout is made
+        // of, and there is nothing in what was kept to follow it by: the end of the drag is
+        // worked out from what the workspace is by then
+        if workspace.containers().len() != live.containers
+            || workspace.container_idx_for_window(live.window).is_none()
+        {
+            tracing::debug!("not following the drag any more: the containers have changed");
+
+            // the drag is still going on, and what the layout moves is still not somebody dragging
+            // it, so that is left as it is until the button goes up
+            set_messaging_timeouts(&live.timeouts, 0.0);
+
+            return Ok(false);
+        }
+
+        // a window that was only moved changes no tile until it is let go, and one that has been
+        // taken back to where it began is a step like any other, which puts the windows back
+        let resized = now.right != started_from.right || now.bottom != started_from.bottom;
+        if !resized && !live.stepped {
+            self.live_resize = Some(live);
+            return Ok(false);
+        }
+
+        let workspace = self.focused_workspace_mut()?;
+        workspace.resize_dimensions = live.resize_dimensions.clone();
+        workspace.latest_layout = live.latest_layout.clone();
+        workspace.scrolling = live.scrolling.clone();
+
+        let moved = self.resize_by_drag(live.window, started_from, now);
+
+        // what was kept is kept whatever came of this
+        live.stepped |= moved.as_ref().is_ok_and(|moved| *moved);
+        let lay_out = live.stepped;
+        self.live_resize = Some(live);
+
+        moved?;
+
+        Ok(lay_out)
+    }
+
+    /// Lay out the workspace for where the edge of the dragged window is now.
+    ///
+    /// This is for a step of the drag of `window_id`, which says only that the window has moved.
+    pub fn live_resize_step(&mut self, window_id: u32) -> eyre::Result<()> {
+        if self.is_paused
+            || !self
+                .live_resize
+                .as_ref()
+                .is_some_and(|live| live.window == window_id)
+        {
+            return Ok(());
+        }
+
+        // the button went up, and the end of the drag is on its way
+        if dragged_window() != Some(window_id) {
+            return Ok(());
+        }
+
+        let element = self
+            .focused_workspace()?
+            .container_for_window(window_id)
+            .and_then(|container| container.windows().iter().find(|w| w.id == window_id))
+            .map(|window| window.element.clone())
+            .ok_or_eyre("the dragged window is not in a container on the focused workspace")?;
+
+        let now = Rect::from(MacosApi::window_rect(&element)?);
+
+        if !self.live_resize_apply(now)? {
+            return Ok(());
+        }
+
+        let offset = self.work_area_offset;
+        let _snapping = Snapping::step(window_id);
+
+        self.focused_monitor_mut()
+            .ok_or_eyre("there is no monitor")?
+            .update_focused_workspace(offset)
+    }
+
+    /// The drag is over: put the workspace back to what it was when the drag began, for the end
+    /// of the drag to work out what it did from there, as it does when there were no steps.
+    ///
+    /// Says whether the windows next to the edge were laid out for any step of the drag, in
+    /// which case they are not where the layout for the end of the drag puts them, and are to be
+    /// laid out again whatever the drag comes to.
+    pub(crate) fn live_resize_end(&mut self) -> bool {
+        let Some(live) = self.live_resize_forget() else {
+            return false;
+        };
+
+        if !live.stepped {
+            return false;
+        }
+
+        if let Ok(workspace) = self.focused_workspace_mut()
+            && workspace.containers().len() == live.containers
+            && workspace.container_idx_for_window(live.window).is_some()
+        {
+            workspace.resize_dimensions = live.resize_dimensions;
+            workspace.latest_layout = live.latest_layout;
+            workspace.scrolling = live.scrolling;
+        }
+
+        true
     }
 
     #[tracing::instrument(skip(self))]
@@ -5897,5 +6195,449 @@ mod tests {
         let after = tiles(&wm);
         assert_eq!(after[2].left, tile.left - 211, "{tile:?} -> {:?}", after[2]);
         assert_tiling(&after);
+    }
+
+    // Following an edge that is dragged, with the windows next to it laid out for every step.
+    // Nothing here asks a window where it is, so the frame that a step finds the dragged window
+    // in is given.
+
+    /// The edge of `window_id` has been taken hold of, and the first frame of it that was seen is
+    /// `started_from`
+    fn followed(wm: &mut WindowManager, window_id: u32, started_from: Rect) {
+        *Arc::make_mut(&mut wm.pending_resize_op) = Some((window_id, Some(started_from)));
+        wm.live_resize = Some(wm.live_resize_snapshot(window_id).unwrap());
+    }
+
+    /// A step of the drag, and the layout that comes of it recorded the way that updating the
+    /// workspace records it. Says whether the workspace was laid out.
+    fn step(wm: &mut WindowManager, now: Rect) -> bool {
+        let laid_out = wm.live_resize_apply(now).unwrap();
+
+        if laid_out {
+            let latest_layout = tiles(wm);
+            wm.focused_workspace_mut().unwrap().latest_layout = latest_layout;
+        }
+
+        laid_out
+    }
+
+    #[test]
+    fn test_the_steps_of_a_drag_and_its_end_come_to_what_the_drag_comes_to_without_them() {
+        let (mut stepped, _context) = tiled(DefaultLayout::UltrawideVerticalStack, &[1, 2, 3]);
+        let tile = tiles(&stepped)[2];
+        let started_from = grown_left(tile, 22);
+        let ended_at = grown_left(tile, 107);
+
+        let (mut at_once, _other) = tiled(DefaultLayout::UltrawideVerticalStack, &[1, 2, 3]);
+        at_once.resize_by_drag(3, started_from, ended_at).unwrap();
+
+        let before = tiles(&stepped);
+        followed(&mut stepped, 3, started_from);
+        for by in [40, 75, 107] {
+            assert!(step(&mut stepped, grown_left(tile, by)), "step to {by}");
+
+            // the neighbours follow, a step at a time
+            assert_ne!(tiles(&stepped), before, "step to {by}");
+        }
+
+        assert!(stepped.live_resize_end());
+        stepped.resize_by_drag(3, started_from, ended_at).unwrap();
+
+        assert_eq!(tiles(&stepped), tiles(&at_once));
+        assert_eq!(
+            stepped.focused_workspace().unwrap().latest_layout,
+            at_once.focused_workspace().unwrap().latest_layout
+        );
+        assert!(stepped.live_resize.is_none());
+    }
+
+    #[test]
+    fn test_a_step_moves_the_neighbours_to_where_the_edge_is() {
+        let (mut wm, _context) = tiled(DefaultLayout::BSP, &[1, 2, 3]);
+        let before = tiles(&wm);
+        let tile = before[1];
+
+        followed(&mut wm, 2, tile);
+        assert!(step(&mut wm, grown_left(tile, 60)));
+
+        let after = tiles(&wm);
+        assert_eq!(after[1].left, tile.left - 60);
+        assert_eq!(after[0].right, before[0].right - 60);
+        assert_tiling(&after);
+
+        // the window that is dragged is the one with focus
+        assert_eq!(wm.focused_workspace().unwrap().focused_container_idx(), 1);
+    }
+
+    #[test]
+    fn test_a_drag_that_is_taken_back_to_where_it_began_puts_the_neighbours_back() {
+        let (mut wm, _context) = tiled(DefaultLayout::BSP, &[1, 2, 3]);
+        let before = tiles(&wm);
+        let tile = before[1];
+
+        followed(&mut wm, 2, grown_left(tile, 22));
+        assert!(step(&mut wm, grown_left(tile, 120)));
+        assert_ne!(tiles(&wm), before);
+
+        // back to the frame that it was first seen in
+        assert!(step(&mut wm, grown_left(tile, 22)));
+
+        assert_eq!(tiles(&wm), before);
+        assert!(no_resizes(&wm));
+    }
+
+    #[test]
+    fn test_two_steps_to_the_same_frame_do_not_add_up() {
+        let (mut wm, _context) = tiled(DefaultLayout::BSP, &[1, 2, 3]);
+        let tile = tiles(&wm)[1];
+
+        followed(&mut wm, 2, tile);
+        step(&mut wm, grown_left(tile, 60));
+        let once = tiles(&wm);
+
+        step(&mut wm, grown_left(tile, 60));
+        step(&mut wm, grown_left(tile, 60));
+
+        assert_eq!(tiles(&wm), once);
+    }
+
+    #[test]
+    fn test_a_drag_that_only_moved_the_window_lays_nothing_out() {
+        let (mut wm, _context) = tiled(DefaultLayout::BSP, &[1, 2, 3]);
+        let tile = tiles(&wm)[1];
+        followed(&mut wm, 2, tile);
+
+        // the same size, somewhere else: that is a window being moved by its title bar
+        let moved = Rect {
+            left: tile.left + 80,
+            top: tile.top + 40,
+            ..tile
+        };
+
+        assert!(!step(&mut wm, moved));
+        assert!(no_resizes(&wm));
+
+        // and the end of it has nothing to put back
+        assert!(!wm.live_resize_end());
+    }
+
+    #[test]
+    fn test_the_end_of_a_drag_that_was_not_laid_out_for_has_nothing_to_put_back() {
+        let (mut wm, _context) = tiled(DefaultLayout::BSP, &[1, 2, 3]);
+        let tile = tiles(&wm)[1];
+        followed(&mut wm, 2, tile);
+
+        assert!(!wm.live_resize_end());
+        assert!(wm.live_resize.is_none());
+    }
+
+    #[test]
+    fn test_the_end_of_a_drag_puts_the_workspace_back_for_the_drag_to_be_applied_to() {
+        let (mut wm, _context) = tiled(DefaultLayout::BSP, &[1, 2, 3]);
+        let before = tiles(&wm);
+        let tile = before[1];
+
+        followed(&mut wm, 2, tile);
+        assert!(step(&mut wm, grown_left(tile, 60)));
+        assert_ne!(tiles(&wm), before);
+
+        assert!(wm.live_resize_end());
+
+        assert_eq!(tiles(&wm), before);
+        assert_eq!(wm.focused_workspace().unwrap().latest_layout, before);
+        assert!(no_resizes(&wm));
+    }
+
+    #[test]
+    fn test_a_container_that_opens_in_the_middle_of_a_drag_stops_it_being_followed() {
+        let (mut wm, _context) = tiled(DefaultLayout::BSP, &[1, 2, 3]);
+        let tile = tiles(&wm)[1];
+
+        followed(&mut wm, 2, tile);
+        assert!(step(&mut wm, grown_left(tile, 40)));
+
+        wm.focused_workspace_mut()
+            .unwrap()
+            .new_container_for_window(&Window::from(4))
+            .unwrap();
+        let resizes = wm.focused_workspace().unwrap().resize_dimensions.clone();
+
+        assert!(!step(&mut wm, grown_left(tile, 80)));
+        assert!(wm.live_resize.is_none());
+
+        // what the workspace is now is left as it is, not put back to what it was before
+        assert_eq!(wm.focused_workspace().unwrap().resize_dimensions, resizes);
+        assert!(!wm.live_resize_end());
+    }
+
+    #[test]
+    fn test_a_container_that_closes_in_the_middle_of_a_drag_stops_it_being_followed() {
+        let (mut wm, _context) = tiled(DefaultLayout::BSP, &[1, 2, 3]);
+        let tile = tiles(&wm)[1];
+
+        followed(&mut wm, 2, tile);
+        wm.focused_workspace_mut()
+            .unwrap()
+            .remove_window(3)
+            .unwrap();
+
+        assert!(!step(&mut wm, grown_left(tile, 80)));
+        assert!(wm.live_resize.is_none());
+    }
+
+    #[test]
+    fn test_a_step_for_a_window_that_is_not_the_one_that_was_taken_hold_of_is_ignored() {
+        let (mut wm, _context) = tiled(DefaultLayout::BSP, &[1, 2, 3]);
+        let before = tiles(&wm);
+        let tile = before[1];
+
+        // the pending resize is of another window than the one that is followed
+        followed(&mut wm, 2, tile);
+        *Arc::make_mut(&mut wm.pending_resize_op) = Some((3, Some(before[2])));
+
+        assert!(!step(&mut wm, grown_left(tile, 60)));
+        assert_eq!(tiles(&wm), before);
+
+        wm.live_resize_step(3).unwrap();
+        assert_eq!(tiles(&wm), before);
+    }
+
+    #[test]
+    fn test_a_drag_is_only_followed_in_a_workspace_that_is_tiled() {
+        let (mut wm, _context) = tiled(DefaultLayout::BSP, &[1, 2, 3]);
+        assert!(wm.live_resize_snapshot(2).is_some());
+
+        // a window that is not in a container
+        assert!(wm.live_resize_snapshot(99).is_none());
+
+        wm.focused_workspace_mut().unwrap().tile = false;
+        assert!(wm.live_resize_snapshot(2).is_none());
+        wm.focused_workspace_mut().unwrap().tile = true;
+
+        wm.focused_workspace_mut().unwrap().layer = WorkspaceLayer::Floating;
+        assert!(wm.live_resize_snapshot(2).is_none());
+        wm.focused_workspace_mut().unwrap().layer = WorkspaceLayer::Tiling;
+
+        wm.focused_workspace_mut().unwrap().monocle_container = Some(Container::default());
+        assert!(wm.live_resize_snapshot(2).is_none());
+        wm.focused_workspace_mut().unwrap().monocle_container = None;
+
+        wm.focused_workspace_mut().unwrap().maximized_window = Some(Window::from(2));
+        assert!(wm.live_resize_snapshot(2).is_none());
+    }
+
+    #[test]
+    fn test_nothing_is_followed_where_there_is_nothing_that_was_kept() {
+        let (mut wm, _context) = tiled(DefaultLayout::BSP, &[1, 2, 3]);
+        let before = tiles(&wm);
+
+        assert!(!wm.live_resize_apply(grown_left(before[1], 60)).unwrap());
+        assert!(!wm.live_resize_end());
+        wm.live_resize_step(2).unwrap();
+
+        assert_eq!(tiles(&wm), before);
+    }
+
+    // A drag is measured from the tile that the window was put in, which is where the edge began
+    // when it was taken hold of, and not from where the window had got to when the start of the
+    // drag was first seen.
+
+    #[test]
+    fn test_an_edge_dragged_before_the_start_was_handled_is_measured_from_the_tile() {
+        let tile = [27, 27, 623, 725];
+        // read after the right edge had gone 7px
+        let started = [27, 27, 630, 725];
+        let ended = [27, 27, 683, 725];
+
+        assert_eq!(
+            WindowManager::drag_origin(started, ended, Some(tile)),
+            [27, 27, 623, 725]
+        );
+    }
+
+    #[test]
+    fn test_a_drag_of_under_the_snap_tolerance_is_measured_from_the_tile_too() {
+        // dragged by 10, and seen after 3 of them: it used to be 7 that was asked for, since an
+        // edge that is not 32 from its tile is taken to be where it began
+        let tile = [27, 27, 623, 725];
+        let started = [27, 27, 626, 725];
+        let ended = [27, 27, 633, 725];
+
+        let origin = WindowManager::drag_origin(started, ended, Some(tile));
+
+        let moved = WindowManager::edges_moved(origin, ended);
+        assert!(
+            matches!(moved[..], [(OperationDirection::Right, 10)]),
+            "{moved:?}"
+        );
+    }
+
+    #[test]
+    fn test_an_edge_that_did_not_move_is_left_as_it_was_read() {
+        // a window that cannot be as narrow as its tile, dragged by the other edge
+        let tile = [27, 27, 623, 725];
+        let started = [27, 27, 650, 725];
+        let ended = [27, 27, 650, 760];
+
+        assert_eq!(
+            WindowManager::drag_origin(started, ended, Some(tile)),
+            [27, 27, 650, 725]
+        );
+    }
+
+    #[test]
+    fn test_an_edge_far_from_its_tile_is_left_as_it_was_read() {
+        let tile = [27, 27, 623, 725];
+        let started = [27, 27, 800, 725];
+        let ended = [27, 27, 830, 725];
+
+        assert_eq!(
+            WindowManager::drag_origin(started, ended, Some(tile)),
+            started
+        );
+    }
+
+    #[test]
+    fn test_there_is_nothing_to_go_by_without_a_tile() {
+        let started = [27, 27, 630, 725];
+        let ended = [27, 27, 683, 725];
+
+        assert_eq!(WindowManager::drag_origin(started, ended, None), started);
+    }
+
+    #[test]
+    fn test_a_drag_that_was_over_when_it_was_first_seen_is_measured_from_the_tile() {
+        let tile = [27, 27, 623, 725];
+        let seen = [27, 27, 834, 725];
+
+        assert_eq!(
+            WindowManager::drag_origin(seen, seen, Some(tile)),
+            [27, 27, 623, 725]
+        );
+    }
+
+    #[test]
+    fn test_a_window_that_is_a_little_off_its_tile_has_not_been_dragged() {
+        // nothing moved, and the offset is what an app does on its own
+        let tile = [27, 27, 623, 725];
+        let seen = [27, 27, 640, 725];
+
+        let origin = WindowManager::drag_origin(seen, seen, Some(tile));
+
+        assert_eq!(origin, seen);
+        assert!(WindowManager::edges_moved(origin, seen).is_empty());
+    }
+
+    // The same, for the Scrolling layout, whose tiles are not worked out from the resizes of the
+    // workspace but from the strip that it keeps.
+
+    /// A monitor with a workspace in the Scrolling layout, with a container per window id, the
+    /// last of them focused, laid out as a window update would
+    fn scrolled(ids: &[u32]) -> (WindowManager, TestContext) {
+        let (mut wm, context) = setup_window_manager();
+
+        let m = monitor::new(
+            0,
+            WORK_AREA,
+            WORK_AREA,
+            "TestMonitor".to_string(),
+            "TestDeviceID".to_string(),
+        );
+        wm.monitors_mut().push_back(m);
+
+        let workspace = wm.focused_workspace_mut().unwrap();
+        workspace.layout = Layout::Default(DefaultLayout::Scrolling);
+        for id in ids {
+            workspace
+                .new_container_for_window(&Window::from(*id))
+                .unwrap();
+        }
+
+        scroll_layout(&mut wm);
+
+        (wm, context)
+    }
+
+    /// Lay the strip out and record the tiles, as updating the workspace does
+    fn scroll_layout(wm: &mut WindowManager) -> Vec<Rect> {
+        let workspace = wm.focused_workspace_mut().unwrap();
+        let rects: Vec<Rect> = workspace
+            .layout_scrolling(&WORK_AREA, 0)
+            .iter()
+            .map(|placement| placement.rect)
+            .collect();
+        workspace.latest_layout = rects.clone();
+
+        rects
+    }
+
+    fn scroll_step(wm: &mut WindowManager, now: Rect) -> Vec<Rect> {
+        assert!(wm.live_resize_apply(now).unwrap());
+
+        scroll_layout(wm)
+    }
+
+    fn grown_right(r: Rect, by: i32) -> Rect {
+        Rect {
+            right: r.right + by,
+            ..r
+        }
+    }
+
+    #[test]
+    fn test_the_steps_of_a_drag_of_a_column_do_not_add_up_and_a_drag_back_restores_the_strip() {
+        let (mut wm, _context) = scrolled(&[1, 2, 3, 4, 5]);
+        let before = scroll_layout(&mut wm);
+        let tile = before[3];
+
+        followed(&mut wm, 4, tile);
+
+        // a column is as much wider as the edge was dragged, and not by the sum of the steps
+        for by in [40, 100, 100] {
+            let rects = scroll_step(&mut wm, grown_right(tile, by));
+
+            assert_eq!(rects[3].right, tile.right + by, "dragged by {by}");
+        }
+
+        // and taken back
+        let rects = scroll_step(&mut wm, tile);
+        assert_eq!(rects, before);
+
+        assert!(wm.live_resize_end());
+        assert_eq!(scroll_layout(&mut wm), before);
+    }
+
+    #[test]
+    fn test_the_left_edge_of_a_column_that_is_dragged_stays_where_it_is_dragged_to() {
+        let (mut wm, _context) = scrolled(&[1, 2, 3, 4, 5]);
+
+        // the strip is at its start, with the first column the one that the strip says is active,
+        // and the second is the one that is dragged: dragging an edge only moves the focus of the
+        // workspace to it, and not that of the strip
+        wm.focused_workspace_mut().unwrap().focus_container(0);
+        let before = scroll_layout(&mut wm);
+        let tile = before[1];
+        assert_eq!(tile.left, 640);
+        followed(&mut wm, 2, tile);
+
+        let rects = scroll_step(&mut wm, grown_left(tile, 60));
+
+        // the edge goes as far as it was dragged, and the other is where it was
+        assert_eq!(rects[1].left, tile.left - 60);
+        assert_eq!(rects[1].left + rects[1].right, tile.left + tile.right);
+        assert_eq!(rects[1].right, tile.right + 60);
+    }
+
+    #[test]
+    fn test_the_left_edge_of_the_last_column_that_is_dragged_stays_where_it_is_dragged_to() {
+        let (mut wm, _context) = scrolled(&[1, 2, 3, 4, 5]);
+        let before = scroll_layout(&mut wm);
+        let tile = before[3];
+        followed(&mut wm, 4, tile);
+
+        let rects = scroll_step(&mut wm, grown_left(tile, 60));
+
+        assert_eq!(rects[3].left, tile.left - 60);
+        assert_eq!(rects[3].left + rects[3].right, tile.left + tile.right);
     }
 }

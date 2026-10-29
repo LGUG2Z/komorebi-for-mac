@@ -42,6 +42,9 @@ pub enum WindowManagerEvent {
     MoveStart(SystemNotification, i32, u32),
     MoveEnd(SystemNotification, i32, u32),
     ResizeStart(SystemNotification, i32, u32),
+    /// The window that is being dragged by an edge has moved, which is not a report of
+    /// where it is, only that it has: the handler looks
+    ResizeStep(SystemNotification, i32, u32),
     ResizeEnd(SystemNotification, i32, u32),
     SpaceChange(SystemNotification, i32),
     ScreenLock(SystemNotification, i32),
@@ -155,6 +158,7 @@ impl WindowManagerEvent {
             | WindowManagerEvent::MoveStart(_, process_id, _)
             | WindowManagerEvent::MoveEnd(_, process_id, _)
             | WindowManagerEvent::ResizeStart(_, process_id, _)
+            | WindowManagerEvent::ResizeStep(_, process_id, _)
             | WindowManagerEvent::ResizeEnd(_, process_id, _)
             | WindowManagerEvent::SpaceChange(_, process_id)
             | WindowManagerEvent::ScreenLock(_, process_id)
@@ -173,6 +177,7 @@ impl WindowManagerEvent {
             | WindowManagerEvent::MoveStart(n, _, _)
             | WindowManagerEvent::MoveEnd(n, _, _)
             | WindowManagerEvent::ResizeStart(n, _, _)
+            | WindowManagerEvent::ResizeStep(n, _, _)
             | WindowManagerEvent::ResizeEnd(n, _, _)
             | WindowManagerEvent::Unmanage(n, _, _)
             | WindowManagerEvent::SpaceChange(n, _)
@@ -200,6 +205,7 @@ impl WindowManagerEvent {
             | WindowManagerEvent::MoveStart(_, _, window_id)
             | WindowManagerEvent::MoveEnd(_, _, window_id)
             | WindowManagerEvent::ResizeStart(_, _, window_id)
+            | WindowManagerEvent::ResizeStep(_, _, window_id)
             | WindowManagerEvent::ResizeEnd(_, _, window_id)
             | WindowManagerEvent::Restore(_, _, window_id) => Some(*window_id),
         }

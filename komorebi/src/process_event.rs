@@ -28,6 +28,7 @@ use crate::splash::mdm_enrollment;
 use crate::state::State;
 use crate::window::AdhocWindow;
 use crate::window::RuleDebug;
+use crate::window::Snapping;
 use crate::window::Window;
 use crate::window::should_act;
 use crate::window_manager::WindowManager;
@@ -89,6 +90,13 @@ pub fn listen_for_events(wm: Arc<Mutex<WindowManager>>) {
 impl WindowManager {
     #[instrument(skip_all)]
     pub fn process_event(&mut self, event: WindowManagerEvent) -> eyre::Result<()> {
+        // the step is off the channel whatever is done about it, and the next that comes waits for
+        // this one to begin and no longer, which is not so if it is left to where it is handled:
+        // nothing is handled while paused, or on another space
+        if matches!(event, WindowManagerEvent::ResizeStep(_, _, _)) {
+            window_manager_event_listener::resize_step_taken();
+        }
+
         if matches!(event, WindowManagerEvent::ScreenLock(_, _)) {
             let application = self.application(event.process_id())?;
             if application.name().unwrap_or_default() == "loginwindow" {
@@ -130,6 +138,14 @@ impl WindowManager {
             tracing::trace!("ignoring events and commands while not on space {space_id}");
             border_manager::destroy_all_borders()?;
             return Ok(());
+        }
+
+        // A step of a drag says only that the window has moved, and is handled before anything that
+        // is done for the other events: they ask the app of the window things, which is time that
+        // the windows next to the edge spend not following it, and a step is not in anybody's
+        // subscription for the same reason
+        if let WindowManagerEvent::ResizeStep(_, _, window_id) = event {
+            return self.live_resize_step(window_id);
         }
 
         let mut rule_debug = RuleDebug::default();
@@ -842,7 +858,17 @@ impl WindowManager {
                 let pending_move_op = Arc::make_mut(&mut self.pending_move_op);
                 *pending_move_op = None;
 
-                if let Some((origin_monitor_idx, origin_workspace_idx, wid)) = pending {
+                // The window of a drag by an edge that the windows next to it follow is where the
+                // layout has put its tile, and not where somebody has moved it to, so it is not a
+                // move that it ends
+                let following_drag = self
+                    .live_resize
+                    .as_ref()
+                    .is_some_and(|live| live.window == window_id);
+
+                if let Some((origin_monitor_idx, origin_workspace_idx, wid)) = pending
+                    && !following_drag
+                {
                     // If the window handles don't match then something went wrong and the pending move
                     // is not related to this current move, if so abort this operation.
                     if wid != window_id {
@@ -1042,60 +1068,125 @@ impl WindowManager {
                 }
             }
             WindowManagerEvent::ResizeStart(_, _, window_id) => {
-                animator::cancel(window_id);
-
-                // AXWindowResized fires again and again through a drag; only the first frame is
-                // the one the drag started from
-                let already_recorded = matches!(
-                    *self.pending_resize_op,
-                    Some((wid, Some(_))) if wid == window_id
-                );
-
-                if !already_recorded {
-                    let workspace = self.focused_workspace()?;
-                    if let Some(container) = workspace.container_for_window(window_id)
-                        && let Some(window) = container.windows().iter().find(|w| w.id == window_id)
+                // While an edge is dragged the windows next to it are laid out again and again,
+                // and they say that they were resized, which is not somebody dragging them. Most
+                // of that is dropped where it is heard, but what was heard before the drag was
+                // followed is dropped here, since taking it for a drag would lose the one that
+                // is going on.
+                if self.another_window_is_being_dragged(window_id) {
+                    tracing::debug!(
+                        "ignoring the start of a resize of window {window_id}: it is following a drag"
+                    );
+                } else {
+                    // a drag that was followed, and whose end was never heard
+                    if self
+                        .live_resize
+                        .as_ref()
+                        .is_some_and(|live| live.window != window_id)
                     {
-                        let started_from = Rect::from(MacosApi::window_rect(&window.element)?);
+                        self.live_resize_forget();
+                    }
 
-                        let pending_resize_op = Arc::make_mut(&mut self.pending_resize_op);
-                        *pending_resize_op = Option::from((window_id, Some(started_from)));
+                    animator::cancel(window_id);
+
+                    // AXWindowResized fires again and again through a drag; only the first frame is
+                    // the one the drag started from
+                    let already_recorded = matches!(
+                        *self.pending_resize_op,
+                        Some((wid, Some(_))) if wid == window_id
+                    );
+
+                    if !already_recorded {
+                        let workspace = self.focused_workspace()?;
+                        if let Some(container) = workspace.container_for_window(window_id)
+                            && let Some(window) =
+                                container.windows().iter().find(|w| w.id == window_id)
+                        {
+                            let started_from = Rect::from(MacosApi::window_rect(&window.element)?);
+
+                            let pending_resize_op = Arc::make_mut(&mut self.pending_resize_op);
+                            *pending_resize_op = Option::from((window_id, Some(started_from)));
+
+                            // the windows next to the edge follow it from here
+                            self.live_resize_begin(window_id);
+
+                            // the edges at the left and at the top move the window as well, which
+                            // is somebody resizing it, and not moving it
+                            if self.live_resize.is_some()
+                                && matches!(
+                                    *self.pending_move_op,
+                                    Some((_, _, wid)) if wid == window_id
+                                )
+                            {
+                                let pending_move_op = Arc::make_mut(&mut self.pending_move_op);
+                                *pending_move_op = None;
+                            }
+                        }
                     }
                 }
             }
             WindowManagerEvent::ResizeEnd(_, _, window_id) => {
+                // The drag is over, and so is anything that followed it. The windows next to the
+                // edge are what the layout was when it began, for the end to be worked out from
+                // there, as it is when there were no steps.
+                let dragged = self.live_resize.as_ref().map(|live| live.window);
+                let stepped = self.live_resize_end();
+
                 let pending = *self.pending_resize_op;
                 // Always consume the pending resize op whenever this event is handled
                 let pending_resize_op = Arc::make_mut(&mut self.pending_resize_op);
                 *pending_resize_op = None;
 
+                // The end of a drag that was followed is the end of that drag, whichever window
+                // the event is about: the windows next to the edge say that they were resized as
+                // the button goes up, and it is the window that was dragged that is looked at.
+                let window_id = match (dragged, pending) {
+                    (Some(dragged), Some((wid, _))) if wid == dragged => dragged,
+                    _ => window_id,
+                };
+
+                // the windows next to the edge are where the last step put them, a few pixels from
+                // where the end of the drag does, which is not worth animating
+                let _snapping = stepped.then(Snapping::end);
+
+                let mut redraw = stepped;
+                let mut mismatched = None;
+
                 if let Some((wid, Some(started_from))) = pending {
-                    // If the window handles don't match then something went wrong and the pending resize
-                    // is not related to this current resize, if so abort this operation.
                     if wid != window_id {
-                        eyre::bail!(
-                            "window handles for resize operation don't match: {} != {}",
-                            wid,
-                            window_id
-                        );
-                    }
+                        mismatched = Some(wid);
+                    } else {
+                        let workspace = self.focused_workspace()?;
+                        if workspace.tile
+                            && let Some(container) = workspace.container_for_window(window_id)
+                            && let Some(window) =
+                                container.windows().iter().find(|w| w.id == window_id)
+                        {
+                            let ended_at = Rect::from(MacosApi::window_rect(&window.element)?);
 
-                    let workspace = self.focused_workspace()?;
-                    if workspace.tile
-                        && let Some(container) = workspace.container_for_window(window_id)
-                        && let Some(window) = container.windows().iter().find(|w| w.id == window_id)
-                    {
-                        let ended_at = Rect::from(MacosApi::window_rect(&window.element)?);
-
-                        tracing::info!("resizing with mouse");
-                        if self.resize_by_drag(window_id, started_from, ended_at)? {
-                            self.update_focused_workspace(false, false)?;
+                            tracing::info!("resizing with mouse");
+                            redraw |= self.resize_by_drag(window_id, started_from, ended_at)?;
                         }
                     }
                 }
+
+                if redraw {
+                    self.update_focused_workspace(false, false)?;
+                }
+
+                // If the window handles don't match then something went wrong and the pending resize
+                // is not related to this current resize, if so abort this operation.
+                if let Some(wid) = mismatched {
+                    eyre::bail!(
+                        "window handles for resize operation don't match: {} != {}",
+                        wid,
+                        window_id
+                    );
+                }
             }
             // handled before this match
-            WindowManagerEvent::SpaceChange(_, _)
+            WindowManagerEvent::ResizeStep(_, _, _)
+            | WindowManagerEvent::SpaceChange(_, _)
             | WindowManagerEvent::ScreenLock(_, _)
             | WindowManagerEvent::ScreenUnlock(_, _) => {}
         }

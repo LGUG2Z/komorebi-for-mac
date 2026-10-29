@@ -96,6 +96,8 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::ptr::NonNull;
 use std::str::FromStr;
+use std::sync::atomic::AtomicU32;
+use std::sync::atomic::Ordering;
 use strum::Display;
 use strum::EnumString;
 use tracing::instrument;
@@ -122,6 +124,131 @@ lazy_static::lazy_static! {
 
 /// How long, in seconds, to wait for a window to say how big it is after it was resized
 const ARRIVAL_TIMEOUT: f32 = 1.0;
+
+/// The window that somebody is dragging by an edge while the windows next to it follow
+///
+/// Nothing is dragged while the mouse button is up, so a button that went up without anything
+/// saying so, which is what a tap that was turned off does, cannot leave the window of a drag that
+/// is long over being treated as one that is going on.
+#[derive(Debug, Default)]
+struct Drag {
+    /// The id of the window, or nought for none, which is no id that a window has
+    window: AtomicU32,
+}
+
+impl Drag {
+    fn begin(&self, window_id: u32) {
+        self.window.store(window_id, Ordering::SeqCst);
+    }
+
+    fn end(&self) {
+        self.window.store(0, Ordering::SeqCst);
+    }
+
+    /// The window that is being dragged, if there is one, given a way to find out whether the
+    /// button is down, which is only asked if there is a drag to ask about: this is for every
+    /// move and resize that any window says.
+    ///
+    /// With the button up there is nothing being dragged, and nothing is going to say so, so it is
+    /// forgotten here.
+    fn window(&self, mouse_is_down: impl FnOnce() -> bool) -> Option<u32> {
+        let window_id = self.window.load(Ordering::SeqCst);
+
+        if window_id == 0 {
+            return None;
+        }
+
+        if !mouse_is_down() {
+            let _ = self
+                .window
+                .compare_exchange(window_id, 0, Ordering::SeqCst, Ordering::SeqCst);
+
+            return None;
+        }
+
+        Some(window_id)
+    }
+}
+
+static DRAG: Drag = Drag {
+    window: AtomicU32::new(0),
+};
+
+/// How windows are put where a layout says while the windows next to one that is dragged follow it
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Snap {
+    /// The way it always is
+    Off,
+    /// For a step of the drag of the window with this id
+    Step(u32),
+    /// For the end of a drag that was followed
+    End,
+}
+
+lazy_static::lazy_static! {
+    static ref SNAP: parking_lot::Mutex<Snap> = parking_lot::Mutex::new(Snap::Off);
+
+    /// Where every window was last sent in the steps of the drag that is going on, so that a window
+    /// that would be sent where it is already is left alone
+    static ref SENT: parking_lot::Mutex<HashMap<u32, Rect>> =
+        parking_lot::Mutex::new(HashMap::new());
+}
+
+fn snap() -> Snap {
+    *SNAP.lock()
+}
+
+/// Lays out what is laid out while it is alive straight into place and not by animation, as the
+/// windows next to one that is dragged follow it, and are not to be seen catching up.
+pub struct Snapping;
+
+impl Snapping {
+    /// For a step of the drag of the window `dragged`, which is left to the person dragging it, and
+    /// which does not wait to be told what the windows turned out to be, nor send a window where it
+    /// was sent last.
+    pub fn step(dragged: u32) -> Self {
+        *SNAP.lock() = Snap::Step(dragged);
+        Self
+    }
+
+    /// For the end of a drag that was followed: the windows are a few pixels from where the end of
+    /// the drag puts them, which is not worth animating, and every one of them is sent there.
+    pub fn end() -> Self {
+        *SNAP.lock() = Snap::End;
+        Self
+    }
+}
+
+impl Drop for Snapping {
+    fn drop(&mut self) {
+        *SNAP.lock() = Snap::Off;
+    }
+}
+
+/// Whether the windows are being laid out for a step of a drag, in which what a window turned out to
+/// be is not asked, since a window that has not settled would say something that is not true.
+pub fn is_stepping() -> bool {
+    matches!(snap(), Snap::Step(_))
+}
+
+/// Somebody has taken hold of the edge of a window, and the windows next to it follow it from
+/// here until [`live_resize_ends`].
+pub fn live_resize_begins(window_id: u32) {
+    SENT.lock().clear();
+    DRAG.begin(window_id);
+}
+
+/// The drag is over.
+pub fn live_resize_ends() {
+    DRAG.end();
+    SENT.lock().clear();
+}
+
+/// The window that somebody is dragging by an edge while the windows next to it follow, which is
+/// none unless the button is down.
+pub fn dragged_window() -> Option<u32> {
+    DRAG.window(MacosApi::left_mouse_button_is_pressed)
+}
 
 const NOTIFICATIONS: &[&str] = &[
     kAXWindowMiniaturizedNotification,
@@ -153,6 +280,24 @@ unsafe extern "C-unwind" fn window_observer_callback(
         ) = notification
             && let Some(window_id) = window_id
         {
+            // While an edge is dragged the windows next to it are laid out again and again, and
+            // every one of them says so, with the mouse button down: it would be taken for somebody
+            // dragging that window. What is said by the window that is being dragged is a step, and
+            // nothing is asked of its app to say so, since the app is busy with the drag.
+            if let Some(dragged) = dragged_window() {
+                if window_id == dragged {
+                    window_manager_event_listener::send_notification(
+                        WindowManagerEvent::ResizeStep(
+                            SystemNotification::Accessibility(moved_or_resized),
+                            process_id,
+                            window_id,
+                        ),
+                    );
+                }
+
+                return;
+            }
+
             let mouse_is_down = MacosApi::left_mouse_button_is_pressed();
 
             let verdict =
@@ -562,6 +707,8 @@ impl Window {
         // goes straight to the other edge
         let motion = match parked_at {
             Some(_) => None,
+            // the windows next to an edge that is dragged follow it, and are not seen sliding
+            None if snap() != Snap::Off => None,
             None => animation::motion_for(AnimationPrefix::Movement),
         };
 
@@ -741,6 +888,15 @@ impl Window {
     }
 
     pub fn set_position(&self, rect: &Rect) -> Result<(), AccessibilityError> {
+        match snap() {
+            Snap::Step(dragged) => return self.set_position_for_step(dragged, rect),
+            Snap::End => {
+                PARKED_WINDOWS.lock().remove(&self.id);
+                return self.set_position_direct(rect);
+            }
+            Snap::Off => {}
+        }
+
         match animation::motion_for(AnimationPrefix::Movement) {
             Some(motion) => {
                 self.slide_in_from_edge(rect);
@@ -761,7 +917,14 @@ impl Window {
     /// window that was not resized is not asked: that costs a round trip to the app, and what
     /// the window turned out to be is not going to be any different from last time.
     pub fn note_arrival(&self, target: &Rect, resized: bool) {
-        if !resized || animation::motion_for(AnimationPrefix::Movement).is_some() {
+        // for a step of a drag it is not asked, however the window got there: a round trip to every
+        // window that was resized, each of which can take as long as the timeout, is time that the
+        // windows next to the edge spend not following it, and a window that has not settled would
+        // say that it is wider than it will be
+        let animated =
+            snap() == Snap::Off && animation::motion_for(AnimationPrefix::Movement).is_some();
+
+        if !resized || animated || is_stepping() {
             return;
         }
 
@@ -817,6 +980,34 @@ impl Window {
                 self.id
             );
         }
+    }
+
+    /// Put the window where a step of the drag of the window `dragged` says that it goes
+    ///
+    /// The window that is being dragged is where the person dragging it has it. Any other goes
+    /// straight there, without an animation to catch up with the next step, and not at all if it
+    /// is where it was sent last.
+    fn set_position_for_step(&self, dragged: u32, rect: &Rect) -> Result<(), AccessibilityError> {
+        if self.id == dragged {
+            tracing::debug!("window {} is left alone: it is being dragged", self.id);
+
+            return Ok(());
+        }
+
+        if SENT.lock().insert(self.id, *rect) == Some(*rect) {
+            tracing::debug!(
+                "window {} is left alone: it is where it was sent last, {rect:?}",
+                self.id
+            );
+
+            return Ok(());
+        }
+
+        tracing::debug!("window {} is sent to {rect:?}", self.id);
+
+        // nothing is going to slide it in, so nothing else is going to say that it is back
+        PARKED_WINDOWS.lock().remove(&self.id);
+        self.set_position_direct(rect)
     }
 
     fn set_position_direct(&self, rect: &Rect) -> Result<(), AccessibilityError> {
@@ -1894,4 +2085,67 @@ pub fn should_act_individual(
     }
 
     should_act
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn nothing_is_dragged_before_a_drag_begins() {
+        let drag = Drag::default();
+
+        assert_eq!(drag.window(|| true), None);
+        assert_eq!(drag.window(|| false), None);
+    }
+
+    #[test]
+    fn the_button_is_not_asked_about_when_there_is_no_drag() {
+        let drag = Drag::default();
+
+        assert_eq!(
+            drag.window(|| panic!("nothing was being dragged, so there is nothing to ask")),
+            None
+        );
+    }
+
+    #[test]
+    fn the_window_of_a_drag_is_dragged_for_as_long_as_the_button_is_down() {
+        let drag = Drag::default();
+        drag.begin(42);
+
+        assert_eq!(drag.window(|| true), Some(42));
+        assert_eq!(drag.window(|| true), Some(42));
+    }
+
+    #[test]
+    fn nothing_is_dragged_once_the_drag_has_ended() {
+        let drag = Drag::default();
+        drag.begin(42);
+        drag.end();
+
+        assert_eq!(drag.window(|| true), None);
+    }
+
+    #[test]
+    fn a_button_that_went_up_without_the_end_being_seen_leaves_nothing_dragged() {
+        // the tap that sees the button go up can be turned off, and then nothing says so
+        let drag = Drag::default();
+        drag.begin(42);
+
+        assert_eq!(drag.window(|| false), None);
+
+        // and it is not dragged again by the next time that the button is down
+        assert_eq!(drag.window(|| true), None);
+    }
+
+    #[test]
+    fn a_drag_that_began_is_not_forgotten_by_one_that_ended_before() {
+        let drag = Drag::default();
+        drag.begin(42);
+        drag.end();
+        drag.begin(7);
+
+        assert_eq!(drag.window(|| true), Some(7));
+    }
 }
