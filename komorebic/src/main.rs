@@ -28,7 +28,9 @@ use komorebi_client::splash::ValidationFeedback;
 use lazy_static::lazy_static;
 use std::fs::File;
 use std::fs::OpenOptions;
+use std::io;
 use std::io::BufRead;
+use std::io::BufReader;
 use std::io::Write;
 use std::num::NonZeroUsize;
 use std::path::PathBuf;
@@ -38,6 +40,8 @@ use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 use sysinfo::ProcessesToUpdate;
+
+mod pan;
 
 lazy_static! {
     static ref HAS_CUSTOM_CONFIG_HOME: AtomicBool = AtomicBool::new(false);
@@ -633,8 +637,27 @@ struct ScrollingLayoutColumns {
 #[derive(Parser)]
 struct Pan {
     /// The way that the view goes
-    #[clap(value_enum)]
-    direction: PanDirection,
+    #[clap(
+        value_enum,
+        required_unless_present = "stream",
+        conflicts_with = "stream"
+    )]
+    direction: Option<PanDirection>,
+    /// Read the gestures of fingers on a touchpad from standard input, in the gesture stream that
+    /// whkd writes for a swipe of three or four fingers, and pan with them
+    #[clap(long)]
+    stream: bool,
+    /// What the distances of a gesture are multiplied by, which is 1 if it is left out, with
+    /// --stream
+    #[clap(long)]
+    sensitivity: Option<f64>,
+    /// Go the other way to the fingers, with --stream
+    #[clap(long)]
+    reversed: bool,
+    /// Take a step for every two centimetres that the fingers go, and not move the view with
+    /// them, with --stream
+    #[clap(long)]
+    paging: bool,
 }
 
 #[derive(Parser)]
@@ -1025,12 +1048,20 @@ enum SubCommand {
     /// becomes a column with a window in each slot, in the order of its tabs. Only the Scrolling
     /// layout has columns of several windows, so this does nothing in the other layouts.
     ToggleColumnStack,
-    /// Move the view of the Scrolling layout a column to the left or the right
+    /// Move the view of the Scrolling layout a column to the left or the right, or with the
+    /// fingers on a touchpad
     ///
     /// The strip of columns moves by the width of a new column and comes to rest with a column
     /// against an edge of the screen. Focus stays on the column that has it if that is still fully
     /// in view, and otherwise goes to the nearest column that is. Only the Scrolling layout has a
     /// strip to move, so this does nothing in the other layouts.
+    ///
+    /// With --stream the strip follows the fingers as they go, 10 centimetres of travel being the
+    /// width of the screen, until they lift, and then comes to rest in the column that the speed
+    /// that they lifted at takes it to. Standard input is the gesture stream that whkd writes on
+    /// Windows, one message to a line: `begin`, `move dx=<cm> t=<ms>`, `end` and `cancel`. A
+    /// gesture that is not finished when standard input closes is given up, and the strip goes back
+    /// to where it was.
     #[clap(arg_required_else_help = true)]
     Pan(Pan),
     /// Set the layout column and row ratios for the focused workspace
@@ -2434,7 +2465,30 @@ exit 1
             send_message(&SocketMessage::ToggleColumnStack)?;
         }
         SubCommand::Pan(args) => {
-            send_message(&SocketMessage::Pan(args.direction))?;
+            // a flag that has a default counts as given, so what only goes with --stream
+            // cannot be left to the parser to say
+            if !args.stream && (args.sensitivity.is_some() || args.reversed || args.paging) {
+                Opts::command()
+                    .error(
+                        clap::error::ErrorKind::ArgumentConflict,
+                        "--sensitivity, --reversed and --paging can only be used with --stream",
+                    )
+                    .exit();
+            }
+
+            if args.stream {
+                pan::run(
+                    BufReader::new(io::stdin()),
+                    pan::Options {
+                        sensitivity: args.sensitivity.unwrap_or(1.0),
+                        reversed: args.reversed,
+                        paging: args.paging,
+                    },
+                    &mut pan::Socket::new(komorebi_client::Connection::open),
+                )?;
+            } else if let Some(direction) = args.direction {
+                send_message(&SocketMessage::Pan(direction))?;
+            }
         }
         SubCommand::LayoutRatios(args) => {
             if args.columns.is_none() && args.rows.is_none() {

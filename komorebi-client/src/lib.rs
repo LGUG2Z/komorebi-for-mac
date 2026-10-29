@@ -52,6 +52,35 @@ pub fn send_message(message: &SocketMessage) -> std::io::Result<()> {
     stream.write_all(serde_json::to_string(message)?.as_bytes())
 }
 
+/// A connection to komorebi that messages are written to one after the other, which komorebi
+/// handles in the order that they were written, as it does the lines of a batch. Messages sent
+/// with [`send_message`] are each on a connection of their own, which komorebi handles on a
+/// thread of its own, so two that are sent together can be handled in either order.
+pub struct Connection {
+    stream: UnixStream,
+}
+
+impl Connection {
+    pub fn open() -> std::io::Result<Self> {
+        let socket = DATA_DIR.join(KOMOREBI);
+
+        Self::from_stream(UnixStream::connect(socket)?)
+    }
+
+    fn from_stream(stream: UnixStream) -> std::io::Result<Self> {
+        stream.set_write_timeout(Some(Duration::from_secs(1)))?;
+
+        Ok(Self { stream })
+    }
+
+    pub fn send(&mut self, message: &SocketMessage) -> std::io::Result<()> {
+        let mut line = serde_json::to_string(message)?;
+        line.push('\n');
+
+        self.stream.write_all(line.as_bytes())
+    }
+}
+
 pub fn send_batch<Q>(messages: impl IntoIterator<Item = Q>) -> std::io::Result<()>
 where
     Q: Borrow<SocketMessage>,
@@ -129,4 +158,68 @@ pub fn subscribe_with_options(
     ))?;
 
     Ok(listener)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::BufRead;
+    use std::str::FromStr;
+
+    #[test]
+    fn messages_are_written_to_a_connection_a_line_each_in_the_order_that_they_were_sent() {
+        let (ours, theirs) = UnixStream::pair().unwrap();
+        let mut connection = Connection::from_stream(ours).unwrap();
+
+        connection
+            .send(&SocketMessage::PanGesture(PanGesture::Begin))
+            .unwrap();
+        connection
+            .send(&SocketMessage::Pan(PanDirection::Right))
+            .unwrap();
+        connection
+            .send(&SocketMessage::PanGesture(PanGesture::Move {
+                dx: 0.5,
+                dy: 0.0,
+                t: 12.0,
+            }))
+            .unwrap();
+        drop(connection);
+
+        let lines: Vec<String> = BufReader::new(theirs)
+            .lines()
+            .collect::<Result<_, _>>()
+            .unwrap();
+        assert_eq!(lines.len(), 3, "one line to a message: {lines:?}");
+
+        let messages: Vec<SocketMessage> = lines
+            .iter()
+            .map(|line| SocketMessage::from_str(line).unwrap())
+            .collect();
+        assert!(matches!(
+            messages[0],
+            SocketMessage::PanGesture(PanGesture::Begin)
+        ));
+        assert!(matches!(
+            messages[1],
+            SocketMessage::Pan(PanDirection::Right)
+        ));
+        assert!(matches!(
+            messages[2],
+            SocketMessage::PanGesture(PanGesture::Move { dx, t, .. }) if dx == 0.5 && t == 12.0
+        ));
+    }
+
+    #[test]
+    fn writing_to_a_connection_that_was_let_go_of_is_an_error() {
+        let (ours, theirs) = UnixStream::pair().unwrap();
+        let mut connection = Connection::from_stream(ours).unwrap();
+        drop(theirs);
+
+        assert!(
+            connection
+                .send(&SocketMessage::PanGesture(PanGesture::Cancel))
+                .is_err()
+        );
+    }
 }
