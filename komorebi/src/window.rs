@@ -194,6 +194,12 @@ lazy_static::lazy_static! {
         parking_lot::Mutex::new(HashMap::new());
 }
 
+/// Whether a window has scrolled out of view and been parked, which is somewhere that the layout
+/// did not put it
+pub(crate) fn is_parked(window_id: u32) -> bool {
+    PARKED_WINDOWS.lock().contains_key(&window_id)
+}
+
 fn snap() -> Snap {
     *SNAP.lock()
 }
@@ -1026,7 +1032,19 @@ impl Window {
 
         // nothing is going to slide it in, so nothing else is going to say that it is back
         PARKED_WINDOWS.lock().remove(&self.id);
-        self.set_position_direct(rect)
+        let result = self.set_position_direct(rect);
+
+        // a write that failed or timed out did not put the window anywhere, so it was not sent
+        // there, and the next step that says the same sends it again
+        if result.is_err() {
+            let mut sent = SENT.lock();
+
+            if sent.get(&self.id) == Some(rect) {
+                sent.remove(&self.id);
+            }
+        }
+
+        result
     }
 
     fn set_position_direct(&self, rect: &Rect) -> Result<(), AccessibilityError> {
@@ -2166,5 +2184,53 @@ mod tests {
         drag.begin(7);
 
         assert_eq!(drag.window(|| true), Some(7));
+    }
+
+    #[test]
+    fn a_window_that_a_step_could_not_write_to_is_sent_again_by_the_next() {
+        // an id that nothing else in the tests uses: what was sent is shared by all of them
+        let window = Window::from(3_800_000_001);
+        let rect = Rect {
+            left: 10,
+            top: 20,
+            right: 300,
+            bottom: 200,
+        };
+
+        // there is no window of that id to write to, which is a write that fails
+        assert!(window.set_position_for_step(0, &rect).is_err());
+        assert_eq!(
+            SENT.lock().get(&window.id),
+            None,
+            "it was not sent anywhere, so it is not where it was sent last"
+        );
+
+        // and the same step again is not left alone, as it would be for a window that took it
+        assert!(window.set_position_for_step(0, &rect).is_err());
+    }
+
+    #[test]
+    fn a_window_that_is_sent_where_it_was_sent_last_is_left_alone() {
+        let window = Window::from(3_800_000_002);
+        let rect = Rect {
+            left: 10,
+            top: 20,
+            right: 300,
+            bottom: 200,
+        };
+
+        SENT.lock().insert(window.id, rect);
+
+        assert!(window.set_position_for_step(0, &rect).is_ok());
+        assert_eq!(SENT.lock().get(&window.id), Some(&rect));
+    }
+
+    #[test]
+    fn the_window_that_is_dragged_is_not_sent_anywhere() {
+        let window = Window::from(3_800_000_003);
+        let rect = Rect::default();
+
+        assert!(window.set_position_for_step(window.id, &rect).is_ok());
+        assert_eq!(SENT.lock().get(&window.id), None);
     }
 }

@@ -41,6 +41,7 @@ use crate::macos_api::MacosApi;
 use crate::monitor::Monitor;
 use crate::pan::Pan;
 use crate::ring::Ring;
+use crate::settle;
 use crate::skylight::BatchedUpdates;
 use crate::static_config::StaticConfig;
 use crate::window::AdhocWindow;
@@ -2054,6 +2055,9 @@ impl WindowManager {
     /// Somebody has taken hold of an edge of `window_id`: keep what the workspace is, for the
     /// windows next to the edge to follow it from here, if they are to.
     pub fn live_resize_begin(&mut self, window_id: u32) {
+        // the windows are not looked at for the drag before any more
+        settle::begin();
+
         // one that was never ended, by a window manager that did not hear that the button went up
         self.live_resize_forget();
 
@@ -2228,6 +2232,12 @@ impl WindowManager {
             workspace.resize_dimensions = live.resize_dimensions;
             workspace.latest_layout = live.latest_layout;
             workspace.scrolling = live.scrolling;
+        }
+
+        // a step may have left a window short of where the end of the drag sends it, which is not
+        // known until the app has had time to do what it was going to
+        if let Ok(workspace_idx) = self.focused_workspace_idx() {
+            settle::request(self.focused_monitor_idx(), workspace_idx);
         }
 
         true

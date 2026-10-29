@@ -70,6 +70,7 @@ pub mod process_command;
 pub mod process_event;
 pub mod reaper;
 pub mod scrolling;
+pub mod settle;
 pub mod skylight;
 pub mod splash;
 pub mod state;
