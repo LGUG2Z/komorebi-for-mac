@@ -240,6 +240,14 @@ fn handle_notifications(
             [focused_workspace_idx]
             .layer;
         let foreground_window = MacosApi::foreground_window_id().unwrap_or_default();
+        let managed_window_processes = monitors
+            .elements()
+            .iter()
+            .flat_map(|m| m.workspaces())
+            .flat_map(|w| w.containers())
+            .flat_map(|c| c.windows())
+            .map(|w| (w.id, w.application.process_id))
+            .collect::<HashMap<_, _>>();
         let _layer_changed = previous_layer != workspace_layer;
         let _forced_update = matches!(notification, Notification::ForceUpdate);
 
@@ -317,7 +325,10 @@ fn handle_notifications(
         };
 
         if !should_process_notification {
-            tracing::debug!("monitor state matches latest snapshot, skipping notification");
+            tracing::debug!(
+                foreground_window,
+                "monitor state matches latest snapshot, skipping notification"
+            );
             continue 'receiver;
         }
 
@@ -471,13 +482,13 @@ fn handle_notifications(
                         // this happens if we cmd+w a window, but the app is still active with no windows
                         let ignore_foreground_window = foreground_window == 0;
 
-                        let focus_state_condition = if ignore_foreground_window {
-                            idx != ws.focused_container_idx() || monitor_idx != focused_monitor_idx
-                        } else {
-                            idx != ws.focused_container_idx()
-                                || monitor_idx != focused_monitor_idx
-                                || window.id != foreground_window
-                        };
+                        let focus_state_condition = !container_has_focused_look(
+                            idx == ws.focused_container_idx() && monitor_idx == focused_monitor_idx,
+                            ignore_foreground_window,
+                            window.id == foreground_window,
+                            managed_window_processes.get(&foreground_window).copied()
+                                == Some(window.application.process_id),
+                        );
 
                         let new_focus_state = if focus_state_condition {
                             if c.locked {
@@ -490,6 +501,17 @@ fn handle_notifications(
                         } else {
                             WindowKind::Single
                         };
+
+                        tracing::trace!(
+                            container_idx = idx,
+                            window_id = window.id,
+                            process_id = window.application.process_id,
+                            foreground_window,
+                            focused_container = idx == ws.focused_container_idx(),
+                            focused_monitor = monitor_idx == focused_monitor_idx,
+                            kind = ?new_focus_state,
+                            "deciding the border of a container"
+                        );
 
                         // if we are in the cmd+w situation, we wanna make sure the window we're gonna
                         // set a focused border on actually has keyboard focus
@@ -593,4 +615,54 @@ fn handle_floating_borders(
     }
 
     Ok(())
+}
+
+/// Whether the border of a container is the one for the window that has the focus.
+///
+/// komorebi focuses a window and asks the window server which window has the focus soon after. An
+/// application with another window beside the one komorebi focused can be slow to move its own
+/// focus, and until it does the other window is the one it reports. Both windows are komorebi's,
+/// and the one in its focused container is the one it chose.
+fn container_has_focused_look(
+    is_focused_container: bool,
+    ignore_foreground_window: bool,
+    is_foreground_window: bool,
+    foreground_window_is_another_of_the_same_application: bool,
+) -> bool {
+    is_focused_container
+        && (ignore_foreground_window
+            || is_foreground_window
+            || foreground_window_is_another_of_the_same_application)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_focused_window_that_has_the_focus_has_the_focused_look() {
+        assert!(container_has_focused_look(true, false, true, false));
+    }
+
+    #[test]
+    fn a_window_that_is_not_in_the_focused_container_does_not() {
+        assert!(!container_has_focused_look(false, false, true, false));
+    }
+
+    #[test]
+    fn the_focused_window_while_another_application_has_the_focus_does_not() {
+        // a window of an application that komorebi does not manage, such as an admin prompt
+        assert!(!container_has_focused_look(true, false, false, false));
+    }
+
+    #[test]
+    fn the_focused_window_of_an_application_with_no_window_focused_has_it() {
+        assert!(container_has_focused_look(true, true, false, false));
+    }
+
+    #[test]
+    fn the_focused_window_while_its_application_still_reports_its_other_window_has_it() {
+        // WezTerm 51 is focused here and WezTerm still says that 939 is its focused window
+        assert!(container_has_focused_look(true, false, false, true));
+    }
 }
