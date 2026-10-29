@@ -13,6 +13,7 @@ use komorebi_client::DefaultLayout;
 use komorebi_client::MoveBehaviour;
 use komorebi_client::OperationBehaviour;
 use komorebi_client::OperationDirection;
+use komorebi_client::PanDirection;
 use komorebi_client::PathExt;
 use komorebi_client::Rect;
 use komorebi_client::Sizing;
@@ -630,6 +631,13 @@ struct ScrollingLayoutColumns {
 }
 
 #[derive(Parser)]
+struct Pan {
+    /// The way that the view goes
+    #[clap(value_enum)]
+    direction: PanDirection,
+}
+
+#[derive(Parser)]
 struct LayoutRatios {
     /// Column width ratios (space-separated values between 0.1 and 0.9)
     #[clap(short, long, num_args = 1..)]
@@ -1017,6 +1025,14 @@ enum SubCommand {
     /// becomes a column with a window in each slot, in the order of its tabs. Only the Scrolling
     /// layout has columns of several windows, so this does nothing in the other layouts.
     ToggleColumnStack,
+    /// Move the view of the Scrolling layout a column to the left or the right
+    ///
+    /// The strip of columns moves by the width of a new column and comes to rest with a column
+    /// against an edge of the screen. Focus stays on the column that has it if that is still fully
+    /// in view, and otherwise goes to the nearest column that is. Only the Scrolling layout has a
+    /// strip to move, so this does nothing in the other layouts.
+    #[clap(arg_required_else_help = true)]
+    Pan(Pan),
     /// Set the layout column and row ratios for the focused workspace
     LayoutRatios(LayoutRatios),
     // /// Load a custom layout from file for the focused workspace
@@ -2416,6 +2432,9 @@ exit 1
         }
         SubCommand::ToggleColumnStack => {
             send_message(&SocketMessage::ToggleColumnStack)?;
+        }
+        SubCommand::Pan(args) => {
+            send_message(&SocketMessage::Pan(args.direction))?;
         }
         SubCommand::LayoutRatios(args) => {
             if args.columns.is_none() && args.rows.is_none() {

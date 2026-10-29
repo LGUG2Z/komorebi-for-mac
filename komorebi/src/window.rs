@@ -211,6 +211,14 @@ impl Snapping {
         Self
     }
 
+    /// For a step of a pan of the strip of the Scrolling layout, in which no window is being
+    /// dragged, and so every one of them is laid out, straight into place, and left alone only
+    /// if it is where it was sent last.
+    pub fn pan() -> Self {
+        // nought is the id of no window
+        Self::step(0)
+    }
+
     /// For the end of a drag that was followed: the windows are a few pixels from where the end of
     /// the drag puts them, which is not worth animating, and every one of them is sent there.
     pub fn end() -> Self {
@@ -236,6 +244,17 @@ pub fn is_stepping() -> bool {
 pub fn live_resize_begins(window_id: u32) {
     SENT.lock().clear();
     DRAG.begin(window_id);
+}
+
+/// A run of steps that is not the drag of a window begins, as the fingers of a pan land: where
+/// windows were sent by the last is not where they are by now.
+pub fn steps_begin() {
+    SENT.lock().clear();
+}
+
+/// The run of steps is over, and the layout that follows it sends every window where it goes.
+pub fn steps_end() {
+    SENT.lock().clear();
 }
 
 /// The drag is over.

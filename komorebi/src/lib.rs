@@ -65,6 +65,7 @@ pub mod macos_api;
 pub mod monitor;
 pub mod monitor_reconciliator;
 pub mod notification_center_listener;
+pub mod pan;
 pub mod process_command;
 pub mod process_event;
 pub mod reaper;

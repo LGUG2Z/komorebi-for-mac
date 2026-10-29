@@ -39,6 +39,7 @@ use crate::current_space_id;
 use crate::lockable_sequence::Lockable;
 use crate::macos_api::MacosApi;
 use crate::monitor::Monitor;
+use crate::pan::Pan;
 use crate::ring::Ring;
 use crate::skylight::BatchedUpdates;
 use crate::static_config::StaticConfig;
@@ -137,6 +138,8 @@ pub struct WindowManager {
     pub pending_resize_op: Arc<Option<(u32, Option<Rect>)>>,
     /// The workspace as it was when an edge that the windows next to it follow was taken hold of
     pub live_resize: Option<LiveResize>,
+    /// The fingers of a gesture that pans the strip of the Scrolling layout, while they are down
+    pub(crate) pan: Option<Pan>,
     pub already_moved_window_handles: Arc<Mutex<HashSet<u32>>>,
     /// Maps each known window id to the (monitor, workspace) index pair managing it
     pub known_window_ids: HashMap<u32, (usize, usize)>,
@@ -222,6 +225,7 @@ impl WindowManager {
             pending_move_op: Arc::new(None),
             pending_resize_op: Arc::new(None),
             live_resize: None,
+            pan: None,
             already_moved_window_handles: Default::default(),
             known_window_ids: Default::default(),
         })

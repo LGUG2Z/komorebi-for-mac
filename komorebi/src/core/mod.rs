@@ -28,6 +28,8 @@ pub use komorebi_layouts::MAX_RATIO;
 pub use komorebi_layouts::MAX_RATIOS;
 pub use komorebi_layouts::MIN_RATIO;
 pub use komorebi_layouts::OperationDirection;
+pub use komorebi_layouts::PanDirection;
+pub use komorebi_layouts::PanGesture;
 pub use komorebi_layouts::Rect;
 pub use komorebi_layouts::ScrollingLayoutOptions;
 pub use komorebi_layouts::Sizing;
@@ -336,6 +338,8 @@ pub enum SocketMessage {
     ScrollingLayoutFullWidth,
     CenterFocus,
     Expand,
+    Pan(PanDirection),
+    PanGesture(PanGesture),
     Consume(OperationDirection),
     Expel,
     ToggleColumnStack,
@@ -501,6 +505,7 @@ mod tests {
             SocketMessage::ScrollingLayoutFullWidth,
             SocketMessage::CenterFocus,
             SocketMessage::Expand,
+            SocketMessage::Pan(PanDirection::Left),
             SocketMessage::Consume(OperationDirection::Left),
             SocketMessage::Expel,
             SocketMessage::ToggleColumnStack,

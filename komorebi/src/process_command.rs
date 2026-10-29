@@ -1508,6 +1508,8 @@ impl WindowManager {
                 self.focused_workspace_mut()?.expand_scrolling_column();
                 self.update_focused_workspace(false, false)?;
             }
+            SocketMessage::Pan(direction) => self.pan(direction)?,
+            SocketMessage::PanGesture(gesture) => self.pan_gesture(gesture)?,
             SocketMessage::Consume(direction) => {
                 self.focused_workspace_mut()?.consume_scrolling(direction);
                 self.update_focused_workspace(false, false)?;
