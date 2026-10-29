@@ -7,7 +7,11 @@ Usage: komorebic workspace-rule <IDENTIFIER> <ID> <MONITOR> <WORKSPACE>
 
 Arguments:
   <IDENTIFIER>
-          [possible values: exe, class, title, path]
+          Possible values:
+          - exe:   Executable name
+          - class: Role or subrole
+          - title: Window title
+          - path:  Executable path
 
   <ID>
           Identifier as a string
@@ -20,6 +24,6 @@ Arguments:
 
 Options:
   -h, --help
-          Print help
+          Print help (see a summary with '-h')
 
 ```

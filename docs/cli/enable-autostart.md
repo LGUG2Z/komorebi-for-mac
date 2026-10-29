@@ -9,6 +9,9 @@ Options:
   -c, --config <CONFIG>
           Path to a static configuration JSON file
 
+      --bar
+          Enable autostart of komorebi-bar
+
   -h, --help
           Print help
 

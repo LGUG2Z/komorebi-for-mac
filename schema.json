@@ -253,6 +253,18 @@
         "$ref": "#/$defs/MonitorConfig"
       }
     },
+    "monocle_focus_behaviour": {
+      "description": "Determine what happens when focusing in a direction while a monocle container is active",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/MonocleFocusBehaviour"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": "NoOp"
+    },
     "mouse_follows_focus": {
       "description": "Enable or disable mouse follows focus",
       "type": [
@@ -3165,6 +3177,21 @@
       },
       "required": [
         "workspaces"
+      ]
+    },
+    "MonocleFocusBehaviour": {
+      "description": "Behaviour when focusing in a direction while a monocle container is active",
+      "oneOf": [
+        {
+          "description": "Cycle the monocle container to the next/previous container in the workspace",
+          "type": "string",
+          "const": "Cycle"
+        },
+        {
+          "description": "Do nothing, allowing focus to fall through to cross-monitor logic",
+          "type": "string",
+          "const": "NoOp"
+        }
       ]
     },
     "MoveBehaviour": {

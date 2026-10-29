@@ -792,6 +792,18 @@ in
           default = null;
           description = "Monitor and workspace configurations";
         };
+        monocle_focus_behaviour = lib.mkOption {
+          type = (
+            lib.types.nullOr (
+              lib.types.enum [
+                "Cycle"
+                "NoOp"
+              ]
+            )
+          );
+          default = "NoOp";
+          description = "Determine what happens when focusing in a direction while a monocle container is active";
+        };
         mouse_follows_focus = lib.mkOption {
           type = (lib.types.nullOr lib.types.bool);
           default = true;
